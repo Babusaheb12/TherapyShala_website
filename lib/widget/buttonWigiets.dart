@@ -4,7 +4,7 @@ import '../utils/flutter_color_themes.dart';
 import '../utils/flutter_font_style.dart';
 
 class CustomButton extends StatelessWidget {
-  const CustomButton({
+   CustomButton({
     super.key,
     required this.text,
     required this.onPressed,
@@ -37,11 +37,7 @@ class CustomButton extends StatelessWidget {
   Widget build(BuildContext context) {
     final effectiveBackgroundColor = backgroundColor ?? AppColors.primary;
     final effectiveTextColor = textColor ?? Colors.white;
-    final effectiveTextStyle = textStyle ??
-        FTextStyle.onboardingButton(context).copyWith(
-          color: effectiveTextColor,
-          fontWeight: FontWeight.w600,
-        );
+    final effectiveTextStyle = textStyle ?? FTextStyle.onboardingButton(context);
 
     return SizedBox(
       width: width,
@@ -59,10 +55,7 @@ class CustomButton extends StatelessWidget {
             borderRadius: BorderRadius.circular(borderRadius),
           ),
         ),
-        child: isLoading
-            ? SizedBox(
-                width: 24,
-                height: 24,
+        child: isLoading ? SizedBox( width: 24, height: 24,
                 child: CircularProgressIndicator(
                   strokeWidth: 2.5,
                   valueColor: AlwaysStoppedAnimation<Color>(effectiveTextColor),
@@ -74,7 +67,7 @@ class CustomButton extends StatelessWidget {
                 children: [
                   if (icon != null) ...[
                     icon!,
-                    const SizedBox(width: 8),
+                     SizedBox(width: 8),
                   ],
                   Text(
                     text,
@@ -88,7 +81,7 @@ class CustomButton extends StatelessWidget {
 }
 
 class CustomOutlinedButton extends StatelessWidget {
-  const CustomOutlinedButton({
+   CustomOutlinedButton({
     super.key,
     required this.text,
     required this.onPressed,

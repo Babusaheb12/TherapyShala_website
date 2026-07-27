@@ -8,7 +8,8 @@
       "version": "1.0.0+1",
       "dependencies": [
         "cupertino_icons",
-        "flutter"
+        "flutter",
+        "pinput"
       ],
       "devDependencies": [
         "flutter_lints",
@@ -38,6 +39,13 @@
         "stream_channel",
         "test_api",
         "vector_math"
+      ]
+    },
+    {
+      "name": "pinput",
+      "version": "6.0.2",
+      "dependencies": [
+        "flutter"
       ]
     },
     {

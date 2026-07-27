@@ -110,6 +110,12 @@
       "languageVersion": "3.4"
     },
     {
+      "name": "pinput",
+      "rootUri": "file:///Users/babusaheb/.pub-cache/hosted/pub.dev/pinput-6.0.2",
+      "packageUri": "lib/",
+      "languageVersion": "2.19"
+    },
+    {
       "name": "sky_engine",
       "rootUri": "file:///Users/babusaheb/Documents/flutterSdk/flutter/bin/cache/pkg/sky_engine",
       "packageUri": "lib/",

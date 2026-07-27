@@ -23,7 +23,8 @@ class FTextStyle {
   static TextStyle onboardingButton(BuildContext context) => TextStyle(
     fontFamily: fontFamily,
     fontWeight: FontWeight.w500,
-    fontSize: getResponsiveFontSize(context, 18),
+    color: AppColors.white,
+    fontSize: getResponsiveFontSize(context, 16),
     height: 1.2,
   );
 
@@ -82,17 +83,16 @@ class FTextStyle {
 
   static TextStyle loginHeading(BuildContext context) => TextStyle(
     fontFamily: fontFamily,
-    fontSize: getResponsiveFontSize(context, 24),
-    fontWeight: FontWeight.w900,
-    // color:  AppColors.black,
-    height: 1.2,
+    fontSize: getResponsiveFontSize(context, 18),
+    fontWeight: FontWeight.w500,
+    color:  AppColors.black,
   );
 
   static TextStyle loginDesc(BuildContext context) => TextStyle(
     fontFamily: fontFamily,
-    fontSize: getResponsiveFontSize(context, 14),
+    fontSize: getResponsiveFontSize(context, 16),
     fontWeight: FontWeight.w400,
-    color: Color(0xFF73565A),
+    color: AppColors.textSecondary,
   );
 
   static TextStyle registerHeading(BuildContext context) => TextStyle(
@@ -110,17 +110,56 @@ class FTextStyle {
     // color: AppColors.softGreyText,
   );
 
-  static TextStyle tittle(BuildContext context) => TextStyle(
+  static TextStyle header(BuildContext context) => TextStyle(
     fontFamily: fontFamily,
     fontSize: getResponsiveFontSize(context, 16),
     fontWeight: FontWeight.w600,
-    // color: AppColors.black,
+    color: AppColors.black,
+  );
+
+  static TextStyle textButton(BuildContext context) => TextStyle(
+    fontFamily: fontFamily,
+    fontSize: getResponsiveFontSize(context, 16),
+    fontWeight: FontWeight.w500,
+    color: AppColors.primary,
+  );
+
+
+  static TextStyle tittle(BuildContext context) => TextStyle(
+    fontFamily: fontFamily,
+    fontSize: getResponsiveFontSize(context, 16),
+    fontWeight: FontWeight.w400,
+    color: AppColors.textPrimary,
   );
 
   static TextStyle desc(BuildContext context) => TextStyle(
     fontFamily: fontFamily,
     fontSize: getResponsiveFontSize(context, 14),
+    fontWeight: FontWeight.w400,
+    color: AppColors.textSecondary,
+  );
+
+  static TextStyle price(BuildContext context) => TextStyle(
+    fontFamily: fontFamily,
+    fontSize: getResponsiveFontSize(context, 14),
     fontWeight: FontWeight.w500,
+    color: AppColors.primary,
+  );
+
+  static TextStyle originalPrice(BuildContext context) => TextStyle(
+    fontFamily: fontFamily,
+    fontSize: getResponsiveFontSize(context, 14),
+    fontWeight: FontWeight.w500,
+    decoration: TextDecoration.lineThrough,
+    color: AppColors.textSecondary,
+  );
+
+// rating
+
+  static TextStyle rating(BuildContext context) => TextStyle(
+    fontFamily: fontFamily,
+    fontSize: getResponsiveFontSize(context, 11),
+    fontWeight: FontWeight.w300,
     // color: AppColors.softGreyText,
   );
 
@@ -135,9 +174,9 @@ class FTextStyle {
   static TextStyle textfieldHintText(BuildContext context) => TextStyle(
     fontFamily: fontFamily,
     fontSize: getResponsiveFontSize(context, 14),
-    fontWeight: FontWeight.w500,
-    // color:  Color(0xFF42282B).withOpacity(0.8),
-    color: Color(0xFFC3B4B6),
+    fontWeight: FontWeight.w400,
+    color:  AppColors.add.withOpacity(0.8),
+    // color: Color(0xFFC3B4B6),
 
     /// hint text color
   );

@@ -1,20 +1,20 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-
 import '../utils/ImageAssets.dart';
 import '../utils/constants.dart';
 import '../utils/flutter_color_themes.dart';
 import '../utils/flutter_font_style.dart';
+import '../widget/buttonWigiets.dart';
+import 'CustomerOtp.dart';
+import 'TherapistOtp.dart';
 
 enum LoginRole { customer, therapist }
 
 class chooseLoginRole extends StatefulWidget {
   chooseLoginRole({super.key, this.onRoleSelected, this.onContinue});
 
-  /// Called as soon as the user changes their login role.
   final ValueChanged<LoginRole>? onRoleSelected;
 
-  /// Use this to start OTP/login verification with the selected role and number.
   final void Function(LoginRole role, String mobileNumber)? onContinue;
 
   @override
@@ -43,19 +43,35 @@ class _chooseLoginRoleState extends State<chooseLoginRole> {
 
     if (digitsOnly.length != 10) {
       setState(
-        () => _mobileError = 'Please enter a valid 10-digit mobile number',
+        () => _mobileError = Constants.mNoValidation,
       );
       return;
     }
 
     setState(() => _mobileError = null);
     widget.onContinue?.call(_selectedRole, digitsOnly);
+
+    if (_selectedRole == LoginRole.customer) {
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => OtpCustomerScreen(mobileNumber: digitsOnly),
+        ),
+      );
+    } else {
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => OtpTherapistScreen(mobileNumber: digitsOnly),
+        ),
+      );
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     final isCustomer = _selectedRole == LoginRole.customer;
-    final roleName = isCustomer ? 'Customer' : 'Therapist';
+    final roleName = isCustomer ? Constants.customer : Constants.therapist;
 
     return AnnotatedRegion<SystemUiOverlayStyle>(
       value: SystemUiOverlayStyle.light.copyWith(
@@ -121,7 +137,7 @@ class _chooseLoginRoleState extends State<chooseLoginRole> {
                       ),
                       SizedBox(height: 42),
                       Text(
-                        'Sign in to continue',
+                        Constants.sigIn,
                         style: FTextStyle.chooseRoleTitle(context).copyWith(
                           color: Colors.white,
                           fontSize: 28,
@@ -140,7 +156,7 @@ class _chooseLoginRoleState extends State<chooseLoginRole> {
                         children: [
                           Expanded(
                             child: _RoleOption(
-                              label: 'Customer',
+                              label: Constants.customer,
                               icon: Icons.person_rounded,
                               selected: isCustomer,
                               activeColor: AppColors.primary,
@@ -150,7 +166,7 @@ class _chooseLoginRoleState extends State<chooseLoginRole> {
                           SizedBox(width: 12),
                           Expanded(
                             child: _RoleOption(
-                              label: 'Therapist',
+                              label: Constants.therapist,
                               icon: Icons.spa_rounded,
                               selected: !isCustomer,
                               activeColor: Color(0xFFF4B6C5),
@@ -161,105 +177,95 @@ class _chooseLoginRoleState extends State<chooseLoginRole> {
                       ),
                       SizedBox(height: 30),
                       Text(
-                        '$roleName mobile number',
-                        style: FTextStyle.chooseRoleButton(context),
+                          '$roleName ${Constants.mNo}',
+                          style: FTextStyle.chooseRoleButton(context),
                       ),
                       SizedBox(height: 10),
-                      TextField(
-                        controller: _mobileController,
-                        keyboardType: TextInputType.phone,
-                        textInputAction: TextInputAction.done,
-                        maxLength: 10,
-                        onChanged: (_) {
-                          if (_mobileError != null)
-                            setState(() => _mobileError = null);
-                        },
-                        onSubmitted: (_) => _continue(),
-                        inputFormatters: [
-                          FilteringTextInputFormatter.digitsOnly,
-                        ],
-                        style: TextStyle(color: Colors.white, fontSize: 17),
-                        decoration: InputDecoration(
-                          counterText: '',
-                          prefixIcon: Padding(
-                            padding: EdgeInsets.only(left: 16, right: 12),
-                            child: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Text(
-                                  '+91',
-                                  style: TextStyle(
-                                    color: Colors.white70,
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.w600,
+                      AutofillGroup(
+                        child: TextField(
+                          controller: _mobileController,
+                          keyboardType: TextInputType.phone,
+                          autofillHints: [AutofillHints.telephoneNumber],
+                          textInputAction: TextInputAction.done,
+                          maxLength: 10,
+                          onChanged: (_) {
+                            if (_mobileError != null)
+                              setState(() => _mobileError = null);
+                          },
+                          onSubmitted: (_) => _continue(),
+                          inputFormatters: [
+                            FilteringTextInputFormatter.digitsOnly,
+                          ],
+                          style: TextStyle(color: Colors.white, fontSize: 17),
+                          decoration: InputDecoration(
+                            counterText: '',
+                            prefixIcon: Padding(
+                              padding: EdgeInsets.only(left: 16, right: 12),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Text(
+                                    Constants.countryCode,
+                                    style: TextStyle(
+                                      color: Colors.white70,
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.w600,
+                                    ),
                                   ),
-                                ),
-                                SizedBox(width: 10),
-                                Container(
-                                  width: 1,
-                                  height: 18,
-                                  color: Colors.white24,
-                                ),
-                              ],
+                                  SizedBox(width: 10),
+                                  Container(
+                                    width: 1,
+                                    height: 18,
+                                    color: Colors.white24,
+                                  ),
+                                ],
+                              ),
                             ),
+                            prefixIconConstraints: BoxConstraints(
+                              minWidth: 0,
+                              minHeight: 0,
+                            ),
+                            hintText: Constants.placeHolderMNo,
+                            hintStyle: TextStyle(color: Color(0xFF968E94)),
+                            errorText: _mobileError,
+                            errorStyle: TextStyle(color: Color(0xFFFFB4B4)),
+                            filled: true,
+                            fillColor: Color(0xFF1E171B).withValues(alpha: .86),
+                            contentPadding: EdgeInsets.symmetric(
+                              horizontal: 16,
+                              vertical: 18,
+                            ),
+                            enabledBorder: _border(
+                              Colors.white.withValues(alpha: .14),
+                            ),
+                            focusedBorder: _border(
+                              isCustomer ? AppColors.primary : Color(0xFFF4B6C5),
+                              1.5,
+                            ),
+                            errorBorder: _border(Color(0xFFFF8A8A)),
+                            focusedErrorBorder: _border(Color(0xFFFF8A8A), 1.5),
                           ),
-                          prefixIconConstraints: BoxConstraints(
-                            minWidth: 0,
-                            minHeight: 0,
-                          ),
-                          hintText: 'Enter mobile number',
-                          hintStyle: TextStyle(color: Color(0xFF968E94)),
-                          errorText: _mobileError,
-                          errorStyle: TextStyle(color: Color(0xFFFFB4B4)),
-                          filled: true,
-                          fillColor: Color(0xFF1E171B).withValues(alpha: .86),
-                          contentPadding: EdgeInsets.symmetric(
-                            horizontal: 16,
-                            vertical: 18,
-                          ),
-                          enabledBorder: _border(
-                            Colors.white.withValues(alpha: .14),
-                          ),
-                          focusedBorder: _border(
-                            isCustomer ? AppColors.primary : Color(0xFFF4B6C5),
-                            1.5,
-                          ),
-                          errorBorder: _border(Color(0xFFFF8A8A)),
-                          focusedErrorBorder: _border(Color(0xFFFF8A8A), 1.5),
                         ),
                       ),
                       SizedBox(height: 20),
-                      SizedBox(
-                        width: double.infinity,
+                      CustomButton(
+                        text: 'Continue as $roleName',
+                        onPressed: _continue,
+                        backgroundColor: isCustomer ? AppColors.primary : Color(0xFFF4B6C5),
+                        textColor: Color(0xFF20171B),
                         height: 54,
-                        child: ElevatedButton(
-                          onPressed: _continue,
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: isCustomer
-                                ? AppColors.primary
-                                : Color(0xFFF4B6C5),
-                            foregroundColor: Color(0xFF20171B),
-                            elevation: 0,
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(16),
-                            ),
-                          ),
-                          child: Text(
-                            'Continue as $roleName',
-                            style: TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.w700,
-                            ),
-                          ),
-                        ),
+                        borderRadius: 16,
+                        // textStyle: TextStyle(
+                        //   fontSize: 16,
+                        //   fontWeight: FontWeight.w700,
+                        //   color: Color(0xFF20171B),
+                        // ),
                       ),
                       SizedBox(height: 18),
                       Center(
                         child: Text(
-                          'We’ll send an OTP to verify your number.',
-                          style: FTextStyle.chooseRoleSubtitle(
-                            context,
-                          ).copyWith(color: Colors.white60, fontSize: 13),
+                          Constants.wellSendAnOTP,
+                          style: FTextStyle.chooseRoleSubtitle(context)
                         ),
                       ),
                     ],

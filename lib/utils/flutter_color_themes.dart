@@ -7,6 +7,13 @@ class AppColors extends MaterialColor {
   static const Color softPeach = Color(0xFFF0C9D0);
   static const Color warmGrey = Color(0xFFE5D5D1);
 
+  /// banner color
+
+  static const Color bannerColor1 = Color(0xFFFF5E7E);
+  static const Color bannerColor2 = Color(0xFFE04362);
+
+  //
+
 /// new colors
 
   static const Color primary = Color(0xFFF35271);
@@ -18,6 +25,7 @@ class AppColors extends MaterialColor {
 
   static const Color white = Color(0xFFFFFFFF);
   static const Color black = Color(0xFF000000);
+  static const Color add = Color(0xFF168821);
 
 
 
