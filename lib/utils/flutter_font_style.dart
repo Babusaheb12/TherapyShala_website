@@ -51,8 +51,8 @@ class FTextStyle {
 
   static TextStyle chooseRoleButton(BuildContext context) => TextStyle(
     fontFamily: fontFamily,
-    fontWeight: FontWeight.w700,
-    color: AppColors.textPrimary,
+    fontWeight: FontWeight.w500,
+    color: AppColors.white,
     fontSize: getResponsiveFontSize(context, 16),
   );
 

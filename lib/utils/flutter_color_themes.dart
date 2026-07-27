@@ -16,5 +16,9 @@ class AppColors extends MaterialColor {
   static const Color border = Color(0xFFAFB0B7);
   static const Color primaryLight = Color(0xFFFFEEF1);
 
+  static const Color white = Color(0xFFFFFFFF);
+  static const Color black = Color(0xFF000000);
+
+
 
 }

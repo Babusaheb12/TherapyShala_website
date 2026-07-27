@@ -1,6 +1,6 @@
-import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+
 import '../utils/ImageAssets.dart';
 import '../utils/constants.dart';
 import '../utils/flutter_color_themes.dart';
@@ -9,182 +9,261 @@ import '../utils/flutter_font_style.dart';
 enum LoginRole { customer, therapist }
 
 class chooseLoginRole extends StatefulWidget {
-  const chooseLoginRole({super.key, this.onRoleSelected});
+  chooseLoginRole({super.key, this.onRoleSelected, this.onContinue});
 
+  /// Called as soon as the user changes their login role.
   final ValueChanged<LoginRole>? onRoleSelected;
+
+  /// Use this to start OTP/login verification with the selected role and number.
+  final void Function(LoginRole role, String mobileNumber)? onContinue;
 
   @override
   State<chooseLoginRole> createState() => _chooseLoginRoleState();
 }
 
 class _chooseLoginRoleState extends State<chooseLoginRole> {
-  void _selectRole(LoginRole role) => widget.onRoleSelected?.call(role);
+  final _mobileController = TextEditingController();
+  LoginRole _selectedRole = LoginRole.customer;
+  String? _mobileError;
+
+  @override
+  void dispose() {
+    _mobileController.dispose();
+    super.dispose();
+  }
+
+  void _selectRole(LoginRole role) {
+    setState(() => _selectedRole = role);
+    widget.onRoleSelected?.call(role);
+  }
+
+  void _continue() {
+    final mobileNumber = _mobileController.text.trim();
+    final digitsOnly = mobileNumber.replaceAll(RegExp(r'\D'), '');
+
+    if (digitsOnly.length != 10) {
+      setState(
+        () => _mobileError = 'Please enter a valid 10-digit mobile number',
+      );
+      return;
+    }
+
+    setState(() => _mobileError = null);
+    widget.onContinue?.call(_selectedRole, digitsOnly);
+  }
 
   @override
   Widget build(BuildContext context) {
+    final isCustomer = _selectedRole == LoginRole.customer;
+    final roleName = isCustomer ? 'Customer' : 'Therapist';
+
     return AnnotatedRegion<SystemUiOverlayStyle>(
       value: SystemUiOverlayStyle.light.copyWith(
         statusBarColor: Colors.transparent,
-        systemNavigationBarColor: const Color(0xFF0D0D12),
+        systemNavigationBarColor: Color(0xFF0D0D12),
         systemNavigationBarIconBrightness: Brightness.light,
       ),
       child: Scaffold(
-        // backgroundColor: const Color(0xFF0D0D12),
         body: Stack(
           fit: StackFit.expand,
           children: [
-            // Background Image
-            Image.asset(
-              ImageAssets.chooseRoleBackground,
-              fit: BoxFit.cover,
-            ),
-
-            // Soft Gradient Overlay
-            const DecoratedBox(
+            Image.asset(ImageAssets.chooseRoleBackground, fit: BoxFit.cover),
+            DecoratedBox(
               decoration: BoxDecoration(
-                // gradient: LinearGradient(
-                //   begin: Alignment.topCenter,
-                //   end: Alignment.bottomCenter,
-                //   colors: [
-                //     Color(0x330D0D12),
-                //     Color(0x8A0D0D12),
-                //     Color(0xF50D0D12),
-                //   ],
-                //   stops: [0.0, 0.45, 0.78],
-                // ),
+                gradient: LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: [Color(0x330D0D12), Color(0xE60D0D12)],
+                ),
               ),
             ),
-
             SafeArea(
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
-                child: Column(
-                  children: [
-                    const Spacer(flex: 2),
-
-                    // Top App Logo Header
-                    Container(
-                      width: 64,
-                      height: 64,
-                      padding: const EdgeInsets.all(6),
-                      decoration: BoxDecoration(
-                        color: Colors.white.withValues(alpha: 0.12),
-                        borderRadius: BorderRadius.circular(20),
-                        border: Border.all(
-                          color: Colors.white.withValues(alpha: 0.2),
-                        ),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withValues(alpha: 0.25),
-                            blurRadius: 20,
-                            offset: const Offset(0, 6),
+              child: SingleChildScrollView(
+                padding: EdgeInsets.fromLTRB(24, 22, 24, 24),
+                child: ConstrainedBox(
+                  constraints: BoxConstraints(
+                    minHeight: MediaQuery.sizeOf(context).height - 70,
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Center(
+                        child: Container(
+                          width: 62,
+                          height: 62,
+                          padding: EdgeInsets.all(6),
+                          decoration: BoxDecoration(
+                            color: Colors.white.withValues(alpha: .12),
+                            borderRadius: BorderRadius.circular(19),
+                            border: Border.all(
+                              color: Colors.white.withValues(alpha: .2),
+                            ),
                           ),
-                        ],
-                      ),
-                      child: ClipRRect(
-                        borderRadius: BorderRadius.circular(12),
-                        child: Image.asset(
-                          ImageAssets.appIcon,
-                          fit: BoxFit.contain,
+                          child: ClipRRect(
+                            borderRadius: BorderRadius.circular(13),
+                            child: Image.asset(
+                              ImageAssets.appIcon,
+                              fit: BoxFit.contain,
+                            ),
+                          ),
                         ),
                       ),
-                    ),
-                     SizedBox(height: 8),
-
-                    // Brand Title
-                    Text(
-                      Constants.appName,
-                      style: FTextStyle.chooseRoleButton(context).copyWith(
-                        color: Colors.white,
-                        fontWeight: FontWeight.w700,
-                        fontSize: 20,
-                      ),
-                    ),
-                    const SizedBox(height: 5),
-
-                    // Underline accent
-                    Container(
-                      width: 48,
-                      height: 4,
-                      decoration: BoxDecoration(
-                        color: AppColors.primary,
-                        borderRadius: BorderRadius.circular(2),
-                      ),
-                    ),
-                    const SizedBox(height: 16),
-
-                    // Title
-                    Text(
-                      Constants.chooseRoleTitle,
-                      textAlign: TextAlign.center,
-                      style: FTextStyle.chooseRoleTitle(context).copyWith(
-                        color: Colors.white,
-                        fontSize: 28,
-                        fontWeight: FontWeight.w700,
-                        letterSpacing: -0.4,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-
-                    // Subtitle
-                    Text(
-                      Constants.chooseRoleSubtitle,
-                      textAlign: TextAlign.center,
-                      style: FTextStyle.chooseRoleSubtitle(context).copyWith(
-                        color: const Color(0xFFC0BAC0),
-                        fontSize: 15,
-                      ),
-                    ),
-                    const SizedBox(height: 32),
-
-                    // Customer Role Card
-                    _RoleCard(
-                      titleLine1: 'Continue as Customer',
-                      subtitleLine1: 'Book wellness at your',
-                      subtitleLine2: 'convenience',
-                      icon: Icons.person_rounded,
-                      iconBgColor: AppColors.primary.withValues(alpha: 0.16),
-                      iconColor: AppColors.primary,
-                      onTap: () => _selectRole(LoginRole.customer),
-                    ),
-                    const SizedBox(height: 16),
-
-                    // Therapist Role Card
-                    _RoleCard(
-                      titleLine1: 'Continue as Therapist',
-                      subtitleLine1: 'Manage your clients',
-                      subtitleLine2: 'and services',
-                      icon: Icons.spa_rounded,
-                      iconBgColor: const Color(0xFFF4B6C5).withValues(alpha: 0.16),
-                      iconColor: const Color(0xFFF4B6C5),
-                      onTap: () => _selectRole(LoginRole.therapist),
-                    ),
-
-                    const Spacer(flex: 4),
-
-                    // Footer Terms of Service
-                    RichText(
-                      textAlign: TextAlign.center,
-                      text: TextSpan(
-                        style: FTextStyle.chooseRoleSubtitle(context).copyWith(
-                          color: Colors.white60,
-                          fontSize: 13,
+                      SizedBox(height: 12),
+                      Center(
+                        child: Text(
+                          Constants.appName,
+                          style: FTextStyle.chooseRoleButton(context).copyWith(
+                            color: Colors.white,
+                            fontWeight: FontWeight.w700,
+                            fontSize: 20,
+                          ),
                         ),
-                        children: const [
-                          TextSpan(text: 'By continuing, you agree to our '),
-                          TextSpan(
-                            text: 'Terms of Service',
-                            style: TextStyle(
-                              color: Colors.white70,
-                              decoration: TextDecoration.underline,
-                              decorationColor: Colors.white70,
+                      ),
+                      SizedBox(height: 42),
+                      Text(
+                        'Sign in to continue',
+                        style: FTextStyle.chooseRoleTitle(context).copyWith(
+                          color: Colors.white,
+                          fontSize: 28,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                      SizedBox(height: 8),
+                      Text(
+                        'Choose how you want to use ${Constants.appName}.',
+                        style: FTextStyle.chooseRoleSubtitle(
+                          context,
+                        ).copyWith(color: Color(0xFFC0BAC0), fontSize: 15),
+                      ),
+                      SizedBox(height: 28),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: _RoleOption(
+                              label: 'Customer',
+                              icon: Icons.person_rounded,
+                              selected: isCustomer,
+                              activeColor: AppColors.primary,
+                              onTap: () => _selectRole(LoginRole.customer),
+                            ),
+                          ),
+                          SizedBox(width: 12),
+                          Expanded(
+                            child: _RoleOption(
+                              label: 'Therapist',
+                              icon: Icons.spa_rounded,
+                              selected: !isCustomer,
+                              activeColor: Color(0xFFF4B6C5),
+                              onTap: () => _selectRole(LoginRole.therapist),
                             ),
                           ),
                         ],
                       ),
-                    ),
-                    const SizedBox(height: 12),
-                  ],
+                      SizedBox(height: 30),
+                      Text(
+                        '$roleName mobile number',
+                        style: FTextStyle.chooseRoleButton(context),
+                      ),
+                      SizedBox(height: 10),
+                      TextField(
+                        controller: _mobileController,
+                        keyboardType: TextInputType.phone,
+                        textInputAction: TextInputAction.done,
+                        maxLength: 10,
+                        onChanged: (_) {
+                          if (_mobileError != null)
+                            setState(() => _mobileError = null);
+                        },
+                        onSubmitted: (_) => _continue(),
+                        inputFormatters: [
+                          FilteringTextInputFormatter.digitsOnly,
+                        ],
+                        style: TextStyle(color: Colors.white, fontSize: 17),
+                        decoration: InputDecoration(
+                          counterText: '',
+                          prefixIcon: Padding(
+                            padding: EdgeInsets.only(left: 16, right: 12),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Text(
+                                  '+91',
+                                  style: TextStyle(
+                                    color: Colors.white70,
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                                SizedBox(width: 10),
+                                Container(
+                                  width: 1,
+                                  height: 18,
+                                  color: Colors.white24,
+                                ),
+                              ],
+                            ),
+                          ),
+                          prefixIconConstraints: BoxConstraints(
+                            minWidth: 0,
+                            minHeight: 0,
+                          ),
+                          hintText: 'Enter mobile number',
+                          hintStyle: TextStyle(color: Color(0xFF968E94)),
+                          errorText: _mobileError,
+                          errorStyle: TextStyle(color: Color(0xFFFFB4B4)),
+                          filled: true,
+                          fillColor: Color(0xFF1E171B).withValues(alpha: .86),
+                          contentPadding: EdgeInsets.symmetric(
+                            horizontal: 16,
+                            vertical: 18,
+                          ),
+                          enabledBorder: _border(
+                            Colors.white.withValues(alpha: .14),
+                          ),
+                          focusedBorder: _border(
+                            isCustomer ? AppColors.primary : Color(0xFFF4B6C5),
+                            1.5,
+                          ),
+                          errorBorder: _border(Color(0xFFFF8A8A)),
+                          focusedErrorBorder: _border(Color(0xFFFF8A8A), 1.5),
+                        ),
+                      ),
+                      SizedBox(height: 20),
+                      SizedBox(
+                        width: double.infinity,
+                        height: 54,
+                        child: ElevatedButton(
+                          onPressed: _continue,
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: isCustomer
+                                ? AppColors.primary
+                                : Color(0xFFF4B6C5),
+                            foregroundColor: Color(0xFF20171B),
+                            elevation: 0,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(16),
+                            ),
+                          ),
+                          child: Text(
+                            'Continue as $roleName',
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        ),
+                      ),
+                      SizedBox(height: 18),
+                      Center(
+                        child: Text(
+                          'We’ll send an OTP to verify your number.',
+                          style: FTextStyle.chooseRoleSubtitle(
+                            context,
+                          ).copyWith(color: Colors.white60, fontSize: 13),
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               ),
             ),
@@ -193,126 +272,67 @@ class _chooseLoginRoleState extends State<chooseLoginRole> {
       ),
     );
   }
+
+  OutlineInputBorder _border(Color color, [double width = 1]) =>
+      OutlineInputBorder(
+        borderRadius: BorderRadius.circular(16),
+        borderSide: BorderSide(color: color, width: width),
+      );
 }
 
-class _RoleCard extends StatefulWidget {
-  const _RoleCard({
-    required this.titleLine1,
-    required this.subtitleLine1,
-    required this.subtitleLine2,
+class _RoleOption extends StatelessWidget {
+  _RoleOption({
+    required this.label,
     required this.icon,
-    required this.iconBgColor,
-    required this.iconColor,
+    required this.selected,
+    required this.activeColor,
     required this.onTap,
   });
 
-  final String titleLine1;
-  final String subtitleLine1;
-  final String subtitleLine2;
+  final String label;
   final IconData icon;
-  final Color iconBgColor;
-  final Color iconColor;
+  final bool selected;
+  final Color activeColor;
   final VoidCallback onTap;
 
   @override
-  State<_RoleCard> createState() => _RoleCardState();
-}
-
-class _RoleCardState extends State<_RoleCard> {
-  bool _isPressed = false;
-
-  @override
   Widget build(BuildContext context) {
-    return AnimatedScale(
-      scale: _isPressed ? 0.98 : 1.0,
-      duration: const Duration(milliseconds: 150),
-      curve: Curves.easeOutCubic,
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(22),
-        child: BackdropFilter(
-          filter: ImageFilter.blur(sigmaX: 14, sigmaY: 14),
-          child: Material(
-            color: Colors.transparent,
-            child: InkWell(
-              onTap: widget.onTap,
-              onTapDown: (_) => setState(() => _isPressed = true),
-              onTapUp: (_) => setState(() => _isPressed = false),
-              onTapCancel: () => setState(() => _isPressed = false),
-              borderRadius: BorderRadius.circular(22),
-              splashColor: Colors.white.withValues(alpha: 0.1),
-              highlightColor: Colors.white.withValues(alpha: 0.05),
-              child: Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 18,
-                  vertical: 18,
-                ),
-                decoration: BoxDecoration(
-                  color: const Color(0xFF1E171B).withValues(alpha: 0.72),
-                  borderRadius: BorderRadius.circular(22),
-                  border: Border.all(
-                    color: Colors.white.withValues(alpha: 0.14),
-                    width: 1,
-                  ),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.25),
-                      blurRadius: 20,
-                      offset: const Offset(0, 8),
-                    ),
-                  ],
-                ),
-                child: Row(
-                  children: [
-                    // Icon Badge
-                    Container(
-                      width: 56,
-                      height: 56,
-                      decoration: BoxDecoration(
-                        color: widget.iconBgColor,
-                        borderRadius: BorderRadius.circular(16),
-                      ),
-                      child: Icon(
-                        widget.icon,
-                        color: widget.iconColor,
-                        size: 27,
-                      ),
-                    ),
-                    const SizedBox(width: 16),
-
-                    // Title & Subtitle Text
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            widget.titleLine1,
-                            style: FTextStyle.chooseRoleButton(context).copyWith(
-                              color: Colors.white,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                          const SizedBox(height: 4),
-                          Text(
-                            '${widget.subtitleLine1}\n${widget.subtitleLine2}',
-                            style: FTextStyle.chooseRoleSubtitle(context).copyWith(
-                              color: const Color(0xFFB5AFB3),
-                              fontSize: 13,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-
-                    // Chevron Right Icon
-                    const Icon(
-                      Icons.chevron_right_rounded,
-                      color: Colors.white54,
-                      size: 22,
-                    ),
-                  ],
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(18),
+        child: AnimatedContainer(
+          duration: Duration(milliseconds: 180),
+          padding: EdgeInsets.symmetric(vertical: 17),
+          decoration: BoxDecoration(
+            color: selected
+                ? activeColor.withValues(alpha: .18)
+                : Color(0xFF1E171B).withValues(alpha: .78),
+            borderRadius: BorderRadius.circular(18),
+            border: Border.all(
+              color: selected
+                  ? activeColor
+                  : Colors.white.withValues(alpha: .14),
+              width: selected ? 1.5 : 1,
+            ),
+          ),
+          child: Column(
+            children: [
+              Icon(
+                icon,
+                color: selected ? activeColor : Colors.white70,
+                size: 28,
+              ),
+              SizedBox(height: 8),
+              Text(
+                label,
+                style: TextStyle(
+                  color: selected ? Colors.white : Colors.white70,
+                  fontWeight: FontWeight.w600,
                 ),
               ),
-            ),
+            ],
           ),
         ),
       ),
