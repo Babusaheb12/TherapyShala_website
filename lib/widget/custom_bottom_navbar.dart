@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import '../Home/Dashboard/Dashboard.dart';
+import '../Home/Search/Search.dart';
+import '../Home/MyBooking/MyBooking.dart';
 import '../utils/flutter_color_themes.dart';
 
 class MainScreenWithBottomNav extends StatefulWidget {
@@ -34,27 +36,9 @@ class _MainScreenWithBottomNavState extends State<MainScreenWithBottomNav> {
       case 0:
         return DashboardScreen();
       case 1:
-        return Center(
-          child: Text(
-            'Search Screen',
-            style: TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.w600,
-              color: AppColors.textPrimary,
-            ),
-          ),
-        );
+        return SearchScreen();
       case 2:
-        return Center(
-          child: Text(
-            'Cart / Booking Screen',
-            style: TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.w600,
-              color: AppColors.textPrimary,
-            ),
-          ),
-        );
+        return MyBookingScreen();
       case 3:
         return Center(
           child: Text(

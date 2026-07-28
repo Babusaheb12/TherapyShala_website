@@ -37,7 +37,7 @@ class Constants {
   static const String weHaveSentAVerificationCode  ='We have sent a verification code to';
   static const String youCanResendTheCodeIn  ='You can resend the code in';
   static const String resendOtp  ='Resend Otp';
-  static const String guest  ='Gust';
+  static const String guest  ='Guest';
   static const String location  ='jaipur';
   static const String bannerText = 'Relax, Refresh & Rejuvenate. Book your spa session today!';
 
@@ -58,9 +58,25 @@ class Constants {
   static const String whyChooseTherapyShala = 'Why Choose TherapyShala?️ ';
   static const String verifiedExperts = 'Verified Experts ';
 
-
-
-
+  ///  Notifications screen
+  static const String notifications = 'Notifications';
+  static const String yourOrder = 'Your Order';
+  static const String priceDetails = 'Price Details';
+  static const String total = 'Total Price';
+  static const String back = 'Back';
+  static const String search = 'Search';
+  static const String serviceRecommendation = 'Service Recommendation';
+  static const String serviceFound = 'Service Found';
+  static const String noServicesFound = 'No services found';
+  static const String trySearching = 'Try searching for another keyword or reset filters.';
+  static const String resetFilters = 'Reset Filters';
+  static const String filters = 'Filter Search';
+  static const String applyFilters = 'Apply Filter';
+  static const String category = 'Category';
+  static const String priceRange = 'Price Range';
+  static const String services = 'Service Detail';
+  static const String servicesIncluded = 'Service Included';
+  static const String beautician = 'Beautician';
 
 
 }

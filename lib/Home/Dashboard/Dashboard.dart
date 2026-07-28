@@ -4,6 +4,7 @@ import 'package:therapyshala/utils/flutter_font_style.dart';
 import '../../utils/flutter_color_themes.dart';
 import '../../widget/custom_snackbar.dart';
 import '../notifications/Notifications.dart';
+import '../servicesDetails/ServicesDetails.dart';
 import 'SeeAllScreen.dart';
 
 class DashboardScreen extends StatefulWidget {
@@ -362,58 +363,44 @@ class _DashboardScreenState extends State<DashboardScreen> {
   }
 
   Widget _buildAddToCartButton(Map<String, dynamic> item, {String category = "Salon For Women"}) {
-    final String title = item["title"] ?? item["name"] ?? "Service";
-    final int qty = _cartItems[title]?["quantity"] as int? ?? 0;
+    final String title = item["title"] ?? item["name"] ?? "Euphoria Spa & Beauty Lounge";
+    final String location = item["location"] ?? item["distance"] ?? "California, CA";
+    final String rating = item["rating"] ?? "4.4";
+    final String reviews = item["reviews"] ?? item["bookings"] ?? "453";
+    final String imageUrl = item["imageUrl"] ?? "https://images.unsplash.com/photo-1544161515-4ab6ce6db874?auto=format&fit=crop&w=800&q=80";
+    final String tag = item["tag"] ?? item["badge"] ?? item["speciality"] ?? "Top Rated";
+    final String price = item["price"] ?? item["discountPrice"] ?? "₹1,500.00";
 
-    if (qty > 0) {
-      return Container(
-        height: 32,
-        decoration: BoxDecoration(
-          color: Color(0xFF168821),
-          borderRadius: BorderRadius.circular(8),
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            InkWell(
-              onTap: () => _removeFromCart(title),
-              child: Padding(
-                padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                child: Icon(Icons.remove, color: Colors.white, size: 14),
-              ),
+    return GestureDetector(
+      onTap: () {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => ServicesDetailsScreen(
+              title: title,
+              location: location,
+              rating: rating,
+              reviews: reviews,
+              imageUrl: imageUrl,
+              tag: tag,
+              price: price,
             ),
-            Text(
-              '$qty',
-              style: TextStyle(
-                color: Colors.white,
-                fontWeight: FontWeight.w700,
-                fontSize: 12,
-              ),
-            ),
-            InkWell(
-              onTap: () => _addToCart(item, category: category),
-              child: Padding(
-                padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                child: Icon(Icons.add, color: Colors.white, size: 14),
-              ),
-            ),
-          ],
-        ),
-      );
-    }
-
-    return InkWell(
-      onTap: () => _addToCart(item, category: category),
+          ),
+        );
+      },
       child: Container(
-        padding: EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
         decoration: BoxDecoration(
-          color: Color(0xFFE8F5E9),
-          border: Border.all(color: Color(0xFF168821).withValues(alpha: 0.4)),
+          color: AppColors.primaryLight,
           borderRadius: BorderRadius.circular(8),
+          border: Border.all(color: AppColors.primary.withValues(alpha: 0.3)),
         ),
         child: Text(
-          'ADD',
-          style: FTextStyle.textfieldHintText(context)
+          'Details',
+          style: FTextStyle.desc(context).copyWith(
+            color: AppColors.primary,
+
+          ),
         ),
       ),
     );
@@ -1183,19 +1170,23 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Row(
-                      children: [
-                        Text(
-                          package["discountPrice"],
-                          style: FTextStyle.price(context)
-                        ),
-                        SizedBox(width: 6),
-                        Text(
-                          package["originalPrice"],
-                          style: FTextStyle.originalPrice(context)
-                        ),
-                      ],
+                    Expanded(
+                      child: Wrap(
+                        crossAxisAlignment: WrapCrossAlignment.center,
+                        spacing: 6,
+                        children: [
+                          Text(
+                            package["discountPrice"],
+                            style: FTextStyle.price(context),
+                          ),
+                          Text(
+                            package["originalPrice"],
+                            style: FTextStyle.originalPrice(context),
+                          ),
+                        ],
+                      ),
                     ),
+                    const SizedBox(width: 4),
                     _buildAddToCartButton(package, category: "Spa Package"),
                   ],
                 ),
@@ -1623,19 +1614,23 @@ class _DashboardScreenState extends State<DashboardScreen> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Row(
-                children: [
-                  Text(
-                    item["price"],
-                    style: FTextStyle.price(context)
-                  ),
-                  SizedBox(width: 6),
-                  Text(
-                    item["originalPrice"],
-                    style: FTextStyle.originalPrice(context)
-                  ),
-                ],
+              Expanded(
+                child: Wrap(
+                  crossAxisAlignment: WrapCrossAlignment.center,
+                  spacing: 6,
+                  children: [
+                    Text(
+                      item["price"],
+                      style: FTextStyle.price(context),
+                    ),
+                    Text(
+                      item["originalPrice"],
+                      style: FTextStyle.originalPrice(context),
+                    ),
+                  ],
+                ),
               ),
+              const SizedBox(width: 4),
               _buildAddToCartButton(item, category: "Trending Service"),
             ],
           ),

@@ -26,6 +26,7 @@ class AppColors extends MaterialColor {
   static const Color white = Color(0xFFFFFFFF);
   static const Color black = Color(0xFF000000);
   static const Color add = Color(0xFF168821);
+  static const Color rating = Color(0xffFDBB3E);
 
 
 

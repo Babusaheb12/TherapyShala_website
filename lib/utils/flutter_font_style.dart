@@ -175,9 +175,7 @@ class FTextStyle {
     fontFamily: fontFamily,
     fontSize: getResponsiveFontSize(context, 14),
     fontWeight: FontWeight.w400,
-    color:  AppColors.add.withOpacity(0.8),
-    // color: Color(0xFFC3B4B6),
-
+    color:  AppColors.textSecondary,
     /// hint text color
   );
 

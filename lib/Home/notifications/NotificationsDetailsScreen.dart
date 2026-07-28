@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:therapyshala/utils/flutter_font_style.dart';
+import '../../utils/constants.dart';
 import '../../utils/flutter_color_themes.dart';
+import '../../widget/buttonWigiets.dart';
 
 class NotificationDetailsScreen extends StatelessWidget {
   final String title;
@@ -16,7 +18,7 @@ class NotificationDetailsScreen extends StatelessWidget {
   final String totalPrice;
   final String imageUrl;
 
-  const NotificationDetailsScreen({
+  NotificationDetailsScreen({
     super.key,
     this.title = "Book Service",
     this.message =
@@ -25,7 +27,7 @@ class NotificationDetailsScreen extends StatelessWidget {
     this.time = "08.40 AM",
     this.serviceTitle = "Euphoria Spa & Beauty Lounge",
     this.serviceDescription =
-        "Immerse yourself in tranquility with our Relaxation Retreat Package. Enjoy a s...",
+        "Immerse yourself in tranquility with our Relaxation Retreat Package.",
     this.packageName = "Basic",
     this.beauticianName = "Aria Harris",
     this.price = "₹1,500.00",
@@ -39,231 +41,161 @@ class NotificationDetailsScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.white,
-      body: SafeArea(
-        child: Column(
-          children: [
-            Expanded(
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.symmetric(horizontal: 24),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const SizedBox(height: 10),
+      appBar: AppBar(
+        backgroundColor: Colors.white,
+        elevation: 0,
+        scrolledUnderElevation: 0,
+        centerTitle: true,
+        automaticallyImplyLeading: false,
+        leading: GestureDetector(
+          onTap: () => Navigator.pop(context),
+          child: const SizedBox(
+            width: 44,
+            height: 44,
+            child: Icon(Icons.arrow_back, color: Colors.black, size: 20),
+          ),
+        ),
+        title: Text(
+          Constants.notifications,
+          style: FTextStyle.loginHeading(context),
+        ),
+      ),
+      body: Column(
+        children: [
+          Expanded(
+            child: SingleChildScrollView(
+              padding: EdgeInsets.symmetric(horizontal: 24),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  SizedBox(height: 4),
 
-                    //================== App Bar ==================
-                    Stack(
-                      alignment: Alignment.center,
-                      children: [
-                        Align(
-                          alignment: Alignment.centerLeft,
-                          child: GestureDetector(
-                            onTap: () {
-                              Navigator.pop(context);
-                            },
-                            child: Container(
-                              width: 44,
-                              height: 44,
-                              decoration: BoxDecoration(
-                                shape: BoxShape.circle,
-                                border: Border.all(
-                                  color: const Color(0xffEAEAEA),
-                                ),
-                              ),
-                              child: const Icon(
-                                Icons.arrow_back,
-                                color: Colors.black,
-                                size: 20,
-                              ),
-                            ),
-                          ),
-                        ),
-                        Text(
-                          "Notifications",
-                          style: FTextStyle.loginHeading(context),
+                  // Date & Time
+                  Text("$date  •  $time", style: FTextStyle.desc(context)),
+
+                  SizedBox(height: 8),
+
+                  // Notification Title
+                  Text(
+                    title,
+                    style: FTextStyle.header(context)
+                  ),
+                  SizedBox(height: 4),
+                  // Notification Description
+                  Text(message, style: FTextStyle.desc(context)),
+                  SizedBox(height: 8),
+                  // Order Details Card
+                  Container(
+                    padding: EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: AppColors.white,
+                      borderRadius: BorderRadius.circular(6),
+                      border: Border.all(color: AppColors.border),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withValues(alpha: 0.03),
+                          blurRadius: 10,
+                          offset: Offset(0, 4),
                         ),
                       ],
                     ),
-
-                    const SizedBox(height: 24),
-
-                    // Date & Time
-                    Text(
-                      "$date  •  $time",
-                      style: FTextStyle.desc(context).copyWith(
-                        color: const Color(0xFF9EA3B0),
-                        fontSize: 13,
-                      ),
-                    ),
-
-                    const SizedBox(height: 8),
-
-                    // Notification Title
-                    Text(
-                      title,
-                      style: FTextStyle.header(context).copyWith(
-                        fontSize: 20,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-
-                    const SizedBox(height: 8),
-
-                    // Notification Description
-                    Text(
-                      message,
-                      style: FTextStyle.desc(context).copyWith(
-                        color: const Color(0xFF757880),
-                        fontSize: 14,
-                        height: 1.4,
-                      ),
-                    ),
-
-                    const SizedBox(height: 24),
-
-                    // Order Details Card
-                    Container(
-                      padding: const EdgeInsets.all(16),
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(20),
-                        border: Border.all(
-                          color: const Color(0xFFEBEBEB),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        // Service Info Header
+                        Row(
+                          children: [
+                            ClipRRect(
+                              borderRadius: BorderRadius.circular(8),
+                              child: Image.network(
+                                imageUrl,
+                                width: 70,
+                                height: 70,
+                                fit: BoxFit.cover,
+                              ),
+                            ),
+                            SizedBox(width: 14),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    serviceTitle,
+                                    style: FTextStyle.tittle(context),
+                                    // maxLines: 3,
+                                    // overflow: TextOverflow.ellipsis,
+                                  ),
+                                  SizedBox(height: 4),
+                                  Text(
+                                    serviceDescription,
+                                    style: FTextStyle.desc(context),
+                                    // maxLines: 2,
+                                    // overflow: TextOverflow.ellipsis,
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
                         ),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withValues(alpha: 0.03),
-                            blurRadius: 10,
-                            offset: const Offset(0, 4),
-                          ),
-                        ],
-                      ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          // Service Info Header
-                          Row(
-                            children: [
-                              ClipRRect(
-                                borderRadius: BorderRadius.circular(14),
-                                child: Image.network(
-                                  imageUrl,
-                                  width: 70,
-                                  height: 70,
-                                  fit: BoxFit.cover,
-                                ),
-                              ),
-                              const SizedBox(width: 14),
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(
-                                      serviceTitle,
-                                      style: FTextStyle.tittle(context).copyWith(
-                                        fontWeight: FontWeight.bold,
-                                        fontSize: 15,
-                                      ),
-                                      maxLines: 1,
-                                      overflow: TextOverflow.ellipsis,
-                                    ),
-                                    const SizedBox(height: 4),
-                                    Text(
-                                      serviceDescription,
-                                      style: FTextStyle.desc(context).copyWith(
-                                        fontSize: 12,
-                                        color: const Color(0xFF757880),
-                                      ),
-                                      maxLines: 2,
-                                      overflow: TextOverflow.ellipsis,
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            ],
-                          ),
+                        SizedBox(height: 20),
+                        // Your Order Section
+                        Text(
+                          Constants.yourOrder,
+                          style: FTextStyle.tittle(context),
+                        ),
+                        SizedBox(height: 4),
+                        _buildDetailRow(context, "Package", packageName),
+                        SizedBox(height: 4),
+                        _buildDetailRow(context, "Beautician", beauticianName),
+                        SizedBox(height: 4),
+                        _buildDetailRow(context, "Dates", "Sun, 20 Dec 2024"),
 
-                          const SizedBox(height: 20),
+                        SizedBox(height: 10),
 
-                          // Your Order Section
-                          Text(
-                            "Your Order",
-                            style: FTextStyle.tittle(context).copyWith(
-                              fontWeight: FontWeight.bold,
-                              fontSize: 15,
-                            ),
-                          ),
+                        // Price Details Section
+                        Text(
+                          Constants.priceDetails,
+                          style: FTextStyle.tittle(context)
+                        ),
 
-                          const SizedBox(height: 12),
+                        SizedBox(height: 12),
 
-                          _buildDetailRow(context, "Package", packageName),
-                          const SizedBox(height: 8),
-                          _buildDetailRow(context, "Beautician", beauticianName),
-                          const SizedBox(height: 8),
-                          _buildDetailRow(context, "Dates", "Sun, 20 Dec 2024"),
-
-                          const SizedBox(height: 20),
-
-                          // Price Details Section
-                          Text(
-                            "Price Details",
-                            style: FTextStyle.tittle(context).copyWith(
-                              fontWeight: FontWeight.bold,
-                              fontSize: 15,
-                            ),
-                          ),
-
-                          const SizedBox(height: 12),
-
-                          _buildDetailRow(context, "Price", price),
-                          const SizedBox(height: 8),
-                          _buildDetailRow(context, "Fee", fee),
-                          const SizedBox(height: 8),
-                          _buildDetailRow(
-                            context,
-                            "Total Price",
-                            totalPrice,
-                            isTotal: true,
-                          ),
-                        ],
-                      ),
-                    ),
-
-                    const SizedBox(height: 24),
-                  ],
-                ),
-              ),
-            ),
-
-            // Bottom Back Button
-            Padding(
-              padding: const EdgeInsets.fromLTRB(24, 8, 24, 24),
-              child: SizedBox(
-                width: double.infinity,
-                height: 52,
-                child: ElevatedButton(
-                  onPressed: () {
-                    Navigator.pop(context);
-                  },
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.primary,
-                    elevation: 0,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(16),
+                        _buildDetailRow(context, "Price", price),
+                        SizedBox(height: 8),
+                        _buildDetailRow(context, "Fee", fee),
+                        SizedBox(height: 8),
+                        _buildDetailRow(
+                          context,
+                          Constants.total,
+                          totalPrice,
+                          isTotal: true,
+                        ),
+                      ],
                     ),
                   ),
-                  child: const Text(
-                    "Back",
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                ),
+
+                  // SizedBox(height: 4),
+                ],
               ),
             ),
-          ],
-        ),
+          ),
+
+          // Bottom Back Button
+
+          Padding(
+            padding:  EdgeInsets.fromLTRB(24, 4, 24, 90),
+            child: SizedBox(
+              width: double.infinity,
+              height: 52,
+              child: CustomButton(
+                text: Constants.back,
+                onPressed: () {
+                  Navigator.pop(context);
+                },
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -279,19 +211,11 @@ class NotificationDetailsScreen extends StatelessWidget {
       children: [
         Text(
           label,
-          style: FTextStyle.desc(context).copyWith(
-            color: isTotal ? AppColors.black : const Color(0xFF9EA3B0),
-            fontWeight: isTotal ? FontWeight.bold : FontWeight.w400,
-            fontSize: 13,
-          ),
+          style: FTextStyle.desc(context)
         ),
         Text(
           value,
-          style: FTextStyle.tittle(context).copyWith(
-            fontWeight: isTotal ? FontWeight.bold : FontWeight.w600,
-            fontSize: isTotal ? 15 : 13,
-            color: AppColors.black,
-          ),
+          style: FTextStyle.tittle(context)
         ),
       ],
     );
