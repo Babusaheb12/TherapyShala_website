@@ -88,6 +88,13 @@ class FTextStyle {
     color:  AppColors.black,
   );
 
+  static TextStyle customSnackBar(BuildContext context) => TextStyle(
+    fontFamily: fontFamily,
+    fontSize: getResponsiveFontSize(context, 14),
+    fontWeight: FontWeight.w500,
+    color:  AppColors.white,
+  );
+
   static TextStyle loginDesc(BuildContext context) => TextStyle(
     fontFamily: fontFamily,
     fontSize: getResponsiveFontSize(context, 16),

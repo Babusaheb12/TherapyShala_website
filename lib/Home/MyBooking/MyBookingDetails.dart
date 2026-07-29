@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:therapyshala/utils/constants.dart';
 import 'package:therapyshala/utils/flutter_color_themes.dart';
 import 'package:therapyshala/utils/flutter_font_style.dart';
 import 'package:therapyshala/widget/buttonWigiets.dart';
-import '../appointments/eRecipt.dart';
 import 'BookingReschedule.dart';
+import 'cancelBooking.dart';
 
 class MyBookingDetailsScreen extends StatelessWidget {
   final String serviceTitle;
@@ -13,7 +14,7 @@ class MyBookingDetailsScreen extends StatelessWidget {
   final String bookingDate;
   final String price;
 
-  const MyBookingDetailsScreen({
+   MyBookingDetailsScreen({
     super.key,
     this.serviceTitle = "Euphoria Spa & Beauty Lounge",
     this.imageUrl =
@@ -30,8 +31,8 @@ class MyBookingDetailsScreen extends StatelessWidget {
       backgroundColor: Colors.transparent,
       isScrollControlled: true,
       builder: (context) => Container(
-        padding: const EdgeInsets.fromLTRB(20, 12, 20, 34),
-        decoration: const BoxDecoration(
+        padding:  EdgeInsets.fromLTRB(20, 12, 20, 34),
+        decoration:  BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
         ),
@@ -45,52 +46,31 @@ class MyBookingDetailsScreen extends StatelessWidget {
                 width: 44,
                 height: 4,
                 decoration: BoxDecoration(
-                  color: const Color(0xFFE0E1E6),
+                  color:  Color(0xFFE0E1E6),
                   borderRadius: BorderRadius.circular(10),
                 ),
               ),
 
-              const SizedBox(height: 18),
+               SizedBox(height: 18),
 
               // Title: Cancel Booking
               Text(
-                "Cancel Booking",
-                style: FTextStyle.tittle(context).copyWith(
-                  color: AppColors.primary,
-                  fontWeight: FontWeight.bold,
-                  fontSize: 18,
-                ),
+                Constants.cancelBooking,
+                style: FTextStyle.header(context)
               ),
 
-              const SizedBox(height: 14),
-              const Divider(color: Color(0xFFF0F0F3), thickness: 1),
-              const SizedBox(height: 20),
+               SizedBox(height: 14),
+               Divider(color: Color(0xFFF0F0F3), thickness: 1),
+               SizedBox(height: 20),
 
               // Main Question Header
               Text(
-                "Are you sure want to cancel your clinic booking?",
+                Constants.areYouSure,
                 textAlign: TextAlign.center,
-                style: FTextStyle.header(context).copyWith(
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                  color: AppColors.textPrimary,
-                ),
+                style: FTextStyle.header(context)
               ),
 
-              const SizedBox(height: 12),
-
-              // Subtitle Description
-              Text(
-                "Lorem Ipsum is simply dummy text of the printing and typesetting industry.",
-                textAlign: TextAlign.center,
-                style: FTextStyle.desc(context).copyWith(
-                  color: const Color(0xFF9CA3B1),
-                  fontSize: 13,
-                  height: 1.5,
-                ),
-              ),
-
-              const SizedBox(height: 28),
+               SizedBox(height: 12),
 
               // Action Buttons Row: [ Cancel | Confirm ]
               Row(
@@ -99,24 +79,20 @@ class MyBookingDetailsScreen extends StatelessWidget {
                     child: OutlinedButton(
                       onPressed: () => Navigator.pop(context),
                       style: OutlinedButton.styleFrom(
-                        side: const BorderSide(
+                        side:  BorderSide(
                             color: AppColors.primary, width: 1.5),
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(16),
                         ),
-                        padding: const EdgeInsets.symmetric(vertical: 14),
+                        padding:  EdgeInsets.symmetric(vertical: 14),
                       ),
                       child: Text(
-                        "Cancel",
-                        style: FTextStyle.tittle(context).copyWith(
-                          color: AppColors.primary,
-                          fontWeight: FontWeight.bold,
-                          fontSize: 15,
-                        ),
+                        Constants.cancel,
+                        style: FTextStyle.tittle(context)
                       ),
                     ),
                   ),
-                  const SizedBox(width: 14),
+                   SizedBox(width: 14),
                   Expanded(
                     child: ElevatedButton(
                       onPressed: () {
@@ -124,8 +100,9 @@ class MyBookingDetailsScreen extends StatelessWidget {
                         Navigator.push(
                           context,
                           MaterialPageRoute(
-                            builder: (context) => BookingRescheduleScreen(
+                            builder: (context) => CancelBookingScreen(
                               bookingTitle: serviceTitle,
+                              paidAmount: price,
                             ),
                           ),
                         );
@@ -137,15 +114,13 @@ class MyBookingDetailsScreen extends StatelessWidget {
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(16),
                         ),
-                        padding: const EdgeInsets.symmetric(vertical: 14),
+                        padding:  EdgeInsets.symmetric(vertical: 14),
                       ),
                       child: Text(
-                        "Confirm",
+                        Constants.confirm,
                         style: FTextStyle.tittle(context).copyWith(
-                          color: Colors.white,
-                          fontWeight: FontWeight.bold,
-                          fontSize: 15,
-                        ),
+                          color: AppColors.white
+                        )
                       ),
                     ),
                   ),
@@ -168,28 +143,16 @@ class MyBookingDetailsScreen extends StatelessWidget {
         leading: Center(
           child: GestureDetector(
             onTap: () => Navigator.pop(context),
-            child: Container(
-              width: 44,
-              height: 44,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: Colors.white,
-                border: Border.all(color: const Color(0xFFEBEBEB)),
-              ),
-              child: const Icon(
-                Icons.arrow_back,
-                color: Colors.black,
-                size: 20,
-              ),
+            child: Icon(
+              Icons.arrow_back,
+              color: Colors.black,
+              size: 20,
             ),
           ),
         ),
         title: Text(
-          "My Booking",
-          style: FTextStyle.header(context).copyWith(
-            color: AppColors.textPrimary,
-            fontWeight: FontWeight.bold,
-          ),
+          Constants.myBookings,
+          style: FTextStyle.header(context)
         ),
         centerTitle: true,
       ),
@@ -198,14 +161,14 @@ class MyBookingDetailsScreen extends StatelessWidget {
           children: [
             Expanded(
               child: SingleChildScrollView(
-                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+                padding:  EdgeInsets.symmetric(horizontal: 20, vertical: 2),
                 child: Container(
                   width: double.infinity,
-                  padding: const EdgeInsets.all(16),
+                  padding:  EdgeInsets.all(16),
                   decoration: BoxDecoration(
                     color: Colors.white,
                     borderRadius: BorderRadius.circular(20),
-                    border: Border.all(color: const Color(0xFFEBEBEB)),
+                    border: Border.all(color:  Color(0xFFEBEBEB)),
                   ),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -222,27 +185,21 @@ class MyBookingDetailsScreen extends StatelessWidget {
                               fit: BoxFit.cover,
                             ),
                           ),
-                          const SizedBox(width: 14),
+                           SizedBox(width: 14),
                           Expanded(
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 Text(
                                   serviceTitle,
-                                  style: FTextStyle.header(context).copyWith(
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.bold,
-                                  ),
+                                  style: FTextStyle.tittle(context),
                                   maxLines: 1,
                                   overflow: TextOverflow.ellipsis,
                                 ),
-                                const SizedBox(height: 4),
+                                 SizedBox(height: 4),
                                 Text(
                                   "Immerse yourself in tranquility with our Relaxation Retreat Package. Enjoy a s...",
-                                  style: FTextStyle.desc(context).copyWith(
-                                    color: const Color(0xFF9CA3B1),
-                                    fontSize: 12,
-                                  ),
+                                  style: FTextStyle.desc(context),
                                   maxLines: 2,
                                   overflow: TextOverflow.ellipsis,
                                 ),
@@ -252,47 +209,39 @@ class MyBookingDetailsScreen extends StatelessWidget {
                         ],
                       ),
 
-                      const SizedBox(height: 16),
-                      const Divider(color: Color(0xFFEBEBEB), thickness: 1),
-                      const SizedBox(height: 12),
-
+                       SizedBox(height: 6),
+                       Divider(color: Color(0xFFEBEBEB), thickness: 1),
+                       SizedBox(height: 2),
                       // Your Order Section
                       Text(
-                        "Your Order",
-                        style: FTextStyle.tittle(context).copyWith(
-                          fontWeight: FontWeight.bold,
-                          fontSize: 15,
-                        ),
+                        Constants.yourOrder,
+                        style: FTextStyle.header(context)
                       ),
-                      const SizedBox(height: 10),
+                       SizedBox(height: 5),
+                      _buildSummaryRow(context, Constants.package, package),
+                       SizedBox(height: 8),
+                      _buildSummaryRow(context, Constants.beautician, beautician),
+                       SizedBox(height: 8),
+                      _buildSummaryRow(context, Constants.date, bookingDate),
 
-                      _buildSummaryRow(context, "Package", package),
-                      const SizedBox(height: 8),
-                      _buildSummaryRow(context, "Beautician", beautician),
-                      const SizedBox(height: 8),
-                      _buildSummaryRow(context, "Dates", bookingDate),
-
-                      const SizedBox(height: 16),
-                      const Divider(color: Color(0xFFEBEBEB), thickness: 1),
-                      const SizedBox(height: 12),
+                       SizedBox(height: 16),
+                       Divider(color: Color(0xFFEBEBEB), thickness: 1),
+                       SizedBox(height: 12),
 
                       // Price Details Section
                       Text(
-                        "Price Details",
-                        style: FTextStyle.tittle(context).copyWith(
-                          fontWeight: FontWeight.bold,
-                          fontSize: 15,
-                        ),
+                        Constants.priceDetails,
+                        style: FTextStyle.header(context)
                       ),
-                      const SizedBox(height: 10),
+                       SizedBox(height: 10),
 
-                      _buildSummaryRow(context, "Price", price),
-                      const SizedBox(height: 8),
-                      _buildSummaryRow(context, "Fee", "₹20.00"),
-                      const SizedBox(height: 10),
+                      _buildSummaryRow(context, Constants.price, price),
+                       SizedBox(height: 8),
+                      _buildSummaryRow(context, Constants.free, "₹20.00"),
+                       SizedBox(height: 10),
                       _buildSummaryRow(
                         context,
-                        "Total Price",
+                        Constants.totalAmount,
                         price,
                         isBold: true,
                         valueColor: AppColors.textPrimary,
@@ -305,11 +254,11 @@ class MyBookingDetailsScreen extends StatelessWidget {
 
             // Bottom Actions (View Invoice + Cancel Booking)
             Padding(
-              padding: const EdgeInsets.fromLTRB(20, 10, 20, 24),
+              padding:  EdgeInsets.fromLTRB(20, 10, 20, 24),
               child: Column(
                 children: [
                   CustomButton(
-                    text: "Reschedule",
+                    text: Constants.reschedule,
                     onPressed: () {
                       Navigator.push(
                         context,
@@ -323,18 +272,16 @@ class MyBookingDetailsScreen extends StatelessWidget {
                     borderRadius: 16,
                   ),
 
-                  const SizedBox(height: 14),
+                   SizedBox(height: 14),
 
                   GestureDetector(
                     onTap: () => _showCancelBookingBottomSheet(context),
                     child: Container(
-                      padding: const EdgeInsets.symmetric(vertical: 8),
+                      padding:  EdgeInsets.symmetric(vertical: 8),
                       child: Text(
-                        "Cancel Booking",
+                        Constants.cancelBooking,
                         style: FTextStyle.tittle(context).copyWith(
                           color: AppColors.primary,
-                          fontWeight: FontWeight.bold,
-                          fontSize: 15,
                         ),
                       ),
                     ),
@@ -360,18 +307,11 @@ class MyBookingDetailsScreen extends StatelessWidget {
       children: [
         Text(
           label,
-          style: FTextStyle.desc(context).copyWith(
-            color: const Color(0xFF9CA3B1),
-            fontSize: 14,
-          ),
+          style: FTextStyle.desc(context)
         ),
         Text(
           value,
-          style: FTextStyle.tittle(context).copyWith(
-            color: valueColor ?? AppColors.textPrimary,
-            fontWeight: isBold ? FontWeight.bold : FontWeight.w500,
-            fontSize: isBold ? 15 : 14,
-          ),
+          style: FTextStyle.tittle(context)
         ),
       ],
     );

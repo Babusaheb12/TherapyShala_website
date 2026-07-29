@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:therapyshala/utils/flutter_color_themes.dart';
 import 'package:therapyshala/utils/flutter_font_style.dart';
+import '../../utils/constants.dart';
 import 'MyBookingDetails.dart';
 
 class MyBookingScreen extends StatefulWidget {
@@ -62,7 +63,7 @@ class _MyBookingScreenState extends State<MyBookingScreen> {
         // backgroundColor: Colors.white,
         elevation: 0,
         title: Text(
-          "My Bookings",
+          Constants.myBookings,
           style: FTextStyle.header(context)
         ),
         centerTitle: false,

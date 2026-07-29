@@ -1,7 +1,6 @@
 class ImageAssets {
   ///  app logos
 
-  static const String applogo = 'assets/icon/datek.png';
   static const String appIcon = 'assets/icon/appicos.png';
 
   ///  Onboarding Images

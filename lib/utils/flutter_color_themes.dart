@@ -6,6 +6,7 @@ class AppColors extends MaterialColor {
   static const Color roseRed = Color(0xFFE06278);
   static const Color softPeach = Color(0xFFF0C9D0);
   static const Color warmGrey = Color(0xFFE5D5D1);
+  static const Color reds = Color(0xFFE53935);
 
   /// banner color
 

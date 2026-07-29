@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:therapyshala/utils/flutter_font_style.dart';
 
 import '../utils/flutter_color_themes.dart';
 
@@ -9,7 +10,7 @@ class CustomSnackBar {
     BuildContext context, {
     required String message,
     required IconData icon,
-    Color backgroundColor = AppColors.primary,
+    Color backgroundColor = AppColors.reds,
   }) {
     ScaffoldMessenger.of(context).clearSnackBars();
     ScaffoldMessenger.of(context).showSnackBar(
@@ -21,10 +22,7 @@ class CustomSnackBar {
             Expanded(
               child: Text(
                 message,
-                style:  TextStyle(
-                  fontFamily: 'DM Sans',
-                  fontWeight: FontWeight.bold,
-                ),
+                style:  FTextStyle.customSnackBar(context)
               ),
             ),
           ],
