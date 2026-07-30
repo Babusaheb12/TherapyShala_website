@@ -1,0 +1,117 @@
+import React, { useState } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { TESTIMONIALS_DATA } from '../data/spaData';
+import { Star, Quote, ChevronLeft, ChevronRight, CheckCircle } from 'lucide-react';
+
+export default function Testimonials() {
+  const [currentIndex, setCurrentIndex] = useState(0);
+
+  const handleNext = () => {
+    setCurrentIndex((prev) => (prev + 1) % TESTIMONIALS_DATA.length);
+  };
+
+  const handlePrev = () => {
+    setCurrentIndex((prev) => (prev - 1 + TESTIMONIALS_DATA.length) % TESTIMONIALS_DATA.length);
+  };
+
+  const activeTestimonial = TESTIMONIALS_DATA[currentIndex];
+
+  return (
+    <section id="testimonials" className="py-24 md:py-32 bg-white relative overflow-hidden">
+      <div className="w-full max-w-[1720px] mx-auto px-6 md:px-12 lg:px-16 xl:px-20 relative z-10">
+        
+        {/* Section Header */}
+        <div className="text-center max-w-3xl mx-auto mb-16">
+          <span className="text-xs uppercase tracking-[0.25em] text-[#F35271] font-semibold mb-3 block">
+            Guest Testimonials
+          </span>
+          <h2 className="font-serif-luxury text-4xl sm:text-5xl lg:text-6xl font-light text-[#0D0D12] tracking-tight leading-tight">
+            Stories of <span className="italic font-normal text-[#F35271]">Tranquility</span> & Renewal
+          </h2>
+          <p className="mt-4 text-[#757880] text-base sm:text-lg font-light leading-relaxed">
+            Read authentic reviews from guests who transformed their body and mind at Therapyshala.
+          </p>
+        </div>
+
+        {/* Testimonial Showcase Card */}
+        <div className="max-w-4xl mx-auto">
+          <div className="bg-[#FAF9F6] rounded-[2.5rem] p-8 sm:p-14 border border-[#EBEBEB] shadow-[0_20px_50px_rgba(13,13,18,0.05)] relative">
+            
+            {/* Quote Icon watermark */}
+            <Quote className="w-20 h-20 text-[#FCE8EC] absolute top-8 right-10 pointer-events-none" />
+
+            <AnimatePresence mode="wait">
+              <motion.div
+                key={activeTestimonial.id}
+                initial={{ opacity: 0, x: 20 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: -20 }}
+                transition={{ duration: 0.5 }}
+                className="flex flex-col gap-8 relative z-10"
+              >
+                {/* Star Rating */}
+                <div className="flex items-center gap-1 text-[#D4AF37]">
+                  {[...Array(activeTestimonial.rating)].map((_, i) => (
+                    <Star key={i} className="w-5 h-5 fill-current" />
+                  ))}
+                  <span className="text-xs font-bold text-[#1F1B18] ml-2">
+                    Verified Mobile Booking
+                  </span>
+                </div>
+
+                {/* Content Quote */}
+                <p className="font-serif-luxury text-2xl sm:text-3xl text-[#1F1B18] font-light leading-relaxed italic">
+                  "{activeTestimonial.content}"
+                </p>
+
+                {/* Author Info & Avatar */}
+                <div className="flex items-center justify-between pt-6 border-t border-[#EFE6DC]">
+                  <div className="flex items-center gap-4">
+                    <img
+                      src={activeTestimonial.avatar}
+                      alt={activeTestimonial.name}
+                      className="w-14 h-14 rounded-full object-cover border-2 border-[#D88373]/40 shadow-md"
+                    />
+                    <div>
+                      <h4 className="font-serif-luxury text-xl font-medium text-[#1F1B18]">
+                        {activeTestimonial.name}
+                      </h4>
+                      <p className="text-xs text-[#6E645E] font-light">
+                        {activeTestimonial.role}
+                      </p>
+                      <span className="text-[11px] text-[#D88373] font-semibold flex items-center gap-1 mt-0.5">
+                        <CheckCircle className="w-3 h-3" />
+                        Treatment: {activeTestimonial.treatment}
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Navigation Arrows */}
+                  <div className="flex items-center gap-3">
+                    <button
+                      onClick={handlePrev}
+                      className="w-12 h-12 rounded-full border border-[#EFE6DC] hover:border-[#D88373] hover:bg-[#F3E3DF]/50 flex items-center justify-center text-[#1F1B18] transition-all"
+                      aria-label="Previous Testimonial"
+                    >
+                      <ChevronLeft className="w-5 h-5" />
+                    </button>
+                    <button
+                      onClick={handleNext}
+                      className="w-12 h-12 rounded-full border border-[#EFE6DC] hover:border-[#D88373] hover:bg-[#F3E3DF]/50 flex items-center justify-center text-[#1F1B18] transition-all"
+                      aria-label="Next Testimonial"
+                    >
+                      <ChevronRight className="w-5 h-5" />
+                    </button>
+                  </div>
+                </div>
+
+              </motion.div>
+            </AnimatePresence>
+
+          </div>
+        </div>
+
+      </div>
+    </section>
+  );
+}
