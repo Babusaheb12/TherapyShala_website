@@ -140,7 +140,7 @@ export default function CmsPage({ docTypeOverride, docTitleOverride }) {
       <Navbar />
 
       {/* Main Page Header */}
-      <main className="flex-1 pt-32 pb-24 px-6 md:px-12 lg:px-20 max-w-5xl mx-auto w-full">
+      <main className="flex-1 pt-32 pb-24 px-6 md:px-12 lg:px-16 xl:px-20 max-w-[1720px] mx-auto w-full">
         {/* Navigation Breadcrumb */}
         <div className="mb-8">
           <Link

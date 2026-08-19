@@ -47,7 +47,7 @@ export default function HelpCenterPage() {
     <div className="min-h-screen bg-[#FAF6F0] text-[#1F1B18] font-sans flex flex-col justify-between">
       <Navbar />
 
-      <main className="flex-1 pt-32 pb-24 px-6 md:px-12 lg:px-20 max-w-5xl mx-auto w-full">
+      <main className="flex-1 pt-32 pb-24 px-6 md:px-12 lg:px-16 xl:px-20 max-w-[1720px] mx-auto w-full">
         {/* Navigation Breadcrumb */}
         <div className="mb-8">
           <Link
