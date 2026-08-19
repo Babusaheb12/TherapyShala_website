@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
+import { Link } from 'react-router-dom';
 import { Send, MapPin, Phone, Clock } from 'lucide-react';
 import TherapyshalaLogo from './TherapyshalaLogo';
 
-export default function Footer({ onOpenLegal, onOpenHelpCenter }) {
+export default function Footer() {
   const [email, setEmail] = useState('');
   const [subscribed, setSubscribed] = useState(false);
 
@@ -24,9 +25,9 @@ export default function Footer({ onOpenLegal, onOpenHelpCenter }) {
           {/* Brand Info */}
           <div className="lg:col-span-4 flex flex-col justify-between">
             <div>
-              <a href="#home" className="mb-6 block">
+              <Link to="/" className="mb-6 block">
                 <TherapyshalaLogo className="w-12 h-12" textColor="text-white" />
-              </a>
+              </Link>
 
               <p className="text-sm text-[#757880] font-light leading-relaxed mb-6 max-w-sm">
                 A premier luxury beauty & spa sanctuary designed for holistic rejuvenation, botanical skincare, and seamless mobile scheduling.
@@ -65,29 +66,21 @@ export default function Footer({ onOpenLegal, onOpenHelpCenter }) {
               Navigation
             </h4>
             <ul className="space-y-3 text-sm font-light text-[#EFE6DC]/70">
-              <li><a href="#home" className="hover:text-[#F35271] transition-colors">Home</a></li>
-              <li><a href="#services" className="hover:text-[#F35271] transition-colors">Services Menu</a></li>
-              <li><a href="#why-us" className="hover:text-[#F35271] transition-colors">Why Choose Us</a></li>
-              <li><a href="#app-showcase" className="hover:text-[#F35271] transition-colors">Mobile Application</a></li>
-              <li><a href="#pricing" className="hover:text-[#F35271] transition-colors">Pricing Packages</a></li>
-              <li><a href="#faq" className="hover:text-[#F35271] transition-colors">FAQ</a></li>
+              <li><Link to="/" className="hover:text-[#F35271] transition-colors">Home</Link></li>
+              <li><a href="/#services" className="hover:text-[#F35271] transition-colors">Services Menu</a></li>
+              <li><a href="/#why-us" className="hover:text-[#F35271] transition-colors">Why Choose Us</a></li>
+              <li><a href="/#app-showcase" className="hover:text-[#F35271] transition-colors">Mobile Application</a></li>
+              <li><a href="/#pricing" className="hover:text-[#F35271] transition-colors">Pricing Packages</a></li>
+              <li><a href="/#faq" className="hover:text-[#F35271] transition-colors">FAQ</a></li>
               <li>
-                <button
-                  type="button"
-                  onClick={() => onOpenHelpCenter && onOpenHelpCenter()}
-                  className="hover:text-[#F35271] transition-colors text-left"
-                >
+                <Link to="/help-center" className="hover:text-[#F35271] transition-colors text-left block">
                   Help Center & Support
-                </button>
+                </Link>
               </li>
               <li>
-                <button
-                  type="button"
-                  onClick={() => onOpenLegal && onOpenLegal('ABOUT_US', 'About Us')}
-                  className="hover:text-[#F35271] transition-colors text-left"
-                >
+                <Link to="/about-us" className="hover:text-[#F35271] transition-colors text-left block">
                   About Us
-                </button>
+                </Link>
               </li>
             </ul>
           </div>
@@ -155,41 +148,21 @@ export default function Footer({ onOpenLegal, onOpenHelpCenter }) {
             © {new Date().getFullYear()} Therapyshala Beauty & Spa Sanctuary. All rights reserved.
           </div>
           <div className="flex items-center gap-4 flex-wrap justify-center sm:justify-end">
-            <button
-              type="button"
-              onClick={() => onOpenLegal && onOpenLegal('PRIVACY', 'Privacy Policy')}
-              className="hover:text-white transition-colors"
-            >
+            <Link to="/privacy" className="hover:text-white transition-colors">
               Privacy Policy
-            </button>
-            <button
-              type="button"
-              onClick={() => onOpenLegal && onOpenLegal('TERMS', 'Terms & Conditions')}
-              className="hover:text-white transition-colors"
-            >
+            </Link>
+            <Link to="/terms" className="hover:text-white transition-colors">
               Terms & Conditions
-            </button>
-            <button
-              type="button"
-              onClick={() => onOpenLegal && onOpenLegal('THERAPIST_TERMS', 'Therapist Terms')}
-              className="hover:text-white transition-colors"
-            >
+            </Link>
+            <Link to="/therapist-terms" className="hover:text-white transition-colors">
               Therapist Terms
-            </button>
-            <button
-              type="button"
-              onClick={() => onOpenLegal && onOpenLegal('CANCELLATION', 'Cancellation Policy')}
-              className="hover:text-white transition-colors"
-            >
+            </Link>
+            <Link to="/cancellation" className="hover:text-white transition-colors">
               Cancellation Policy
-            </button>
-            <button
-              type="button"
-              onClick={() => onOpenLegal && onOpenLegal('REFUND', 'Refund Policy')}
-              className="hover:text-white transition-colors"
-            >
+            </Link>
+            <Link to="/refund" className="hover:text-white transition-colors">
               Refund Policy
-            </button>
+            </Link>
           </div>
         </div>
 
