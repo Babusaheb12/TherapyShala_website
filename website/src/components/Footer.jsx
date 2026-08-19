@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
-import { Send, Heart, Sparkles, MapPin, Phone, Mail, Clock, Globe, MessageCircle } from 'lucide-react';
+import { Send, MapPin, Phone, Clock } from 'lucide-react';
 import TherapyshalaLogo from './TherapyshalaLogo';
 
-export default function Footer() {
+export default function Footer({ onOpenLegal, onOpenHelpCenter }) {
   const [email, setEmail] = useState('');
   const [subscribed, setSubscribed] = useState(false);
 
@@ -69,9 +69,26 @@ export default function Footer() {
               <li><a href="#services" className="hover:text-[#F35271] transition-colors">Services Menu</a></li>
               <li><a href="#why-us" className="hover:text-[#F35271] transition-colors">Why Choose Us</a></li>
               <li><a href="#app-showcase" className="hover:text-[#F35271] transition-colors">Mobile Application</a></li>
-              <li><a href="#gallery" className="hover:text-[#F35271] transition-colors">Sanctuary Gallery</a></li>
               <li><a href="#pricing" className="hover:text-[#F35271] transition-colors">Pricing Packages</a></li>
               <li><a href="#faq" className="hover:text-[#F35271] transition-colors">FAQ</a></li>
+              <li>
+                <button
+                  type="button"
+                  onClick={() => onOpenHelpCenter && onOpenHelpCenter()}
+                  className="hover:text-[#F35271] transition-colors text-left"
+                >
+                  Help Center & Support
+                </button>
+              </li>
+              <li>
+                <button
+                  type="button"
+                  onClick={() => onOpenLegal && onOpenLegal('ABOUT_US', 'About Us')}
+                  className="hover:text-[#F35271] transition-colors text-left"
+                >
+                  About Us
+                </button>
+              </li>
             </ul>
           </div>
 
@@ -137,10 +154,42 @@ export default function Footer() {
           <div>
             © {new Date().getFullYear()} Therapyshala Beauty & Spa Sanctuary. All rights reserved.
           </div>
-          <div className="flex items-center gap-6">
-            <a href="#privacy" className="hover:text-white transition-colors">Privacy Policy</a>
-            <a href="#terms" className="hover:text-white transition-colors">Terms of Service</a>
-            <a href="#cookies" className="hover:text-white transition-colors">Cookie Settings</a>
+          <div className="flex items-center gap-4 flex-wrap justify-center sm:justify-end">
+            <button
+              type="button"
+              onClick={() => onOpenLegal && onOpenLegal('PRIVACY', 'Privacy Policy')}
+              className="hover:text-white transition-colors"
+            >
+              Privacy Policy
+            </button>
+            <button
+              type="button"
+              onClick={() => onOpenLegal && onOpenLegal('TERMS', 'Terms & Conditions')}
+              className="hover:text-white transition-colors"
+            >
+              Terms & Conditions
+            </button>
+            <button
+              type="button"
+              onClick={() => onOpenLegal && onOpenLegal('THERAPIST_TERMS', 'Therapist Terms')}
+              className="hover:text-white transition-colors"
+            >
+              Therapist Terms
+            </button>
+            <button
+              type="button"
+              onClick={() => onOpenLegal && onOpenLegal('CANCELLATION', 'Cancellation Policy')}
+              className="hover:text-white transition-colors"
+            >
+              Cancellation Policy
+            </button>
+            <button
+              type="button"
+              onClick={() => onOpenLegal && onOpenLegal('REFUND', 'Refund Policy')}
+              className="hover:text-white transition-colors"
+            >
+              Refund Policy
+            </button>
           </div>
         </div>
 

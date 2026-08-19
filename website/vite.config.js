@@ -5,4 +5,19 @@ import tailwindcss from '@tailwindcss/vite'
 // https://vite.dev/config/
 export default defineConfig({
   plugins: [react(), tailwindcss()],
+  server: {
+    proxy: {
+      '/api': {
+        target: 'https://api.therapyshala.com',
+        changeOrigin: true,
+        secure: false,
+        configure: (proxy) => {
+          proxy.on('proxyReq', (proxyReq) => {
+            proxyReq.setHeader('Origin', 'https://api.therapyshala.com');
+            proxyReq.setHeader('Referer', 'https://api.therapyshala.com');
+          });
+        },
+      },
+    },
+  },
 })

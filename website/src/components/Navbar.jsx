@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Sparkles, Calendar, Menu, X, Smartphone } from 'lucide-react';
+import { Sparkles, Calendar, Menu, X, Smartphone, HelpCircle } from 'lucide-react';
 import TherapyshalaLogo from './TherapyshalaLogo';
 
-export default function Navbar({ onOpenBooking }) {
+export default function Navbar({ onOpenBooking, onOpenHelpCenter }) {
   const [scrolled, setScrolled] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
@@ -62,7 +62,15 @@ export default function Navbar({ onOpenBooking }) {
           </nav>
 
           {/* Action CTAs */}
-          <div className="hidden md:flex items-center gap-4">
+          <div className="hidden md:flex items-center gap-3">
+            <button
+              type="button"
+              onClick={() => onOpenHelpCenter && onOpenHelpCenter()}
+              className="inline-flex items-center gap-1.5 text-xs font-semibold tracking-wider text-[#0D0D12]/80 hover:text-[#F35271] px-3 py-2 rounded-full transition-colors"
+            >
+              <HelpCircle className="w-4 h-4 text-[#F35271]" />
+              Support
+            </button>
             <a
               href="#app-showcase"
               className="inline-flex items-center gap-2 text-xs font-semibold tracking-wider uppercase text-[#F35271] px-4 py-2.5 rounded-full border-2 border-[#F35271] bg-white hover:bg-[#FFEEF1] transition-all duration-300"
