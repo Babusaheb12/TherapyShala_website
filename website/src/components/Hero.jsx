@@ -1,6 +1,6 @@
 import React from 'react';
 import { motion } from 'framer-motion';
-import { Star, ArrowUpRight, Sparkles, Smartphone, ShieldCheck } from 'lucide-react';
+import { Star, ArrowUpRight, Sparkles, ShieldCheck } from 'lucide-react';
 
 export default function Hero({ onOpenBooking }) {
   return (
@@ -43,7 +43,7 @@ export default function Hero({ onOpenBooking }) {
               transition={{ duration: 0.7, delay: 0.2 }}
               className="text-base sm:text-lg text-[#757880] max-w-xl leading-relaxed mb-8 font-light"
             >
-              Experience bespoke thermal hydrotherapy baths, volcanic hot stone massages, 24k gold body scrubs, and botanical facial therapies. Reserved in seconds via our mobile app.
+              Experience bespoke thermal hydrotherapy baths, volcanic hot stone massages, 24k gold body scrubs, and botanical facial therapies. Reserved in seconds online.
             </motion.p>
 
             {/* CTAs */}
@@ -60,14 +60,6 @@ export default function Hero({ onOpenBooking }) {
                 <span>Reserve Treatment</span>
                 <ArrowUpRight className="w-4 h-4 transition-transform duration-300 group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
               </button>
-
-              <a
-                href="#app-showcase"
-                className="inline-flex items-center gap-3 text-sm font-semibold tracking-wider uppercase text-[#F35271] bg-white border-2 border-[#F35271] hover:bg-[#FFEEF1] px-8 py-4 rounded-full transition-all duration-300"
-              >
-                <Smartphone className="w-4 h-4 text-[#F35271]" />
-                <span>Explore Mobile App</span>
-              </a>
             </motion.div>
 
             {/* Social Proof & Customer Avatars */}
@@ -145,7 +137,7 @@ export default function Hero({ onOpenBooking }) {
                 </div>
               </motion.div>
 
-              {/* Floating Card 2: App Booking Stat (Bottom Right) */}
+              {/* Floating Card 2: Fast Booking Stat (Bottom Right) */}
               <motion.div
                 animate={{ y: [0, 8, 0] }}
                 transition={{ duration: 4.5, repeat: Infinity, ease: 'easeInOut', delay: 1 }}
@@ -159,7 +151,7 @@ export default function Hero({ onOpenBooking }) {
                     <div className="text-xs uppercase tracking-wider text-[#6E645E] font-medium">Fast Booking</div>
                     <div className="text-sm font-bold text-[#1F1B18]">Book in &lt; 30 Seconds</div>
                     <div className="flex items-center gap-1 mt-1 text-[11px] text-[#D88373] font-semibold">
-                      <span>Instant App Confirmation</span>
+                      <span>Instant Confirmation</span>
                     </div>
                   </div>
                 </div>

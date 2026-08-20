@@ -8,13 +8,17 @@ export default defineConfig({
   server: {
     proxy: {
       '/api': {
-        target: 'https://api.therapyshala.com',
+        target: 'https://lucrative-flaky-undermine.ngrok-free.dev',
         changeOrigin: true,
         secure: false,
+        headers: {
+          'ngrok-skip-browser-warning': 'true',
+        },
         configure: (proxy) => {
           proxy.on('proxyReq', (proxyReq) => {
-            proxyReq.setHeader('Origin', 'https://api.therapyshala.com');
-            proxyReq.setHeader('Referer', 'https://api.therapyshala.com');
+            proxyReq.setHeader('ngrok-skip-browser-warning', 'true');
+            proxyReq.setHeader('Origin', 'https://lucrative-flaky-undermine.ngrok-free.dev');
+            proxyReq.setHeader('Referer', 'https://lucrative-flaky-undermine.ngrok-free.dev');
           });
         },
       },

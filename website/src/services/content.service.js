@@ -49,3 +49,18 @@ export const getPublicFaqCategories = async () => {
 export const getPublicHelpCenter = async () => {
   return await publicFetch('/content/help-center');
 };
+
+/**
+ * 6. GET /app-feedback
+ * Fetch published customer app feedback & reviews for website showcase
+ * @param {Object} params - Query parameters e.g. { category, cursor, limit }
+ */
+export const getPublicAppFeedback = async (params = {}) => {
+  const queryParts = [];
+  if (params.category && params.category !== 'ALL') queryParts.push(`category=${encodeURIComponent(params.category)}`);
+  if (params.cursor) queryParts.push(`cursor=${encodeURIComponent(params.cursor)}`);
+  if (params.limit) queryParts.push(`limit=${encodeURIComponent(params.limit)}`);
+
+  const queryString = queryParts.length > 0 ? `?${queryParts.join('&')}` : '';
+  return await publicFetch(`/app-feedback${queryString}`);
+};

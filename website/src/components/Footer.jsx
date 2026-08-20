@@ -30,7 +30,7 @@ export default function Footer() {
               </Link>
 
               <p className="text-sm text-[#757880] font-light leading-relaxed mb-6 max-w-sm">
-                A premier luxury beauty & spa sanctuary designed for holistic rejuvenation, botanical skincare, and seamless mobile scheduling.
+                A premier luxury beauty & spa sanctuary designed for holistic rejuvenation, botanical skincare, and seamless appointment scheduling.
               </p>
 
               {/* Social Icons */}
@@ -69,7 +69,6 @@ export default function Footer() {
               <li><Link to="/" className="hover:text-[#F35271] transition-colors">Home</Link></li>
               <li><a href="/#services" className="hover:text-[#F35271] transition-colors">Services Menu</a></li>
               <li><a href="/#why-us" className="hover:text-[#F35271] transition-colors">Why Choose Us</a></li>
-              <li><a href="/#app-showcase" className="hover:text-[#F35271] transition-colors">Mobile Application</a></li>
               <li><a href="/#pricing" className="hover:text-[#F35271] transition-colors">Pricing Packages</a></li>
               <li><a href="/#faq" className="hover:text-[#F35271] transition-colors">FAQ</a></li>
               <li>
@@ -114,7 +113,7 @@ export default function Footer() {
           <div className="lg:col-span-3">
             <h4 className="font-serif-luxury text-lg font-normal mb-4 text-white">VIP Sanctuary Club</h4>
             <p className="text-xs text-white/60 font-light leading-relaxed mb-4">
-              Subscribe to receive private seasonal offers and ₹500 off your first mobile booking.
+              Subscribe to receive private seasonal offers and ₹500 off your first appointment booking.
             </p>
 
             <form onSubmit={handleSubscribe} className="relative">

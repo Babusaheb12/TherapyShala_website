@@ -1,12 +1,14 @@
 import React from 'react';
 import { PARTNERS_DATA } from '../data/spaData';
-import { Award, Shield, Sparkles } from 'lucide-react';
+import { Award } from 'lucide-react';
 
 export default function TrustedBy() {
+  const featuredPartners = PARTNERS_DATA.slice(0, 4);
+
   return (
-    <section className="py-12 bg-[#FFEEF1] border-y border-[#AFB0B7]/30">
+    <section className="py-10 bg-[#FFEEF1] border-y border-[#AFB0B7]/30">
       <div className="w-full max-w-[1720px] mx-auto px-6 md:px-12 lg:px-16 xl:px-20">
-        <div className="flex flex-col md:flex-row items-center justify-between gap-8">
+        <div className="flex flex-col lg:flex-row items-center justify-between gap-6">
           
           {/* Label */}
           <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.2em] text-[#757880] shrink-0">
@@ -14,15 +16,17 @@ export default function TrustedBy() {
             <span>Featured In & Awarded By</span>
           </div>
 
-          {/* Press Logos */}
-          <div className="flex flex-wrap items-center justify-center md:justify-end gap-8 sm:gap-12 opacity-70 grayscale hover:grayscale-0 transition-all duration-500">
-            {PARTNERS_DATA.map((partner, idx) => (
-              <span
+          {/* 4 Press Logos */}
+          <div className="grid grid-cols-2 md:grid-cols-4 items-center gap-4 sm:gap-6 w-full lg:w-auto">
+            {featuredPartners.map((partner, idx) => (
+              <div
                 key={idx}
-                className="font-serif-luxury text-lg sm:text-xl font-bold tracking-widest text-[#0D0D12] hover:text-[#F35271] transition-colors cursor-pointer"
+                className="px-5 py-3 rounded-2xl bg-white/80 border border-[#F35271]/20 hover:border-[#F35271] shadow-2xs hover:shadow-xs transition-all duration-300 flex items-center justify-center text-center"
               >
-                {partner.name}
-              </span>
+                <span className="font-serif-luxury text-xs sm:text-sm font-bold tracking-widest text-[#0D0D12]">
+                  {partner.name}
+                </span>
+              </div>
             ))}
           </div>
 

@@ -5,8 +5,6 @@ export const PARTNERS_DATA = [
   { name: "ELLE SPA", logo: "ELLE" },
   { name: "HARPER'S BAZAAR", logo: "BAZAAR" },
   { name: "LUXURY SPA AWARDS 2025", logo: "LUXURY AWARDS" },
-  { name: "COSMOPOLITAN", logo: "COSMOPOLITAN" },
-  { name: "VANITY FAIR SPA", logo: "VANITY FAIR" },
 ];
 
 export const SERVICES_DATA = [

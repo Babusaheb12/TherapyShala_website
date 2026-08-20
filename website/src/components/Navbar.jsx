@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Calendar, Menu, X, Smartphone, HelpCircle } from 'lucide-react';
+import { Calendar, Menu, X, Smartphone } from 'lucide-react';
 import TherapyshalaLogo from './TherapyshalaLogo';
 
 export default function Navbar({ onOpenBooking }) {
@@ -24,7 +24,6 @@ export default function Navbar({ onOpenBooking }) {
     { name: 'Home', href: '/' },
     { name: 'Services', href: '/#services' },
     { name: 'About', href: '/#why-us' },
-    { name: 'Mobile App', href: '/#app-showcase' },
     { name: 'Gallery', href: '/#gallery' },
     { name: 'Pricing', href: '/#pricing' },
     { name: 'Testimonials', href: '/#testimonials' },
@@ -64,20 +63,12 @@ export default function Navbar({ onOpenBooking }) {
 
           {/* Action CTAs */}
           <div className="hidden md:flex items-center gap-3">
-            <Link
-              to="/help-center"
-              className="inline-flex items-center gap-1.5 text-xs font-semibold tracking-wider text-[#0D0D12]/80 hover:text-[#F35271] px-3 py-2 rounded-full transition-colors"
-            >
-              <HelpCircle className="w-4 h-4 text-[#F35271]" />
-              Support
-            </Link>
-
             <a
               href="/#app-showcase"
               className="inline-flex items-center gap-2 text-xs font-semibold tracking-wider uppercase text-[#F35271] px-4 py-2.5 rounded-full border-2 border-[#F35271] bg-white hover:bg-[#FFEEF1] transition-all duration-300"
             >
               <Smartphone className="w-3.5 h-3.5 text-[#F35271]" />
-              App Preview
+              Get App
             </a>
 
             {onOpenBooking && (
@@ -151,7 +142,7 @@ export default function Navbar({ onOpenBooking }) {
                 className="w-full py-3.5 text-sm font-semibold tracking-wider uppercase text-[#F35271] bg-white border-2 border-[#F35271] rounded-full text-center flex items-center justify-center gap-2"
               >
                 <Smartphone className="w-4 h-4 text-[#F35271]" />
-                Get Mobile App
+                Get App
               </a>
             </div>
           </motion.div>
