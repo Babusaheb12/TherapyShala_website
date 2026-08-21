@@ -246,38 +246,7 @@ export const GALLERY_DATA = [
   }
 ];
 
-export const TESTIMONIALS_DATA = [
-  {
-    id: 1,
-    name: "Elena Rostova",
-    role: "Fashion Editor, Vogue Paris",
-    avatar: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=200&q=80",
-    content: "Therapyshala has redefined luxury spa therapy for me. The mobile app makes booking a 90-minute volcanic hot stone therapy during busy fashion weeks practically effortless. The rose botanical facial left my skin glowing for weeks.",
-    rating: 5,
-    treatment: "Hot Stone Therapy & Facial",
-    verified: true
-  },
-  {
-    id: 2,
-    name: "Sophia Chen",
-    role: "Architectural Designer",
-    avatar: "https://images.unsplash.com/photo-1517841905240-472988babdf9?auto=format&fit=crop&w=200&q=80",
-    content: "The serene spa ambience, scent design, and immaculate attention to body therapy are unprecedented. Being able to choose my specific therapist and customize acoustic soundscapes via their mobile app is incredible.",
-    rating: 5,
-    treatment: "Deep Tissue Spa Therapy",
-    verified: true
-  },
-  {
-    id: 3,
-    name: "Camille Dupont",
-    role: "Creative Director",
-    avatar: "https://images.unsplash.com/photo-1524504388940-b1c1722653e1?auto=format&fit=crop&w=200&q=80",
-    content: "From the moment you step into their private hydrotherapy suite to the post-treatment herbal tea ceremony, every touchpoint feels curated by world-class spa experts.",
-    rating: 5,
-    treatment: "24k Gold Body Scrub Ritual",
-    verified: true
-  }
-];
+export const TESTIMONIALS_DATA = [];
 
 export const PRICING_PACKAGES = [
   {

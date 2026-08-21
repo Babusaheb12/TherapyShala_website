@@ -62,5 +62,13 @@ export const getPublicAppFeedback = async (params = {}) => {
   if (params.limit) queryParts.push(`limit=${encodeURIComponent(params.limit)}`);
 
   const queryString = queryParts.length > 0 ? `?${queryParts.join('&')}` : '';
-  return await publicFetch(`/app-feedback${queryString}`);
+  try {
+    return await publicFetch(`/app-feedback${queryString}`);
+  } catch (err) {
+    try {
+      return await publicFetch(`/admin/app-feedback${queryString}`);
+    } catch (err2) {
+      throw err;
+    }
+  }
 };

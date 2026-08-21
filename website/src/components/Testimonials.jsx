@@ -1,58 +1,63 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { TESTIMONIALS_DATA } from '../data/spaData';
 import { getPublicAppFeedback } from '../services/content.service';
-import { Star, Quote, ChevronLeft, ChevronRight, CheckCircle } from 'lucide-react';
+import { Star, Quote, ChevronLeft, ChevronRight, CheckCircle, MessageSquare, AlertCircle, RefreshCw } from 'lucide-react';
 
 export default function Testimonials() {
   const [currentIndex, setCurrentIndex] = useState(0);
-  const [testimonials, setTestimonials] = useState(TESTIMONIALS_DATA);
+  const [testimonials, setTestimonials] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [errorMsg, setErrorMsg] = useState('');
+
+  const fetchLiveFeedback = async () => {
+    setLoading(true);
+    setErrorMsg('');
+    try {
+      const res = await getPublicAppFeedback({ limit: 20 });
+      const items = Array.isArray(res?.data?.data)
+        ? res.data.data
+        : Array.isArray(res?.data)
+        ? res.data
+        : Array.isArray(res)
+        ? res
+        : [];
+
+      const mapped = items.map((item) => ({
+        id: item.id || item._id || item.publicId,
+        name: item.user?.fullName || item.user?.name || item.userName || 'Valued Guest',
+        role: 'Verified App Customer',
+        avatar: item.user?.avatarUrl || item.avatarUrl || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&q=80&w=300',
+        rating: item.starCount ?? item.rating ?? 5,
+        content: item.description || item.comment || item.message || item.content || 'Great experience!',
+        treatment: item.category ? String(item.category).replace('_', ' ') : 'App Experience',
+      }));
+
+      setTestimonials(mapped);
+      setCurrentIndex(0);
+    } catch (err) {
+      console.error('Failed to load live app reviews:', err.message);
+      setErrorMsg(err.message || 'Unable to fetch reviews from server.');
+      setTestimonials([]);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
-    const fetchLiveFeedback = async () => {
-      setLoading(true);
-      try {
-        const res = await getPublicAppFeedback({ limit: 20 });
-        const items = Array.isArray(res?.data?.data)
-          ? res.data.data
-          : Array.isArray(res?.data)
-          ? res.data
-          : Array.isArray(res)
-          ? res
-          : [];
-
-        if (items.length > 0) {
-          const mapped = items.map((item) => ({
-            id: item.id || item._id || item.publicId,
-            name: item.user?.fullName || item.user?.name || 'Valued Guest',
-            role: 'Verified App Customer',
-            avatar: item.user?.avatarUrl || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&q=80&w=300',
-            rating: item.starCount ?? item.rating ?? 5,
-            content: item.description || item.comment || item.message || 'Great experience!',
-            treatment: item.category || 'App Experience',
-          }));
-          setTestimonials(mapped);
-        }
-      } catch (err) {
-        console.warn('Using default testimonials fallback due to API offline:', err.message);
-      } finally {
-        setLoading(false);
-      }
-    };
-
     fetchLiveFeedback();
   }, []);
 
   const handleNext = () => {
+    if (testimonials.length === 0) return;
     setCurrentIndex((prev) => (prev + 1) % testimonials.length);
   };
 
   const handlePrev = () => {
+    if (testimonials.length === 0) return;
     setCurrentIndex((prev) => (prev - 1 + testimonials.length) % testimonials.length);
   };
 
-  const activeTestimonial = testimonials[currentIndex] || testimonials[0];
+  const activeTestimonial = testimonials[currentIndex];
 
   return (
     <section id="testimonials" className="py-24 md:py-32 bg-white relative overflow-hidden">
@@ -81,7 +86,34 @@ export default function Testimonials() {
             {loading ? (
               <div className="py-12 text-center text-[#757880]">
                 <div className="w-8 h-8 border-2 border-[#F35271] border-t-transparent rounded-full animate-spin mx-auto mb-3" />
-                <p className="text-xs font-medium">Fetching verified guest reviews...</p>
+                <p className="text-xs font-medium">Fetching verified guest reviews from API...</p>
+              </div>
+            ) : errorMsg ? (
+              <div className="py-10 text-center space-y-3">
+                <AlertCircle className="w-8 h-8 text-rose-500 mx-auto" />
+                <p className="text-xs text-rose-600 font-medium">{errorMsg}</p>
+                <button
+                  type="button"
+                  onClick={fetchLiveFeedback}
+                  className="px-4 py-2 bg-[#F35271] text-white rounded-xl text-xs font-bold inline-flex items-center gap-2 hover:bg-[#d63f5d] transition"
+                >
+                  <RefreshCw className="w-3.5 h-3.5" /> Retry Fetching Reviews
+                </button>
+              </div>
+            ) : testimonials.length === 0 ? (
+              <div className="py-12 text-center text-[#757880] space-y-3 relative z-10">
+                <MessageSquare className="w-10 h-10 text-[#F35271] mx-auto opacity-70" />
+                <h3 className="font-serif-luxury text-2xl text-[#1F1B18]">No Published Guest Reviews</h3>
+                <p className="text-xs font-light max-w-md mx-auto">
+                  There are currently no customer reviews published in the system. Reviews approved via the admin dashboard will automatically appear live here.
+                </p>
+                <button
+                  type="button"
+                  onClick={fetchLiveFeedback}
+                  className="px-4 py-2 border border-[#EFE6DC] rounded-xl text-xs font-bold text-[#1F1B18] inline-flex items-center gap-2 hover:bg-[#F3E3DF]/50 transition mt-2"
+                >
+                  <RefreshCw className="w-3.5 h-3.5" /> Refresh
+                </button>
               </div>
             ) : (
               <AnimatePresence mode="wait">
