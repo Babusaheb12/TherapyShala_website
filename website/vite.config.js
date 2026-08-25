@@ -1,28 +1,37 @@
-import { defineConfig } from 'vite'
+import { defineConfig, loadEnv } from 'vite'
 import react from '@vitejs/plugin-react'
 import tailwindcss from '@tailwindcss/vite'
+import path from 'path'
 
 // https://vite.dev/config/
-export default defineConfig({
-  plugins: [react(), tailwindcss()],
-  server: {
-    proxy: {
-      '/api': {
-        // target: 'https://lucrative-flaky-undermine.ngrok-free.dev', // ngrok base URL (commented out)
-        target: 'https://api.therapyshala.com', // Live API base URL
-        changeOrigin: true,
-        secure: false,
-        headers: {
-          // 'ngrok-skip-browser-warning': 'true',
-        },
-        configure: (proxy) => {
-          proxy.on('proxyReq', (proxyReq) => {
-            // proxyReq.setHeader('ngrok-skip-browser-warning', 'true');
-            proxyReq.setHeader('Origin', 'https://api.therapyshala.com');
-            proxyReq.setHeader('Referer', 'https://api.therapyshala.com');
-          });
+export default defineConfig(({ mode }) => {
+  const env = loadEnv(mode, path.resolve(import.meta.dirname, '..'), '');
+  const rawTarget = env.VITE_API_BASE_URL || '';
+  const targetHost = rawTarget.startsWith('http')
+    ? rawTarget.replace(/\/api\/v1\/?$/, '').replace(/\/+$/, '')
+    : 'https://api.therapyshala.com';
+
+  return {
+    envDir: '../',
+    plugins: [react(), tailwindcss()],
+    server: {
+      proxy: {
+        '/api': {
+          target: targetHost,
+          changeOrigin: true,
+          secure: false,
+          headers: {
+            'ngrok-skip-browser-warning': 'true',
+          },
+          configure: (proxy) => {
+            proxy.on('proxyReq', (proxyReq) => {
+              proxyReq.setHeader('ngrok-skip-browser-warning', 'true');
+              proxyReq.setHeader('Origin', 'https://api.therapyshala.com');
+              proxyReq.setHeader('Referer', 'https://api.therapyshala.com');
+            });
+          },
         },
       },
     },
-  },
-})
+  };
+});
