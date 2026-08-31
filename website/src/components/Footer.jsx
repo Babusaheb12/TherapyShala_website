@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Send, MapPin, Phone, Clock } from 'lucide-react';
+import { Send, MapPin, Phone, Clock, Store, UserPlus, Compass } from 'lucide-react';
 import TherapyshalaLogo from './TherapyshalaLogo';
 
 export default function Footer() {
@@ -30,7 +30,7 @@ export default function Footer() {
               </Link>
 
               <p className="text-sm text-[#757880] font-light leading-relaxed mb-6 max-w-sm">
-                A premier luxury beauty & spa sanctuary designed for holistic rejuvenation, botanical skincare, and seamless appointment scheduling.
+                India's premier multi-business marketplace connecting clients with verified luxury Spas, Salons, Wellness Centers, and Beauty Parlours.
               </p>
 
               {/* Social Icons */}
@@ -60,51 +60,47 @@ export default function Footer() {
             </div>
           </div>
 
-          {/* Quick Links */}
+          {/* Customer Navigation */}
           <div className="lg:col-span-2">
             <h4 className="font-serif-luxury text-xl text-white font-normal mb-6">
-              Navigation
+              Explore
             </h4>
-            <ul className="space-y-3 text-sm font-light text-[#EFE6DC]/70">
-              <li><Link to="/" className="hover:text-[#F35271] transition-colors">Home</Link></li>
-              <li><a href="/#services" className="hover:text-[#F35271] transition-colors">Services Menu</a></li>
-              <li><a href="/#why-us" className="hover:text-[#F35271] transition-colors">Why Choose Us</a></li>
-              <li><a href="/#pricing" className="hover:text-[#F35271] transition-colors">Pricing Packages</a></li>
-              <li><a href="/#faq" className="hover:text-[#F35271] transition-colors">FAQ</a></li>
-              <li>
-                <Link to="/help-center" className="hover:text-[#F35271] transition-colors text-left block">
-                  Help Center & Support
-                </Link>
-              </li>
-              <li>
-                <Link to="/about-us" className="hover:text-[#F35271] transition-colors text-left block">
-                  About Us
-                </Link>
-              </li>
+            <ul className="space-y-3 text-xs sm:text-sm font-light text-[#EFE6DC]/70">
+              <li><Link to="/explore" className="hover:text-[#F35271] transition-colors">Find Spas & Salons</Link></li>
+              <li><Link to="/services" className="hover:text-[#F35271] transition-colors">All Services Menu</Link></li>
+              <li><Link to="/packages" className="hover:text-[#F35271] transition-colors">Treatment Passes</Link></li>
+              <li><Link to="/offers" className="hover:text-[#F35271] transition-colors">Offers & Coupons</Link></li>
+              <li><Link to="/account" className="hover:text-[#F35271] transition-colors">Customer Portal</Link></li>
             </ul>
           </div>
 
-          {/* Contact Details */}
+          {/* Business Owners Network */}
           <div className="lg:col-span-3">
-            <h4 className="font-serif-luxury text-lg font-normal mb-6 text-white">Contact & Location</h4>
-            <ul className="space-y-4 text-xs font-light text-white/70">
-              <li className="flex items-start gap-3">
-                <Clock className="w-4 h-4 text-[#F35271] shrink-0 mt-1" />
-                <div>
-                  <div className="font-semibold text-white">Operating Hours</div>
-                  <div>Mon - Sun: 09:00 AM - 09:00 PM</div>
-                </div>
+            <h4 className="font-serif-luxury text-lg font-normal mb-6 text-white flex items-center gap-2">
+              <Store className="w-4 h-4 text-[#F35271]" />
+              <span>For Business Owners</span>
+            </h4>
+            <ul className="space-y-3 text-xs font-light text-white/70">
+              <li>
+                <Link to="/list-your-business" className="text-[#F35271] font-bold hover:underline flex items-center gap-1.5">
+                  <UserPlus className="w-3.5 h-3.5" />
+                  <span>List Your Business (Free)</span>
+                </Link>
               </li>
-              <li className="flex items-start gap-3">
-                <MapPin className="w-4 h-4 text-[#F35271] shrink-0 mt-1" />
-                <div>
-                  <div className="font-semibold text-white">Sanctuary Location</div>
-                  <div>Luxury Wellness Suite, City Center</div>
-                </div>
+              <li>
+                <Link to="/help-center" className="hover:text-white transition-colors">
+                  Partner Help Center & FAQ
+                </Link>
               </li>
-              <li className="flex items-center gap-3">
-                <Phone className="w-4 h-4 text-[#F35271] shrink-0" />
-                <a href="tel:+919876543210" className="hover:text-[#F35271]">+91 98765 43210</a>
+              <li>
+                <Link to="/therapist-terms" className="hover:text-white transition-colors">
+                  Business & Therapist Terms
+                </Link>
+              </li>
+              <li>
+                <a href="mailto:partner@therapyshala.com" className="hover:text-white transition-colors">
+                  partner@therapyshala.com
+                </a>
               </li>
             </ul>
           </div>
@@ -113,7 +109,7 @@ export default function Footer() {
           <div className="lg:col-span-3">
             <h4 className="font-serif-luxury text-lg font-normal mb-4 text-white">VIP Sanctuary Club</h4>
             <p className="text-xs text-white/60 font-light leading-relaxed mb-4">
-              Subscribe to receive private seasonal offers and ₹500 off your first appointment booking.
+              Subscribe to receive weekly salon offers and ₹500 off your first appointment booking.
             </p>
 
             <form onSubmit={handleSubscribe} className="relative">
@@ -141,20 +137,23 @@ export default function Footer() {
 
         </div>
 
-        {/* Bottom Copyright */}
+        {/* Bottom Copyright & Legal links */}
         <div className="pt-8 flex flex-col sm:flex-row items-center justify-between text-xs text-[#EFE6DC]/50 font-light gap-4">
           <div>
-            © {new Date().getFullYear()} Therapyshala Beauty & Spa Sanctuary. All rights reserved.
+            © {new Date().getFullYear()} TherapyShala Multi-Business Spa & Salon Platform.
           </div>
           <div className="flex items-center gap-4 flex-wrap justify-center sm:justify-end">
+            <Link to="/help-center" className="hover:text-white transition-colors">
+              Help Center
+            </Link>
+            <Link to="/about-us" className="hover:text-white transition-colors">
+              About Us
+            </Link>
             <Link to="/privacy" className="hover:text-white transition-colors">
               Privacy Policy
             </Link>
             <Link to="/terms" className="hover:text-white transition-colors">
               Terms & Conditions
-            </Link>
-            <Link to="/therapist-terms" className="hover:text-white transition-colors">
-              Therapist Terms
             </Link>
             <Link to="/cancellation" className="hover:text-white transition-colors">
               Cancellation Policy

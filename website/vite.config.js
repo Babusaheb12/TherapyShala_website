@@ -26,8 +26,8 @@ export default defineConfig(({ mode }) => {
           configure: (proxy) => {
             proxy.on('proxyReq', (proxyReq) => {
               proxyReq.setHeader('ngrok-skip-browser-warning', 'true');
-              proxyReq.setHeader('Origin', 'https://api.therapyshala.com');
-              proxyReq.setHeader('Referer', 'https://api.therapyshala.com');
+              proxyReq.setHeader('Origin', targetHost);
+              proxyReq.setHeader('Referer', targetHost);
             });
           },
         },

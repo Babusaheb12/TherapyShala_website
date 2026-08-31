@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { getPublicAppFeedback } from '../services/content.service';
+import { TESTIMONIALS_DATA } from '../data/spaData';
 import { Star, Quote, ChevronLeft, ChevronRight, CheckCircle, MessageSquare, AlertCircle, RefreshCw } from 'lucide-react';
 
 export default function Testimonials() {
@@ -22,22 +23,39 @@ export default function Testimonials() {
         ? res
         : [];
 
-      const mapped = items.map((item) => ({
-        id: item.id || item._id || item.publicId,
-        name: item.user?.fullName || item.user?.name || item.userName || 'Valued Guest',
-        role: 'Verified App Customer',
-        avatar: item.user?.avatarUrl || item.avatarUrl || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&q=80&w=300',
-        rating: item.starCount ?? item.rating ?? 5,
-        content: item.description || item.comment || item.message || item.content || 'Great experience!',
-        treatment: item.category ? String(item.category).replace('_', ' ') : 'App Experience',
-      }));
-
-      setTestimonials(mapped);
-      setCurrentIndex(0);
-    } catch (err) {
-      console.error('Failed to load live app reviews:', err.message);
-      setErrorMsg(err.message || 'Unable to fetch reviews from server.');
-      setTestimonials([]);
+      if (items.length > 0) {
+        const mapped = items.map((item) => ({
+          id: item.id || item._id || item.publicId,
+          name: item.user?.fullName || item.user?.name || item.userName || 'Valued Guest',
+          role: 'Verified App Customer',
+          avatar: item.user?.avatarUrl || item.avatarUrl || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&q=80&w=300',
+          rating: item.starCount ?? item.rating ?? 5,
+          content: item.description || item.comment || item.message || item.content || 'Great experience!',
+          treatment: item.category ? String(item.category).replace('_', ' ') : 'App Experience',
+        }));
+        setTestimonials(mapped);
+        setCurrentIndex(0);
+      } else {
+        setTestimonials(TESTIMONIALS_DATA.map(t => ({
+          id: t.id,
+          name: t.name,
+          role: t.role,
+          avatar: t.avatar,
+          rating: t.rating,
+          content: t.comment,
+          treatment: 'Verified Guest'
+        })));
+      }
+    } catch {
+      setTestimonials(TESTIMONIALS_DATA.map(t => ({
+        id: t.id,
+        name: t.name,
+        role: t.role,
+        avatar: t.avatar,
+        rating: t.rating,
+        content: t.comment,
+        treatment: 'Verified Guest'
+      })));
     } finally {
       setLoading(false);
     }

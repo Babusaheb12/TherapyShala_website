@@ -3,14 +3,15 @@ import { AnimatePresence, motion } from 'framer-motion';
 import Preloader from '../components/Preloader';
 import Navbar from '../components/Navbar';
 import Hero from '../components/Hero';
-import TrustedBy from '../components/TrustedBy';
+import CategoryDiscovery from '../components/CategoryDiscovery';
+import FeaturedBusinesses from '../components/FeaturedBusinesses';
 import Services from '../components/Services';
+import BusinessPartnerCTA from '../components/BusinessPartnerCTA';
 import WhyChooseUs from '../components/WhyChooseUs';
 import AppShowcase from '../components/AppShowcase';
 import Gallery from '../components/Gallery';
 import Testimonials from '../components/Testimonials';
 import Pricing from '../components/Pricing';
-import BookingProcess from '../components/BookingProcess';
 import Statistics from '../components/Statistics';
 import FAQ from '../components/FAQ';
 import DownloadCTA from '../components/DownloadCTA';
@@ -42,48 +43,51 @@ export default function LandingPage() {
         initial={{ opacity: 0 }}
         animate={{ opacity: loading ? 0 : 1 }}
         transition={{ duration: 0.8, ease: "easeOut" }}
-        className="min-h-screen bg-[#FAF6F0] text-[#1F1B18] font-sans selection:bg-[#E09F93] selection:text-white relative"
+        className="min-h-screen bg-[#FFFDFD] text-[#0D0D12] font-sans selection:bg-[#F35271] selection:text-white relative"
       >
-        {/* 1. Navbar */}
-        <Navbar onOpenBooking={handleOpenBooking} />
+        {/* 1. Navbar without Book Appointment button */}
+        <Navbar />
 
-        {/* 2. Hero Section */}
+        {/* 2. Primary Hero Marketplace Search & Discovery */}
         <Hero onOpenBooking={handleOpenBooking} />
 
-        {/* 3. Trusted By */}
-        <TrustedBy />
+        {/* 3. Category Discovery Grid (Visual Taxonomy) */}
+        <CategoryDiscovery />
 
-        {/* 4. Services Section */}
+        {/* 4. Featured Spas & Salons Multi-Business Directory */}
+        <FeaturedBusinesses />
+
+        {/* 5. Trending Services Across Network */}
         <Services onSelectServiceForBooking={handleSelectServiceForBooking} />
 
-        {/* 5. Why Choose Us */}
+        {/* 6. Dedicated Partner Section: Grow Your Spa & Salon with TherapyShala */}
+        <BusinessPartnerCTA />
+
+        {/* 7. Marketplace Trust & Standards */}
         <WhyChooseUs />
 
-        {/* 6. Mobile App Showcase */}
+        {/* 8. Mobile App Showcase */}
         <AppShowcase />
 
-        {/* 7. Gallery */}
+        {/* 9. Sanctuary Suites & Photo Gallery */}
         <Gallery />
 
-        {/* 8. Customer Testimonials */}
+        {/* 10. Verified Guest Testimonials */}
         <Testimonials />
 
-        {/* 9. Pricing Packages */}
+        {/* 11. Multi-Session Treatment Passes */}
         <Pricing onOpenBooking={handleOpenBooking} />
 
-        {/* 10. Booking Process */}
-        <BookingProcess onOpenBooking={handleOpenBooking} />
-
-        {/* 11. Statistics */}
+        {/* 12. Marketplace Statistics */}
         <Statistics />
 
-        {/* 12. FAQ */}
+        {/* 13. Marketplace FAQ */}
         <FAQ />
 
-        {/* 13. Download App CTA */}
+        {/* 14. Mobile App Download CTA */}
         <DownloadCTA />
 
-        {/* 14. Footer */}
+        {/* 15. Footer */}
         <Footer />
 
         {/* Interactive Quick Booking Modal */}

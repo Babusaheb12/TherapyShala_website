@@ -1,16 +1,17 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { getPublicFaqs, getPublicFaqCategories } from '../services/content.service';
+import { FAQ_DATA } from '../data/spaData';
 import { ChevronDown, Search, RefreshCw, AlertCircle, HelpCircle } from 'lucide-react';
 
 export default function FAQ() {
   const [categories, setCategories] = useState([]);
   const [selectedCategory, setSelectedCategory] = useState('ALL');
-  const [faqs, setFaqs] = useState([]);
+  const [faqs, setFaqs] = useState(FAQ_DATA || []);
   const [searchTerm, setSearchTerm] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
   const [openIndex, setOpenIndex] = useState(0);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
 
   // Search Debounce (300ms)
@@ -28,7 +29,7 @@ export default function FAQ() {
       .then((res) => {
         if (!isMounted) return;
         const list = Array.isArray(res?.data) ? res.data : [];
-        setCategories(list);
+        if (list.length > 0) setCategories(list);
       })
       .catch(() => {
         // Fallback silently if categories request fails
@@ -40,8 +41,6 @@ export default function FAQ() {
 
   // 2. Fetch FAQs (GET /content/faqs?category=<cat>&q=<search>&limit=20)
   const fetchFaqs = useCallback(async () => {
-    setLoading(true);
-    setErrorMsg('');
     try {
       const params = { limit: 20 };
       if (selectedCategory !== 'ALL') {
@@ -60,12 +59,30 @@ export default function FAQ() {
         ? res
         : [];
 
-      setFaqs(list);
-      setOpenIndex(list.length > 0 ? 0 : -1);
-    } catch (err) {
-      setErrorMsg(err.message || 'Unable to load FAQs. Please try again.');
-    } finally {
-      setLoading(false);
+      if (list.length > 0) {
+        setFaqs(list);
+        setOpenIndex(0);
+      } else if (debouncedSearch.trim()) {
+        // Filter local FAQ_DATA
+        const filtered = FAQ_DATA.filter(f => 
+          f.question.toLowerCase().includes(debouncedSearch.toLowerCase()) ||
+          f.answer.toLowerCase().includes(debouncedSearch.toLowerCase())
+        );
+        setFaqs(filtered);
+      } else {
+        setFaqs(FAQ_DATA);
+      }
+    } catch {
+      // Offline fallback: filter default FAQ_DATA
+      if (debouncedSearch.trim()) {
+        const filtered = FAQ_DATA.filter(f => 
+          f.question.toLowerCase().includes(debouncedSearch.toLowerCase()) ||
+          f.answer.toLowerCase().includes(debouncedSearch.toLowerCase())
+        );
+        setFaqs(filtered);
+      } else {
+        setFaqs(FAQ_DATA);
+      }
     }
   }, [selectedCategory, debouncedSearch]);
 
