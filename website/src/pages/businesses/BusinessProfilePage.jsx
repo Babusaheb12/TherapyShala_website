@@ -8,7 +8,9 @@ import {
   MapPin, Phone, Mail, Globe, Star, Clock, 
   Sparkles, Check, ArrowRight, ShieldCheck, HeartHandshake,
   Calendar, CheckCircle2, User, Gift, Share2, Tag, 
-  ChevronRight, MessageSquare, Image, Navigation, UserCheck
+  ChevronRight, MessageSquare, Image, Navigation, UserCheck,
+  Building2, GitBranch, DoorOpen, ExternalLink, X, FileSpreadsheet,
+  Award, ShieldAlert
 } from 'lucide-react';
 
 export default function BusinessProfilePage() {
@@ -16,10 +18,35 @@ export default function BusinessProfilePage() {
   const navigate = useNavigate();
   const allBusinesses = getAllBusinesses();
 
-  const business = allBusinesses.find(b => b.slug === slug) || allBusinesses[0];
+  const business = allBusinesses.find(b => b.slug === slug || b.id === slug) || allBusinesses[0];
 
   const [activeTab, setActiveTab] = useState('overview');
+  const [selectedBranchIndex, setSelectedBranchIndex] = useState(0);
+  const [selectedGalleryPhoto, setSelectedGalleryPhoto] = useState(null);
   const [copied, setCopied] = useState(false);
+
+  const activeBranch = (business.branches && business.branches[selectedBranchIndex]) || {
+    name: 'Main Flagship Branch',
+    address: typeof business.address === 'object' ? business.address.line1 : business.address,
+    city: business.city,
+    state: business.state,
+    pincode: typeof business.address === 'object' ? business.address.pincode : '302015',
+    phone: business.phone,
+    email: business.email,
+    roomCapacity: 6,
+    chairCapacity: 8,
+    latitude: typeof business.address === 'object' ? business.address.latitude : 26.9124,
+    longitude: typeof business.address === 'object' ? business.address.longitude : 75.7873,
+    operatingHours: business.operatingSchedule || []
+  };
+
+  const galleryPhotos = business.gallery && business.gallery.length >= 3 
+    ? business.gallery 
+    : [
+        business.coverImage,
+        "https://images.unsplash.com/photo-1544161515-4ab6ce6db874?auto=format&fit=crop&w=800&q=80",
+        "https://images.unsplash.com/photo-1507652313519-d4e9174996dd?auto=format&fit=crop&w=800&q=80"
+      ];
 
   const handleShare = () => {
     navigator.clipboard.writeText(window.location.href);
@@ -33,6 +60,12 @@ export default function BusinessProfilePage() {
 
   const handleBookPackage = (packageId) => {
     navigate(`/book?businessSlug=${business.slug}&packageId=${packageId}`);
+  };
+
+  const openGoogleMaps = () => {
+    const lat = activeBranch.latitude || (typeof business.address === 'object' ? business.address.latitude : 26.9124);
+    const lng = activeBranch.longitude || (typeof business.address === 'object' ? business.address.longitude : 75.7873);
+    window.open(`https://www.google.com/maps/search/?api=1&query=${lat},${lng}`, '_blank');
   };
 
   return (
@@ -59,13 +92,21 @@ export default function BusinessProfilePage() {
               alt={business.name}
               className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700"
             />
-            <div className="absolute inset-0 bg-gradient-to-t from-[#0D0D12]/85 via-[#0D0D12]/30 to-transparent" />
+            <div className="absolute inset-0 bg-gradient-to-t from-[#0D0D12]/90 via-[#0D0D12]/35 to-transparent" />
 
             {/* Top Bar on Cover */}
             <div className="absolute top-6 left-6 right-6 flex items-center justify-between">
-              <span className="px-4 py-1.5 rounded-full bg-white/95 backdrop-blur-md text-xs font-bold text-[#0D0D12] uppercase tracking-wider shadow-md">
-                {business.type}
-              </span>
+              <div className="flex items-center gap-2">
+                <span className="px-4 py-1.5 rounded-full bg-white/95 backdrop-blur-md text-xs font-bold text-[#0D0D12] uppercase tracking-wider shadow-md">
+                  {business.type}
+                </span>
+                {business.branches && business.branches.length > 1 && (
+                  <span className="px-3.5 py-1.5 rounded-full bg-[#0D0D12]/80 backdrop-blur-md text-white text-xs font-bold flex items-center gap-1.5 border border-white/20">
+                    <GitBranch className="w-3.5 h-3.5 text-[#F35271]" />
+                    {business.branches.length} Branches
+                  </span>
+                )}
+              </div>
 
               <div className="flex items-center gap-2">
                 <button
@@ -83,15 +124,15 @@ export default function BusinessProfilePage() {
               <div>
                 <div className="flex items-center gap-3 mb-2 flex-wrap">
                   <span className="bg-[#168821] text-white text-[11px] font-bold px-3 py-0.5 rounded-full flex items-center gap-1">
-                    <CheckCircle2 className="w-3 h-3" /> Verified Business
+                    <CheckCircle2 className="w-3 h-3" /> KYC & GST Verified
                   </span>
                   <span className="flex items-center gap-1 text-xs bg-black/40 backdrop-blur-md px-3 py-0.5 rounded-full border border-white/20">
                     <Star className="w-3.5 h-3.5 fill-[#FF5E7E] text-[#FF5E7E]" />
                     <strong className="text-white">{business.rating}</strong> ({business.reviewsCount} Reviews)
                   </span>
-                  <span className="text-xs text-white/80 flex items-center gap-1">
+                  <span className="text-xs text-white/90 flex items-center gap-1">
                     <MapPin className="w-3.5 h-3.5 text-[#FF5E7E]" />
-                    {business.shortLocation}
+                    {business.shortLocation || `${business.city}, ${business.state}`}
                   </span>
                 </div>
 
@@ -99,7 +140,7 @@ export default function BusinessProfilePage() {
                   {business.name}
                 </h1>
                 <p className="text-xs sm:text-sm text-white/80 font-light mt-1 max-w-xl line-clamp-1">
-                  {business.tagline}
+                  {business.tagline || business.description}
                 </p>
               </div>
 
@@ -121,7 +162,7 @@ export default function BusinessProfilePage() {
             </div>
           )}
 
-          {/* Quick Contact Strip */}
+          {/* Quick Contact & Compliance Strip */}
           <div className="mt-6 bg-white rounded-2xl p-4 border border-[#AFB0B7]/25 shadow-sm flex items-center justify-between flex-wrap gap-4 text-xs text-[#0D0D12]">
             <div className="flex items-center gap-2">
               <Clock className="w-4 h-4 text-[#F35271]" />
@@ -129,16 +170,18 @@ export default function BusinessProfilePage() {
             </div>
             <div className="flex items-center gap-2">
               <Phone className="w-4 h-4 text-[#F35271]" />
-              <a href={`tel:${business.phone}`} className="hover:text-[#F35271]">{business.phone}</a>
+              <a href={`tel:${business.phone}`} className="hover:text-[#F35271] font-semibold">{business.phone}</a>
             </div>
             <div className="flex items-center gap-2">
               <Mail className="w-4 h-4 text-[#F35271]" />
               <a href={`mailto:${business.email}`} className="hover:text-[#F35271]">{business.email}</a>
             </div>
-            <div className="flex items-center gap-2">
-              <MapPin className="w-4 h-4 text-[#F35271]" />
-              <span className="text-[#757880] truncate max-w-xs">{business.address}</span>
-            </div>
+            {business.legal?.gstin && (
+              <div className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-neutral-100 text-[#0D0D12] text-[11px] font-mono">
+                <FileSpreadsheet className="w-3.5 h-3.5 text-[#168821]" />
+                <span>GST: {business.legal.gstin}</span>
+              </div>
+            )}
           </div>
 
         </div>
@@ -151,12 +194,12 @@ export default function BusinessProfilePage() {
         <div className="flex items-center gap-2 overflow-x-auto pb-3 mb-10 border-b border-[#AFB0B7]/25 scrollbar-none">
           {[
             { id: 'overview', label: 'Overview' },
+            { id: 'branches', label: `Branches (${business.branches?.length || 1})` },
             { id: 'services', label: `Services (${business.services?.length || 0})` },
             { id: 'packages', label: `Packages (${business.packages?.length || 0})` },
             { id: 'staff', label: `Specialists (${business.staff?.length || 0})` },
-            { id: 'reviews', label: `Reviews (${business.reviewsCount || 0})` },
-            { id: 'photos', label: 'Photo Gallery' },
-            { id: 'location', label: 'Location & Hours' }
+            { id: 'photos', label: `Gallery (${galleryPhotos.length})` },
+            { id: 'location', label: 'Location & 7-Day Hours' }
           ].map((tab) => (
             <button
               key={tab.id}
@@ -194,6 +237,35 @@ export default function BusinessProfilePage() {
                   </p>
                 </div>
 
+                {/* Photo Gallery Spotlight (3-5 Photos) */}
+                <div className="bg-white rounded-3xl p-8 border border-[#AFB0B7]/25 shadow-sm space-y-4">
+                  <div className="flex items-center justify-between">
+                    <h3 className="font-serif-luxury text-2xl text-[#0D0D12]">
+                      Sanctuary Gallery
+                    </h3>
+                    <button
+                      onClick={() => setActiveTab('photos')}
+                      className="text-xs font-bold text-[#F35271] uppercase hover:underline"
+                    >
+                      View All Photos ({galleryPhotos.length})
+                    </button>
+                  </div>
+                  <div className="grid grid-cols-3 gap-3">
+                    {galleryPhotos.slice(0, 3).map((img, idx) => (
+                      <div
+                        key={idx}
+                        onClick={() => setSelectedGalleryPhoto(img)}
+                        className="rounded-2xl overflow-hidden aspect-4/3 cursor-pointer group relative border border-[#AFB0B7]/20"
+                      >
+                        <img src={img} alt={`Gallery ${idx + 1}`} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+                        <div className="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-white text-xs font-bold">
+                          Click to Expand
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
                 {/* Facilities & Amenities */}
                 {business.facilities && (
                   <div className="bg-white rounded-3xl p-8 border border-[#AFB0B7]/25 shadow-sm space-y-5">
@@ -210,49 +282,91 @@ export default function BusinessProfilePage() {
                     </div>
                   </div>
                 )}
-
-                {/* Popular Services Showcase */}
-                {business.services && (
-                  <div className="bg-white rounded-3xl p-8 border border-[#AFB0B7]/25 shadow-sm space-y-6">
-                    <div className="flex items-center justify-between">
-                      <h3 className="font-serif-luxury text-2xl text-[#0D0D12]">
-                        Featured Rituals
-                      </h3>
-                      <button
-                        onClick={() => setActiveTab('services')}
-                        className="text-xs font-bold text-[#F35271] uppercase hover:underline flex items-center gap-1"
-                      >
-                        <span>View All ({business.services.length})</span>
-                        <ChevronRight className="w-3 h-3" />
-                      </button>
-                    </div>
-
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                      {business.services.slice(0, 2).map((srv) => (
-                        <div key={srv.id} className="p-4 rounded-2xl bg-[#FFF8F9] border border-[#F35271]/15 flex flex-col justify-between space-y-3">
-                          <div className="flex gap-3">
-                            <img src={srv.image} alt={srv.title} className="w-16 h-16 rounded-xl object-cover" />
-                            <div>
-                              <span className="text-[10px] uppercase font-bold text-[#F35271]">{srv.duration}</span>
-                              <h4 className="font-serif-luxury text-base text-[#0D0D12] line-clamp-1">{srv.title}</h4>
-                              <span className="font-sans font-bold text-sm text-[#0D0D12]">{srv.price}</span>
-                            </div>
-                          </div>
-                          <button
-                            onClick={() => handleBookService(srv.id)}
-                            className="w-full py-2 rounded-full bg-white hover:bg-[#F35271] hover:text-white border border-[#AFB0B7]/30 text-xs font-semibold transition-colors"
-                          >
-                            Book This Ritual
-                          </button>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
               </div>
             )}
 
-            {/* 2. SERVICES TAB */}
+            {/* 2. BRANCHES TAB */}
+            {activeTab === 'branches' && (
+              <div className="space-y-6">
+                <div>
+                  <h3 className="font-serif-luxury text-3xl text-[#0D0D12]">
+                    Branch Network & Treatment Suites
+                  </h3>
+                  <p className="text-xs text-[#757880] mt-0.5">
+                    Select a branch to view location specifics, suite capacities, and dedicated therapists.
+                  </p>
+                </div>
+
+                <div className="space-y-4">
+                  {(business.branches || [activeBranch]).map((branch, idx) => {
+                    const isSelected = selectedBranchIndex === idx;
+                    return (
+                      <div
+                        key={branch.id || idx}
+                        onClick={() => setSelectedBranchIndex(idx)}
+                        className={`p-6 rounded-3xl border cursor-pointer transition-all ${
+                          isSelected
+                            ? 'border-[#F35271] bg-[#FFF8F9] ring-2 ring-[#F35271]/20 shadow-md'
+                            : 'border-[#AFB0B7]/30 bg-white hover:border-[#F35271]/40'
+                        }`}
+                      >
+                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                          <div>
+                            <div className="flex items-center gap-2">
+                              <h4 className="font-serif-luxury text-xl text-[#0D0D12]">{branch.name}</h4>
+                              {branch.isMain && (
+                                <span className="px-2.5 py-0.5 rounded-full bg-[#168821]/15 text-[#168821] text-[10px] font-bold">
+                                  Flagship Center
+                                </span>
+                              )}
+                              <span className="px-2.5 py-0.5 rounded-full bg-neutral-100 text-[#757880] text-[10px] font-bold uppercase">
+                                {branch.status || 'Active'}
+                              </span>
+                            </div>
+
+                            <div className="text-xs text-[#757880] mt-2 space-y-1">
+                              <div className="flex items-center gap-2">
+                                <MapPin className="w-3.5 h-3.5 text-[#F35271]" />
+                                <span>{branch.address}, {branch.city}, {branch.state} {branch.pincode}</span>
+                              </div>
+                              <div className="flex items-center gap-3 pt-1">
+                                <span>🚪 <strong>{branch.roomCapacity || 6}</strong> Private Suites</span>
+                                <span>💺 <strong>{branch.chairCapacity || 8}</strong> Styling Chairs</span>
+                                <span>📞 {branch.phone || business.phone}</span>
+                              </div>
+                            </div>
+                          </div>
+
+                          <div className="flex items-center gap-2 shrink-0">
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                openGoogleMaps();
+                              }}
+                              className="px-4 py-2 rounded-full border border-[#AFB0B7]/40 text-xs font-semibold hover:bg-neutral-50 flex items-center gap-1.5"
+                            >
+                              <Navigation className="w-3.5 h-3.5 text-[#F35271]" />
+                              <span>Directions</span>
+                            </button>
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                navigate(`/book?businessSlug=${business.slug}&branchId=${branch.id}`);
+                              }}
+                              className="px-5 py-2 rounded-full bg-[#F35271] text-white text-xs font-bold hover:bg-[#E04362]"
+                            >
+                              Book Here
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
+            {/* 3. SERVICES TAB */}
             {activeTab === 'services' && (
               <div className="space-y-6">
                 <div>
@@ -318,7 +432,7 @@ export default function BusinessProfilePage() {
               </div>
             )}
 
-            {/* 3. PACKAGES TAB */}
+            {/* 4. PACKAGES TAB */}
             {activeTab === 'packages' && (
               <div className="space-y-6">
                 <div>
@@ -350,194 +464,147 @@ export default function BusinessProfilePage() {
                         </div>
 
                         <div className="text-right">
-                          {pkg.regularPrice && (
-                            <span className="text-xs text-[#757880] line-through block">
-                              {pkg.regularPrice}
-                            </span>
-                          )}
-                          <span className="font-serif-luxury text-3xl font-bold text-[#F35271]">
-                            {pkg.price}
-                          </span>
-                          {pkg.savings && (
-                            <span className="text-[10px] font-bold text-[#168821] bg-[#168821]/10 px-2.5 py-0.5 rounded-full block mt-1">
-                              {pkg.savings}
-                            </span>
-                          )}
+                          <span className="text-xs line-through text-[#757880] block">{pkg.regularPrice}</span>
+                          <span className="font-serif-luxury text-3xl font-bold text-[#F35271]">{pkg.price}</span>
+                          <span className="block text-[10px] text-[#168821] font-bold">{pkg.savings}</span>
                         </div>
                       </div>
 
-                      <div className="pt-4 border-t border-[#AFB0B7]/20 flex justify-end">
-                        <button
-                          onClick={() => handleBookPackage(pkg.id)}
-                          className="px-6 py-3 rounded-full bg-[#F35271] hover:bg-[#E04362] text-white text-xs font-semibold uppercase tracking-wider shadow-md transition-all flex items-center gap-2"
-                        >
-                          <span>Buy / Book Package</span>
-                          <ArrowRight className="w-4 h-4" />
-                        </button>
-                      </div>
+                      <button
+                        onClick={() => handleBookPackage(pkg.id)}
+                        className="w-full py-3.5 rounded-full bg-[#F35271] hover:bg-[#E04362] text-white text-xs font-bold uppercase tracking-wider shadow-md transition-all flex items-center justify-center gap-2"
+                      >
+                        <Gift className="w-4 h-4" />
+                        <span>Reserve Package Pass</span>
+                      </button>
                     </div>
                   ))}
                 </div>
               </div>
             )}
 
-            {/* 4. STAFF / SPECIALISTS TAB */}
+            {/* 5. STAFF TAB */}
             {activeTab === 'staff' && (
               <div className="space-y-6">
                 <div>
                   <h3 className="font-serif-luxury text-3xl text-[#0D0D12]">
-                    Certified Team & Therapists
+                    Certified Specialists & Vaidyas
                   </h3>
                   <p className="text-xs text-[#757880] mt-0.5">
-                    Our specialists are certified in European spa and Ayurvedic healing protocols.
+                    Experience personalized treatments administered by certified master practitioners.
                   </p>
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-                  {business.staff?.map((staff) => (
-                    <div
-                      key={staff.id}
-                      className="bg-white rounded-3xl p-6 border border-[#AFB0B7]/25 shadow-sm space-y-4"
-                    >
+                  {business.staff?.map((st) => (
+                    <div key={st.id} className="bg-white rounded-3xl p-6 border border-[#AFB0B7]/25 shadow-sm space-y-4">
                       <div className="flex items-center gap-4">
-                        <img
-                          src={staff.avatar}
-                          alt={staff.name}
-                          className="w-16 h-16 rounded-full object-cover border-2 border-[#FFEEF1]"
-                        />
+                        <img src={st.avatar} alt={st.name} className="w-16 h-16 rounded-2xl object-cover" />
                         <div>
-                          <h4 className="font-serif-luxury text-lg text-[#0D0D12]">
-                            {staff.name}
-                          </h4>
-                          <span className="text-[11px] font-bold text-[#F35271] block">
-                            {staff.role}
-                          </span>
-                          <span className="text-xs text-[#757880]">{staff.experience}</span>
+                          <div className="flex items-center gap-1.5 text-xs text-[#168821] font-bold">
+                            <UserCheck className="w-3.5 h-3.5" /> Certified Specialist
+                          </div>
+                          <h4 className="font-serif-luxury text-lg text-[#0D0D12]">{st.name}</h4>
+                          <span className="text-xs text-[#757880]">{st.role} • {st.experience || '8 Yrs Exp'}</span>
                         </div>
                       </div>
-
-                      <p className="text-xs text-[#757880] font-light leading-relaxed">
-                        {staff.bio}
-                      </p>
-
-                      <div className="pt-3 border-t border-[#AFB0B7]/20 flex items-center justify-between text-xs font-bold">
-                        <span className="text-[#0D0D12] flex items-center gap-1">
-                          <Star className="w-3.5 h-3.5 fill-[#FF5E7E] text-[#FF5E7E]" />
-                          {staff.rating} Guest Score
-                        </span>
-                        <button
-                          onClick={() => navigate(`/book?businessSlug=${business.slug}&therapistId=${staff.id}`)}
-                          className="text-[#F35271] hover:underline"
-                        >
-                          Book with {staff.name.split(' ')[0]}
-                        </button>
-                      </div>
+                      <p className="text-xs text-[#757880] font-light">{st.bio}</p>
                     </div>
                   ))}
                 </div>
               </div>
             )}
 
-            {/* 5. REVIEWS TAB */}
-            {activeTab === 'reviews' && (
+            {/* 6. PHOTO GALLERY TAB (3-5 Photos) */}
+            {activeTab === 'photos' && (
               <div className="space-y-6">
                 <div>
                   <h3 className="font-serif-luxury text-3xl text-[#0D0D12]">
-                    Verified Guest Feedback
+                    Sanctuary Photo Gallery ({galleryPhotos.length} Photos)
                   </h3>
                   <p className="text-xs text-[#757880] mt-0.5">
-                    Rated <strong>{business.rating} out of 5</strong> across {business.reviewsCount} visits.
+                    Take a visual tour through our private hydrotherapy suites, styling lounges, and relaxation chambers.
                   </p>
                 </div>
 
-                <div className="space-y-4">
-                  {business.reviews?.map((rev) => (
-                    <div
-                      key={rev.id}
-                      className="bg-white rounded-3xl p-6 border border-[#AFB0B7]/25 shadow-sm space-y-3"
-                    >
-                      <div className="flex justify-between items-center">
-                        <div className="flex items-center gap-2">
-                          <div className="w-8 h-8 rounded-full bg-[#FFEEF1] text-[#F35271] font-bold text-xs flex items-center justify-center">
-                            {rev.author.charAt(0)}
-                          </div>
-                          <div>
-                            <span className="font-bold text-xs text-[#0D0D12] block">{rev.author}</span>
-                            <span className="text-[10px] text-[#757880]">{rev.date}</span>
-                          </div>
-                        </div>
-
-                        <div className="flex items-center gap-1 text-xs font-bold text-[#F35271]">
-                          <Star className="w-3.5 h-3.5 fill-[#F35271]" />
-                          <span>{rev.rating} / 5</span>
-                        </div>
-                      </div>
-
-                      <p className="text-xs text-[#757880] font-light leading-relaxed italic">
-                        "{rev.comment}"
-                      </p>
-
-                      {rev.service && (
-                        <span className="text-[10px] text-[#0D0D12] font-semibold bg-[#FFF8F9] px-2.5 py-1 rounded-lg inline-block">
-                          Ritual: {rev.service}
-                        </span>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {/* 6. PHOTOS TAB */}
-            {activeTab === 'photos' && (
-              <div className="space-y-6">
-                <h3 className="font-serif-luxury text-3xl text-[#0D0D12]">
-                  Sanctuary & Suite Gallery
-                </h3>
                 <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
-                  {business.gallery?.map((img, idx) => (
-                    <div key={idx} className="rounded-2xl overflow-hidden h-60 border border-[#AFB0B7]/20 shadow-sm group">
-                      <img
-                        src={img}
-                        alt={`${business.name} photo ${idx + 1}`}
-                        className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
-                      />
+                  {galleryPhotos.map((img, idx) => (
+                    <div
+                      key={idx}
+                      onClick={() => setSelectedGalleryPhoto(img)}
+                      className="rounded-3xl overflow-hidden aspect-4/3 border border-[#AFB0B7]/25 shadow-sm cursor-pointer group relative"
+                    >
+                      <img src={img} alt={`Gallery photo ${idx + 1}`} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+                      <div className="absolute inset-0 bg-black/30 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-white text-xs font-bold">
+                        Click to Zoom
+                      </div>
                     </div>
                   ))}
                 </div>
               </div>
             )}
 
-            {/* 7. LOCATION & HOURS TAB */}
+            {/* 7. LOCATION & 7-DAY OPERATING HOURS TAB */}
             {activeTab === 'location' && (
-              <div className="bg-white rounded-3xl p-8 border border-[#AFB0B7]/25 shadow-sm space-y-6">
-                <h3 className="font-serif-luxury text-2xl text-[#0D0D12]">
-                  Location & Operating Schedule
-                </h3>
+              <div className="space-y-6">
+                <div>
+                  <h3 className="font-serif-luxury text-3xl text-[#0D0D12]">
+                    Location Coordinates & 7-Day Timings
+                  </h3>
+                  <p className="text-xs text-[#757880] mt-0.5">
+                    Find our exact GPS location and weekly operating hours for every day.
+                  </p>
+                </div>
 
-                <div className="space-y-4 text-xs sm:text-sm text-[#0D0D12]">
-                  <div className="flex items-start gap-3">
-                    <MapPin className="w-4 h-4 text-[#F35271] shrink-0 mt-1" />
-                    <div>
-                      <strong>Full Address:</strong>
-                      <p className="text-[#757880] font-light mt-0.5">{business.address}</p>
-                    </div>
+                {/* 7-Day Hours Table */}
+                <div className="bg-white rounded-3xl p-6 border border-[#AFB0B7]/25 shadow-sm space-y-4">
+                  <h4 className="text-xs font-bold uppercase tracking-wider text-[#F35271] flex items-center gap-1.5">
+                    <Clock className="w-4 h-4" /> Weekly Operating Schedule (Monday–Sunday)
+                  </h4>
+                  <div className="space-y-2">
+                    {(activeBranch.operatingHours && activeBranch.operatingHours.length > 0 
+                      ? activeBranch.operatingHours 
+                      : [
+                          { day: 'Monday', isOpen: true, openingTime: '09:00 AM', closingTime: '09:30 PM' },
+                          { day: 'Tuesday', isOpen: true, openingTime: '09:00 AM', closingTime: '09:30 PM' },
+                          { day: 'Wednesday', isOpen: true, openingTime: '09:00 AM', closingTime: '09:30 PM' },
+                          { day: 'Thursday', isOpen: true, openingTime: '09:00 AM', closingTime: '09:30 PM' },
+                          { day: 'Friday', isOpen: true, openingTime: '09:00 AM', closingTime: '09:30 PM' },
+                          { day: 'Saturday', isOpen: true, openingTime: '09:00 AM', closingTime: '09:30 PM' },
+                          { day: 'Sunday', isOpen: true, openingTime: '09:00 AM', closingTime: '09:30 PM' }
+                        ]
+                    ).map((sched, idx) => (
+                      <div key={idx} className="flex items-center justify-between py-2 border-b border-[#AFB0B7]/15 text-xs">
+                        <span className="font-bold text-[#0D0D12]">{sched.day}</span>
+                        {sched.isOpen ? (
+                          <span className="font-mono text-[#0D0D12] bg-[#FFEEF1]/60 px-3 py-1 rounded-full">
+                            {sched.openingTime} - {sched.closingTime}
+                          </span>
+                        ) : (
+                          <span className="text-[#F35271] font-bold px-3 py-1">Closed</span>
+                        )}
+                      </div>
+                    ))}
                   </div>
+                </div>
 
-                  <div className="flex items-start gap-3">
-                    <Clock className="w-4 h-4 text-[#F35271] shrink-0 mt-1" />
-                    <div>
-                      <strong>Operating Schedule:</strong>
-                      <p className="text-[#757880] font-light mt-0.5">{business.openingHours} • {business.workingDays}</p>
-                    </div>
-                  </div>
-
-                  <div className="flex items-start gap-3">
-                    <Phone className="w-4 h-4 text-[#F35271] shrink-0 mt-1" />
-                    <div>
-                      <strong>Direct Phone:</strong>
-                      <a href={`tel:${business.phone}`} className="text-[#F35271] font-semibold hover:underline block mt-0.5">{business.phone}</a>
-                    </div>
+                {/* GPS Coordinates & Directions Action */}
+                <div className="bg-white rounded-3xl p-6 border border-[#AFB0B7]/25 shadow-sm space-y-4">
+                  <h4 className="text-xs font-bold uppercase tracking-wider text-[#0D0D12] flex items-center gap-1.5">
+                    <MapPin className="w-4 h-4 text-[#F35271]" /> GPS Pin & Navigation
+                  </h4>
+                  <p className="text-xs text-[#757880]">
+                    {activeBranch.address || (typeof business.address === 'object' ? business.address.line1 : business.address)}, {business.city}, {business.state}
+                  </p>
+                  <div className="pt-2">
+                    <button
+                      onClick={openGoogleMaps}
+                      className="inline-flex items-center gap-2 px-6 py-3 rounded-full bg-[#0D0D12] text-white text-xs font-bold hover:bg-neutral-800 transition-colors"
+                    >
+                      <Navigation className="w-4 h-4 text-[#F35271]" />
+                      <span>Open Live GPS in Google Maps</span>
+                      <ExternalLink className="w-3.5 h-3.5" />
+                    </button>
                   </div>
                 </div>
               </div>
@@ -545,55 +612,65 @@ export default function BusinessProfilePage() {
 
           </div>
 
-          {/* Right Column (4 cols): Sticky Booking & Info Card */}
-          <div className="lg:col-span-4 lg:sticky lg:top-28 space-y-6">
+          {/* Sidebar Sticky Card (4 cols) */}
+          <div className="lg:col-span-4 space-y-6 sticky top-28">
             
-            <div className="bg-white rounded-[2.5rem] p-8 border-2 border-[#F35271]/30 shadow-xl space-y-6">
+            {/* Direct Booking Card */}
+            <div className="bg-white rounded-3xl p-6 sm:p-8 border border-[#AFB0B7]/30 shadow-lg space-y-6">
               <div>
-                <span className="text-xs uppercase tracking-widest text-[#757880] font-bold block mb-1">
-                  Online Appointments
+                <span className="text-[11px] font-bold uppercase tracking-wider text-[#757880] block">
+                  Treatments Starting From
                 </span>
-                <h3 className="font-serif-luxury text-2xl text-[#0D0D12]">
-                  Reserve at {business.name}
-                </h3>
+                <div className="flex items-baseline gap-2 mt-1">
+                  <span className="font-serif-luxury text-3xl font-bold text-[#F35271]">
+                    {business.startingPrice || '₹1,999'}
+                  </span>
+                  <span className="text-xs text-[#757880] font-light">/ session</span>
+                </div>
               </div>
 
-              <div className="space-y-2.5 text-xs text-[#757880] py-4 border-y border-[#AFB0B7]/20">
-                <div className="flex items-center gap-2 text-[#0D0D12]">
-                  <CheckCircle2 className="w-4 h-4 text-[#F35271]" />
-                  <span>Instant appointment confirmation</span>
+              <div className="space-y-3 pt-3 border-t border-[#AFB0B7]/20 text-xs">
+                <div className="flex items-center justify-between text-[#757880]">
+                  <span>Center Rating:</span>
+                  <span className="font-bold text-[#0D0D12] flex items-center gap-1">
+                    <Star className="w-3.5 h-3.5 fill-[#FF5E7E] text-[#FF5E7E]" />
+                    {business.rating} / 5.0
+                  </span>
                 </div>
-                <div className="flex items-center gap-2 text-[#0D0D12]">
-                  <CheckCircle2 className="w-4 h-4 text-[#F35271]" />
-                  <span>Choose therapist or any available slot</span>
+                <div className="flex items-center justify-between text-[#757880]">
+                  <span>Selected Branch:</span>
+                  <span className="font-bold text-[#0D0D12] truncate max-w-[150px]">{activeBranch.name}</span>
                 </div>
-                <div className="flex items-center gap-2 text-[#0D0D12]">
-                  <CheckCircle2 className="w-4 h-4 text-[#F35271]" />
-                  <span>Free cancellation up to 6 hours before</span>
+                <div className="flex items-center justify-between text-[#757880]">
+                  <span>Cancellation:</span>
+                  <span className="text-[#168821] font-bold">Free up to 6h prior</span>
                 </div>
               </div>
 
               <button
                 onClick={() => navigate(`/book?businessSlug=${business.slug}`)}
-                className="w-full py-4 rounded-full bg-[#F35271] hover:bg-[#E04362] text-white font-semibold text-xs uppercase tracking-wider shadow-lg transition-all flex items-center justify-center gap-2"
+                className="w-full py-4 rounded-full bg-[#F35271] hover:bg-[#E04362] text-white text-xs font-bold uppercase tracking-wider shadow-lg transition-all flex items-center justify-center gap-2 transform hover:-translate-y-0.5"
               >
-                <span>Book Appointment</span>
-                <ArrowRight className="w-4 h-4" />
+                <Calendar className="w-4 h-4" />
+                <span>Reserve Appointment</span>
               </button>
 
-              <div className="text-center text-[11px] text-[#757880]">
-                Questions? Call {business.phone}
+              <div className="text-center">
+                <span className="text-[11px] text-[#757880]">Zero upfront reservation fees</span>
               </div>
             </div>
 
-            {/* Business Verification Badge */}
-            <div className="bg-[#FFEEF1]/60 rounded-3xl p-6 border border-[#F35271]/20 flex items-start gap-3.5 text-xs">
-              <ShieldCheck className="w-6 h-6 text-[#F35271] shrink-0 mt-0.5" />
-              <div>
-                <h4 className="font-bold text-[#0D0D12]">TherapyShala Hygiene Certified</h4>
-                <p className="text-[#757880] font-light mt-0.5 leading-relaxed">
-                  This facility undergoes strict safety checks, sanitized linen protocols, and authentic organic product verifications.
-                </p>
+            {/* Legal & KYC Verification Card */}
+            <div className="bg-[#FFF8F9] rounded-3xl p-6 border border-[#F35271]/20 space-y-3">
+              <div className="flex items-center gap-2 text-xs font-bold text-[#0D0D12]">
+                <ShieldCheck className="w-4 h-4 text-[#168821]" />
+                <span>TherapyShala Verified Entity</span>
+              </div>
+              <div className="space-y-1.5 text-xs text-[#757880]">
+                <div><strong>Legal Name:</strong> {business.legal?.legalBusinessName || business.name}</div>
+                <div><strong>Constitution:</strong> {business.legal?.constitution || 'Registered Entity'}</div>
+                {business.legal?.gstin && <div><strong>GSTIN:</strong> {business.legal.gstin}</div>}
+                <div><strong>KYC Status:</strong> <span className="text-[#168821] font-bold">Audited & Verified</span></div>
               </div>
             </div>
 
@@ -602,6 +679,32 @@ export default function BusinessProfilePage() {
         </div>
 
       </main>
+
+      {/* LIGHTBOX PHOTO MODAL */}
+      <AnimatePresence>
+        {selectedGalleryPhoto && (
+          <div
+            onClick={() => setSelectedGalleryPhoto(null)}
+            className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/85 backdrop-blur-sm"
+          >
+            <motion.div
+              initial={{ opacity: 0, scale: 0.9 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.9 }}
+              onClick={(e) => e.stopPropagation()}
+              className="relative max-w-4xl w-full max-h-[85vh] rounded-3xl overflow-hidden shadow-2xl"
+            >
+              <img src={selectedGalleryPhoto} alt="Zoomed gallery photo" className="w-full h-full object-contain bg-black" />
+              <button
+                onClick={() => setSelectedGalleryPhoto(null)}
+                className="absolute top-4 right-4 w-10 h-10 rounded-full bg-black/60 text-white flex items-center justify-center hover:bg-[#F35271] transition-colors"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
 
       <Footer />
     </div>

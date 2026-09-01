@@ -28,11 +28,12 @@ export default function BusinessesDiscoveryPage() {
   const filteredBusinesses = useMemo(() => {
     return allBusinesses.filter((b) => {
       // City filter
-      if (selectedCity !== 'All Cities' && b.city.toLowerCase() !== selectedCity.toLowerCase()) {
+      const bCity = b.city || (typeof b.address === 'object' ? b.address?.city : '') || '';
+      if (selectedCity !== 'All Cities' && bCity.toLowerCase() !== selectedCity.toLowerCase()) {
         return false;
       }
       // Type filter
-      if (selectedType !== 'all' && b.typeId !== selectedType && !b.type.toLowerCase().includes(selectedType.toLowerCase())) {
+      if (selectedType !== 'all' && b.typeId !== selectedType && !b.type?.toLowerCase().includes(selectedType.toLowerCase())) {
         return false;
       }
       // Rating filter
@@ -42,11 +43,12 @@ export default function BusinessesDiscoveryPage() {
       // Search keyword
       if (searchQuery.trim()) {
         const q = searchQuery.toLowerCase();
-        const matchesName = b.name.toLowerCase().includes(q);
-        const matchesCity = b.city.toLowerCase().includes(q);
-        const matchesAddress = b.address.toLowerCase().includes(q);
+        const matchesName = b.name?.toLowerCase().includes(q);
+        const matchesCity = bCity.toLowerCase().includes(q);
+        const addrStr = typeof b.address === 'object' ? `${b.address.line1 || ''} ${b.address.city || ''}` : (b.address || '');
+        const matchesAddress = addrStr.toLowerCase().includes(q);
         const matchesServices = b.popularServices?.some(s => s.toLowerCase().includes(q));
-        const matchesDesc = b.description.toLowerCase().includes(q);
+        const matchesDesc = b.description?.toLowerCase().includes(q);
         return matchesName || matchesCity || matchesAddress || matchesServices || matchesDesc;
       }
       return true;
@@ -200,7 +202,7 @@ export default function BusinessesDiscoveryPage() {
                   <div className="absolute bottom-3 left-4 right-4 text-white">
                     <div className="flex items-center gap-1 text-[11px] text-white/90 mb-0.5">
                       <MapPin className="w-3 h-3 text-[#FF5E7E]" />
-                      <span>{biz.shortLocation}</span>
+                      <span>{biz.shortLocation || (typeof biz.address === 'object' ? `${biz.address.city}, ${biz.address.state}` : `${biz.city || ''}, ${biz.state || ''}`)}</span>
                     </div>
                     <h3 className="font-serif-luxury text-xl text-white truncate">
                       {biz.name}

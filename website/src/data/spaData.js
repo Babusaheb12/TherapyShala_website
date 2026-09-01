@@ -12,13 +12,15 @@ export const CITY_LOCATIONS = [
 ];
 
 export const BUSINESS_TYPES = [
-  { id: "all", name: "All Centers" },
-  { id: "spa", name: "Luxury Day Spas" },
-  { id: "salon", name: "Salons & Hair Studios" },
-  { id: "massage", name: "Massage & Recovery" },
-  { id: "skincare", name: "Aesthetics & Skin Lounges" },
-  { id: "wellness", name: "Ayurvedic Retreats" },
-  { id: "beauty", name: "Bridal & Nail Bars" }
+  { id: "all", name: "All Types" },
+  { id: "spa", name: "Spa" },
+  { id: "salon", name: "Salon" },
+  { id: "spa_salon", name: "Spa & Salon" },
+  { id: "beauty_parlour", name: "Beauty Parlour" },
+  { id: "wellness_center", name: "Wellness Center" },
+  { id: "ayurvedic_clinic", name: "Ayurvedic Clinic" },
+  { id: "nail_lash_studio", name: "Nail & Lash Studio" },
+  { id: "other", name: "Other" }
 ];
 
 export const SERVICE_CATEGORIES = [
@@ -31,17 +33,36 @@ export const SERVICE_CATEGORIES = [
   { id: "packages", name: "Passes & Bundles" }
 ];
 
+const createStandardOperatingHours = (open = "09:00 AM", close = "09:30 PM", closedDay = null) => {
+  const days = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
+  return days.map(day => ({
+    day,
+    isOpen: day !== closedDay,
+    openingTime: open,
+    closingTime: close
+  }));
+};
+
 export const BUSINESSES_DATA = [
   {
     id: "biz-aura-luxe",
     slug: "aura-luxe-jaipur",
     name: "Aura Luxe Wellness Sanctuary",
     tagline: "Private Hydro-Suites, Volcanic Stones & Botanical Aromatherapy",
-    type: "Luxury Day Spa",
-    typeId: "spa",
+    type: "Spa & Salon",
+    typeId: "spa_salon",
     city: "Jaipur",
     state: "Rajasthan",
-    address: "Plot 18, Tonk Road, Near Rambagh Palace, Jaipur, Rajasthan 302015",
+    address: {
+      line1: "Plot 18, Tonk Road, Near Rambagh Palace",
+      line2: "Opposite Central Park Gate 2",
+      city: "Jaipur",
+      state: "Rajasthan",
+      country: "India",
+      pincode: "302015",
+      latitude: 26.8924,
+      longitude: 75.8073
+    },
     shortLocation: "Tonk Road, Jaipur",
     phone: "+91 98765 99881",
     email: "concierge@auraluxewellness.com",
@@ -53,10 +74,80 @@ export const BUSINESSES_DATA = [
     isOpen: true,
     openingHours: "09:00 AM - 09:30 PM",
     workingDays: "Monday - Sunday (7 Days)",
+    operatingSchedule: createStandardOperatingHours("09:00 AM", "09:30 PM"),
     featured: true,
     coverImage: "https://images.unsplash.com/photo-1540555700478-4be289fbecef?auto=format&fit=crop&w=1200&q=80",
     logo: "https://images.unsplash.com/photo-1544161515-4ab6ce6db874?auto=format&fit=crop&w=200&q=80",
     description: "Aura Luxe is Jaipur's flagship wellness sanctuary featuring soundproof thermal hydrotherapy suites, heated volcanic stone chambers, and organic European botanical elixirs.",
+    owner: {
+      fullName: "Devika Singhania",
+      mobile: "+91 98765 99881",
+      email: "devika@auraluxewellness.com",
+      isOtpVerified: true,
+      isPasswordlessEnabled: true
+    },
+    legal: {
+      isGstRegistered: true,
+      gstin: "08AABCA1234F1Z9",
+      legalBusinessName: "Aura Luxe Wellness Private Limited",
+      panNumber: "AABCA1234F",
+      constitution: "Private Limited Company",
+      verified: true
+    },
+    isMultiBranch: true,
+    branches: [
+      {
+        id: "branch-aura-tonk",
+        name: "Aura Luxe - Rambagh Palace Flagship",
+        isMain: true,
+        phone: "+91 98765 99881",
+        email: "rambagh@auraluxewellness.com",
+        address: "Plot 18, Tonk Road, Near Rambagh Palace",
+        city: "Jaipur",
+        state: "Rajasthan",
+        pincode: "302015",
+        latitude: 26.8924,
+        longitude: 75.8073,
+        roomCapacity: 8,
+        chairCapacity: 12,
+        branchGSTIN: "08AABCA1234F1Z9",
+        status: "active",
+        operatingHours: createStandardOperatingHours("09:00 AM", "09:30 PM")
+      },
+      {
+        id: "branch-aura-vaishali",
+        name: "Aura Luxe - Vaishali Nagar Boutique",
+        isMain: false,
+        phone: "+91 98765 99882",
+        email: "vaishali@auraluxewellness.com",
+        address: "Queens Road, Vaishali Nagar",
+        city: "Jaipur",
+        state: "Rajasthan",
+        pincode: "302021",
+        latitude: 26.9048,
+        longitude: 75.7483,
+        roomCapacity: 5,
+        chairCapacity: 8,
+        branchGSTIN: "08AABCA1234F1Z9",
+        status: "active",
+        operatingHours: createStandardOperatingHours("10:00 AM", "09:00 PM")
+      }
+    ],
+    kyc: {
+      accountHolderName: "Aura Luxe Wellness Pvt Ltd",
+      accountNumber: "50200049281920",
+      ifscCode: "HDFC0000054",
+      bankName: "HDFC Bank Ltd",
+      upiId: "auraluxe@hdfcbank",
+      aadhaarNumber: "XXXX-XXXX-9120",
+      verificationStatus: "Verified"
+    },
+    gallery: [
+      "https://images.unsplash.com/photo-1540555700478-4be289fbecef?auto=format&fit=crop&w=800&q=80",
+      "https://images.unsplash.com/photo-1544161515-4ab6ce6db874?auto=format&fit=crop&w=800&q=80",
+      "https://images.unsplash.com/photo-1507652313519-d4e9174996dd?auto=format&fit=crop&w=800&q=80",
+      "https://images.unsplash.com/photo-1600334089648-b0d9d3028eb2?auto=format&fit=crop&w=800&q=80"
+    ],
     facilities: [
       "Private Hydrotherapy Tubs",
       "UV-C Sterilized Suites",
@@ -144,11 +235,6 @@ export const BUSINESSES_DATA = [
         avatar: "https://images.unsplash.com/photo-1580489944761-15a19d654956?auto=format&fit=crop&w=200&q=80",
         bio: "Specializes in basalt stone heat retention therapy and myofascial recovery."
       }
-    ],
-    gallery: [
-      "https://images.unsplash.com/photo-1540555700478-4be289fbecef?auto=format&fit=crop&w=800&q=80",
-      "https://images.unsplash.com/photo-1544161515-4ab6ce6db874?auto=format&fit=crop&w=800&q=80",
-      "https://images.unsplash.com/photo-1507652313519-d4e9174996dd?auto=format&fit=crop&w=800&q=80"
     ]
   },
   {
@@ -156,11 +242,20 @@ export const BUSINESSES_DATA = [
     slug: "glamour-botanica-bangalore",
     name: "Glamour Botanica Couture Hair & Beauty",
     tagline: "Organic Balayage, Korean Glass Skin & Hair Botox Studios",
-    type: "Hair & Beauty Salon",
+    type: "Salon",
     typeId: "salon",
     city: "Bangalore",
     state: "Karnataka",
-    address: "100 Feet Road, Indiranagar, Bangalore, Karnataka 560038",
+    address: {
+      line1: "100 Feet Road, Indiranagar",
+      line2: "Near Metro Pillar 84",
+      city: "Bangalore",
+      state: "Karnataka",
+      country: "India",
+      pincode: "560038",
+      latitude: 12.9719,
+      longitude: 77.6412
+    },
     shortLocation: "Indiranagar, Bangalore",
     phone: "+91 98844 11223",
     email: "hello@glamourbotanica.com",
@@ -172,10 +267,61 @@ export const BUSINESSES_DATA = [
     isOpen: true,
     openingHours: "10:00 AM - 09:00 PM",
     workingDays: "Tuesday - Sunday (Closed Mondays)",
+    operatingSchedule: createStandardOperatingHours("10:00 AM", "09:00 PM", "Monday"),
     featured: true,
     coverImage: "https://images.unsplash.com/photo-1560066984-138dadb4c035?auto=format&fit=crop&w=1200&q=80",
     logo: "https://images.unsplash.com/photo-1522337360788-8b13dee7a37e?auto=format&fit=crop&w=200&q=80",
     description: "Glamour Botanica is Bangalore's premier salon specializing in ammonia-free botanical hair coloring, Olaplex hair botox, luxury gel nails, and Korean glass-skin facials.",
+    owner: {
+      fullName: "Vikramaditya Oberoi",
+      mobile: "+91 98844 11223",
+      email: "vikram@glamourbotanica.com",
+      isOtpVerified: true,
+      isPasswordlessEnabled: true
+    },
+    legal: {
+      isGstRegistered: true,
+      gstin: "29AABCU4321D1Z2",
+      legalBusinessName: "Botanica Salons & Aesthetics LLP",
+      panNumber: "AABCU4321D",
+      constitution: "LLP",
+      verified: true
+    },
+    isMultiBranch: false,
+    branches: [
+      {
+        id: "branch-glamour-indiranagar",
+        name: "Indiranagar Flagship Studio",
+        isMain: true,
+        phone: "+91 98844 11223",
+        email: "indiranagar@glamourbotanica.com",
+        address: "100 Feet Road, Indiranagar",
+        city: "Bangalore",
+        state: "Karnataka",
+        pincode: "560038",
+        latitude: 12.9719,
+        longitude: 77.6412,
+        roomCapacity: 4,
+        chairCapacity: 14,
+        branchGSTIN: "29AABCU4321D1Z2",
+        status: "active",
+        operatingHours: createStandardOperatingHours("10:00 AM", "09:00 PM", "Monday")
+      }
+    ],
+    kyc: {
+      accountHolderName: "Botanica Salons & Aesthetics LLP",
+      accountNumber: "00090210004918",
+      ifscCode: "ICIC0000009",
+      bankName: "ICICI Bank Ltd",
+      upiId: "glamourbotanica@icici",
+      aadhaarNumber: "XXXX-XXXX-4432",
+      verificationStatus: "Verified"
+    },
+    gallery: [
+      "https://images.unsplash.com/photo-1560066984-138dadb4c035?auto=format&fit=crop&w=800&q=80",
+      "https://images.unsplash.com/photo-1522337360788-8b13dee7a37e?auto=format&fit=crop&w=800&q=80",
+      "https://images.unsplash.com/photo-1562322140-8baeececf3df?auto=format&fit=crop&w=800&q=80"
+    ],
     facilities: [
       "Private Hair Spa Pods",
       "Dyson Styling Stations",
@@ -240,10 +386,6 @@ export const BUSINESSES_DATA = [
         avatar: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=200&q=80",
         bio: "Trained in Tokyo and London with extensive mastery in textured hair nourishment."
       }
-    ],
-    gallery: [
-      "https://images.unsplash.com/photo-1560066984-138dadb4c035?auto=format&fit=crop&w=800&q=80",
-      "https://images.unsplash.com/photo-1522337360788-8b13dee7a37e?auto=format&fit=crop&w=800&q=80"
     ]
   },
   {
@@ -251,11 +393,20 @@ export const BUSINESSES_DATA = [
     slug: "kerala-ayurveda-mumbai",
     name: "Kerala Traditional Ayur-Shala Sanctuary",
     tagline: "Authentic Kalaripayattu Massage, Shirodhara & Herbal Steam",
-    type: "Ayurvedic Wellness Retreat",
-    typeId: "wellness",
+    type: "Ayurvedic Clinic",
+    typeId: "ayurvedic_clinic",
     city: "Mumbai",
     state: "Maharashtra",
-    address: "Linking Road, Bandra West, Mumbai, Maharashtra 400050",
+    address: {
+      line1: "Linking Road, Bandra West",
+      line2: "Opposite National College",
+      city: "Mumbai",
+      state: "Maharashtra",
+      country: "India",
+      pincode: "400050",
+      latitude: 19.0607,
+      longitude: 72.8362
+    },
     shortLocation: "Bandra West, Mumbai",
     phone: "+91 98200 44556",
     email: "contact@keralaayurshala.com",
@@ -267,10 +418,61 @@ export const BUSINESSES_DATA = [
     isOpen: true,
     openingHours: "08:00 AM - 08:30 PM",
     workingDays: "Monday - Sunday (7 Days)",
+    operatingSchedule: createStandardOperatingHours("08:00 AM", "08:30 PM"),
     featured: true,
     coverImage: "https://images.unsplash.com/photo-1506126613408-eca07ce68773?auto=format&fit=crop&w=1200&q=80",
     logo: "https://images.unsplash.com/photo-1583417319070-4a69db38a482?auto=format&fit=crop&w=200&q=80",
     description: "Centuries-old Ayurvedic medicine protocols practiced by certified Vaidyas using warm medicated tailams and handcrafted neem wood droni tables.",
+    owner: {
+      fullName: "Vaidya Madhavan Nambiar",
+      mobile: "+91 98200 44556",
+      email: "vaidya@keralaayurshala.com",
+      isOtpVerified: true,
+      isPasswordlessEnabled: true
+    },
+    legal: {
+      isGstRegistered: true,
+      gstin: "27AABCK9988E1Z1",
+      legalBusinessName: "Kerala Ayur-Shala Holistic Care Enterprises",
+      panNumber: "AABCK9988E",
+      constitution: "Partnership",
+      verified: true
+    },
+    isMultiBranch: false,
+    branches: [
+      {
+        id: "branch-ayur-bandra",
+        name: "Bandra West Ayurvedic Clinic",
+        isMain: true,
+        phone: "+91 98200 44556",
+        email: "bandra@keralaayurshala.com",
+        address: "Linking Road, Bandra West",
+        city: "Mumbai",
+        state: "Maharashtra",
+        pincode: "400050",
+        latitude: 19.0607,
+        longitude: 72.8362,
+        roomCapacity: 6,
+        chairCapacity: 4,
+        branchGSTIN: "27AABCK9988E1Z1",
+        status: "active",
+        operatingHours: createStandardOperatingHours("08:00 AM", "08:30 PM")
+      }
+    ],
+    kyc: {
+      accountHolderName: "Kerala Ayur-Shala Holistic Care",
+      accountNumber: "34901928392019",
+      ifscCode: "SBIN0000300",
+      bankName: "State Bank of India",
+      upiId: "keralaayur@sbi",
+      aadhaarNumber: "XXXX-XXXX-6712",
+      verificationStatus: "Verified"
+    },
+    gallery: [
+      "https://images.unsplash.com/photo-1506126613408-eca07ce68773?auto=format&fit=crop&w=800&q=80",
+      "https://images.unsplash.com/photo-1583417319070-4a69db38a482?auto=format&fit=crop&w=800&q=80",
+      "https://images.unsplash.com/photo-1544367567-0f2fcb009e0b?auto=format&fit=crop&w=800&q=80"
+    ],
     facilities: [
       "Handcrafted Teakwood Droni Tables",
       "Herbaceous Steam Chambers",
@@ -334,9 +536,6 @@ export const BUSINESSES_DATA = [
         avatar: "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=200&q=80",
         bio: "Direct disciple from Kottakkal Arya Vaidya Sala with authentic classical training."
       }
-    ],
-    gallery: [
-      "https://images.unsplash.com/photo-1506126613408-eca07ce68773?auto=format&fit=crop&w=800&q=80"
     ]
   },
   {
@@ -344,11 +543,20 @@ export const BUSINESSES_DATA = [
     slug: "saffron-coastal-spa-goa",
     name: "Saffron Coastal Spa & Wellness Pavilion",
     tagline: "Oceanfront Vichy Showers, Coconut Scrubs & Balinese Rituals",
-    type: "Luxury Day Spa",
+    type: "Spa",
     typeId: "spa",
     city: "Goa",
     state: "Goa",
-    address: "Candolim Beach Road, North Goa, Goa 403515",
+    address: {
+      line1: "Candolim Beach Road",
+      line2: "Near Fort Aguada Viewpoint",
+      city: "Goa",
+      state: "Goa",
+      country: "India",
+      pincode: "403515",
+      latitude: 15.5178,
+      longitude: 73.7661
+    },
     shortLocation: "Candolim Beach, Goa",
     phone: "+91 98330 77889",
     email: "stay@saffroncoastalgoa.com",
@@ -360,10 +568,61 @@ export const BUSINESSES_DATA = [
     isOpen: true,
     openingHours: "09:00 AM - 10:00 PM",
     workingDays: "Monday - Sunday (7 Days)",
+    operatingSchedule: createStandardOperatingHours("09:00 AM", "10:00 PM"),
     featured: true,
     coverImage: "https://images.unsplash.com/photo-1519823551278-64ac92734fb1?auto=format&fit=crop&w=1200&q=80",
     logo: "https://images.unsplash.com/photo-1519823551278-64ac92734fb1?auto=format&fit=crop&w=200&q=80",
     description: "Overlooking the Arabian Sea, Saffron Coastal Spa provides therapeutic sea salt exfoliations, virgin coconut oil Balinese massage, and warm vichy showers.",
+    owner: {
+      fullName: "Ananya Deshmukh",
+      mobile: "+91 98330 77889",
+      email: "ananya@saffroncoastalgoa.com",
+      isOtpVerified: true,
+      isPasswordlessEnabled: true
+    },
+    legal: {
+      isGstRegistered: true,
+      gstin: "30AABCS7766M1Z8",
+      legalBusinessName: "Saffron Coastal Hospitality LLP",
+      panNumber: "AABCS7766M",
+      constitution: "LLP",
+      verified: true
+    },
+    isMultiBranch: false,
+    branches: [
+      {
+        id: "branch-saffron-candolim",
+        name: "Candolim Ocean Pavilion",
+        isMain: true,
+        phone: "+91 98330 77889",
+        email: "candolim@saffroncoastalgoa.com",
+        address: "Candolim Beach Road",
+        city: "Goa",
+        state: "Goa",
+        pincode: "403515",
+        latitude: 15.5178,
+        longitude: 73.7661,
+        roomCapacity: 7,
+        chairCapacity: 6,
+        branchGSTIN: "30AABCS7766M1Z8",
+        status: "active",
+        operatingHours: createStandardOperatingHours("09:00 AM", "10:00 PM")
+      }
+    ],
+    kyc: {
+      accountHolderName: "Saffron Coastal Hospitality LLP",
+      accountNumber: "91802004819201",
+      ifscCode: "UTIB0000120",
+      bankName: "Axis Bank Ltd",
+      upiId: "saffrongao@axisbank",
+      aadhaarNumber: "XXXX-XXXX-1982",
+      verificationStatus: "Verified"
+    },
+    gallery: [
+      "https://images.unsplash.com/photo-1519823551278-64ac92734fb1?auto=format&fit=crop&w=800&q=80",
+      "https://images.unsplash.com/photo-1540555700478-4be289fbecef?auto=format&fit=crop&w=800&q=80",
+      "https://images.unsplash.com/photo-1570172619644-dfd03ed5d881?auto=format&fit=crop&w=800&q=80"
+    ],
     facilities: [
       "Ocean Breeze Open-Air Pavilions",
       "Vichy 7-Jet Shower Suites",
@@ -414,9 +673,6 @@ export const BUSINESSES_DATA = [
         avatar: "https://images.unsplash.com/photo-1567532939604-b6b5b0db2604?auto=format&fit=crop&w=200&q=80",
         bio: "Specializes in ocean mineral scrubs, vichy lymphatic showers, and soothing sound bowls."
       }
-    ],
-    gallery: [
-      "https://images.unsplash.com/photo-1519823551278-64ac92734fb1?auto=format&fit=crop&w=800&q=80"
     ]
   }
 ];
@@ -424,12 +680,14 @@ export const BUSINESSES_DATA = [
 // Helper to retrieve all businesses including user-registered ones from localStorage
 export function getAllBusinesses() {
   if (typeof window !== 'undefined') {
-    const saved = localStorage.getItem('therapyshala_custom_businesses');
+    const saved = localStorage.getItem('therapyshala_spamate_businesses') || localStorage.getItem('therapyshala_custom_businesses');
     if (saved) {
       try {
         const parsed = JSON.parse(saved);
         if (Array.isArray(parsed) && parsed.length > 0) {
-          return [...parsed, ...BUSINESSES_DATA];
+          const registeredSlugs = new Set(parsed.map(p => p.slug || p.id));
+          const filteredSeed = BUSINESSES_DATA.filter(b => !registeredSlugs.has(b.slug) && !registeredSlugs.has(b.id));
+          return [...parsed, ...filteredSeed];
         }
       } catch (e) {
         console.error("Failed to parse custom businesses:", e);
@@ -442,17 +700,20 @@ export function getAllBusinesses() {
 // Helper to save newly registered business to localStorage
 export function saveRegisteredBusiness(newBusiness) {
   if (typeof window !== 'undefined') {
-    const saved = localStorage.getItem('therapyshala_custom_businesses');
-    let list = [];
-    if (saved) {
-      try {
-        list = JSON.parse(saved);
-      } catch (e) {
-        list = [];
+    const storageKeys = ['therapyshala_spamate_businesses', 'therapyshala_custom_businesses'];
+    storageKeys.forEach((key) => {
+      const saved = localStorage.getItem(key);
+      let list = [];
+      if (saved) {
+        try {
+          list = JSON.parse(saved);
+        } catch {
+          list = [];
+        }
       }
-    }
-    list = [newBusiness, ...list.filter(b => b.id !== newBusiness.id)];
-    localStorage.setItem('therapyshala_custom_businesses', JSON.stringify(list));
+      list = [newBusiness, ...list.filter(b => b.id !== newBusiness.id && b.slug !== newBusiness.slug)];
+      localStorage.setItem(key, JSON.stringify(list));
+    });
   }
 }
 

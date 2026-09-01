@@ -72,7 +72,9 @@ export default function BranchesPage() {
                 </div>
 
                 <div className="p-5 flex flex-col justify-between flex-grow space-y-4">
-                  <p className="text-xs text-[#757880] font-light line-clamp-2">{branch.address}</p>
+                  <p className="text-xs text-[#757880] font-light line-clamp-2">
+                    {typeof branch.address === 'object' ? `${branch.address.line1}, ${branch.address.city}` : branch.address}
+                  </p>
                   <div className="pt-3 border-t border-[#AFB0B7]/20 flex items-center justify-between text-xs font-semibold">
                     <span className={isSelected ? 'text-[#F35271]' : 'text-[#757880]'}>
                       {isSelected ? 'Currently Viewing' : 'Click to View'}
@@ -125,7 +127,9 @@ export default function BranchesPage() {
                     <MapPin className="w-4 h-4 text-[#F35271] shrink-0 mt-1" />
                     <div>
                       <strong className="block">Address:</strong>
-                      <span className="text-[#757880] font-light leading-relaxed">{activeBranch.address}</span>
+                      <span className="text-[#757880] font-light leading-relaxed">
+                        {typeof activeBranch.address === 'object' ? `${activeBranch.address.line1}, ${activeBranch.address.city}, ${activeBranch.address.state}` : activeBranch.address}
+                      </span>
                     </div>
                   </li>
                   <li className="flex items-start gap-3">
