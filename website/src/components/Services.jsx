@@ -1,65 +1,143 @@
 import React, { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { SERVICES_DATA, SERVICE_CATEGORIES } from '../data/spaData';
-import { Clock, Star, Sparkles, ArrowRight, MapPin, Store } from 'lucide-react';
+import { Clock, Star, Sparkles, ArrowRight } from 'lucide-react';
+
+const SPA_SERVICES = [
+  {
+    id: 1,
+    title: "Aromatherapy Stress Relief Spa Massage",
+    category: "BODY MASSAGE",
+    categoryId: "body-massage",
+    price: "₹2,299",
+    duration: "60 mins",
+    rating: "4.9",
+    reviewsCount: 380,
+    popular: true,
+    image: "https://images.unsplash.com/photo-1544161515-4ab6ce6db874?auto=format&fit=crop&w=800&q=80",
+    description: "Custom blended essential oils (Bergamot, Ylang Ylang, Sandalwood) designed to restore hormonal balance and deep mental calmness."
+  },
+  {
+    id: 2,
+    title: "24k Gold Body Scrub & Clay Cocoon Wrap",
+    category: "HOLISTIC RITUALS",
+    categoryId: "holistic-rituals",
+    price: "₹3,999",
+    duration: "100 mins",
+    rating: "5",
+    reviewsCount: 168,
+    popular: true,
+    image: "https://images.unsplash.com/photo-1519823551278-64ac92734fb1?auto=format&fit=crop&w=800&q=80",
+    description: "Exfoliating 24k gold leaf body scrub, detoxifying Dead Sea clay wrap, followed by a nourishing rosehip seed oil massage."
+  },
+  {
+    id: 3,
+    title: "Swedish Relaxing Full Body Therapy",
+    category: "BODY MASSAGE",
+    categoryId: "body-massage",
+    price: "₹1,999",
+    duration: "60 mins",
+    rating: "4.8",
+    reviewsCount: 310,
+    popular: false,
+    image: "https://images.unsplash.com/photo-1600334129128-685c5582fd35?auto=format&fit=crop&w=800&q=80",
+    description: "Gentle gliding strokes, kneading, and rhythmic tapping designed to enhance circulation and ease day-to-day physical stress."
+  },
+  {
+    id: 4,
+    title: "Signature Rose Botanical Spa Facial",
+    category: "FACIAL SPA",
+    categoryId: "facial-spa",
+    price: "₹2,499",
+    duration: "75 mins",
+    rating: "4.9",
+    reviewsCount: 320,
+    popular: true,
+    image: "https://images.unsplash.com/photo-1570172619644-dfd03ed5d881?auto=format&fit=crop&w=800&q=80",
+    description: "Organic damask rose hydration, custom enzyme peels, and LED light renewal therapy."
+  },
+  {
+    id: 5,
+    title: "Thermal Hydrotherapy & Herbal Milk Bath",
+    category: "HYDROTHERAPY",
+    categoryId: "hydrotherapy",
+    price: "₹1,999",
+    duration: "60 mins",
+    rating: "4.95",
+    reviewsCount: 240,
+    popular: true,
+    image: "https://images.unsplash.com/photo-1540555700478-4be289fbecef?auto=format&fit=crop&w=800&q=80",
+    description: "Warm mineral milk soak infused with wild lavender blossoms in a private hydro-jet jacuzzi suite."
+  },
+  {
+    id: 6,
+    title: "Deep Tissue Volcanic Hot Stone Ritual",
+    category: "BODY MASSAGE",
+    categoryId: "body-massage",
+    price: "₹2,999",
+    duration: "90 mins",
+    rating: "5.0",
+    reviewsCount: 412,
+    popular: false,
+    image: "https://images.unsplash.com/photo-1515377905703-c4788e51af15?auto=format&fit=crop&w=800&q=80",
+    description: "Targeted deep pressure friction combined with warm basalt volcanic stones and organic lavender elixirs."
+  }
+];
+
+const CATEGORIES = [
+  { id: 'all', label: 'ALL' },
+  { id: 'body-massage', label: 'BODY MASSAGE' },
+  { id: 'hydrotherapy', label: 'HYDROTHERAPY' },
+  { id: 'facial-spa', label: 'FACIAL SPA' },
+  { id: 'holistic-rituals', label: 'HOLISTIC RITUALS' }
+];
 
 export default function Services({ onSelectServiceForBooking }) {
-  const navigate = useNavigate();
   const [activeCategory, setActiveCategory] = useState('all');
 
   const filteredServices = activeCategory === 'all'
-    ? SERVICES_DATA
-    : SERVICES_DATA.filter((service) => service.categoryId === activeCategory);
+    ? SPA_SERVICES
+    : SPA_SERVICES.filter((s) => s.categoryId === activeCategory);
 
-  const handleBookService = (service) => {
+  const handleBook = (service) => {
     if (onSelectServiceForBooking) {
       onSelectServiceForBooking(service);
-    } else {
-      navigate(`/book?businessSlug=${service.businessSlug}&serviceId=${service.id}`);
     }
   };
 
   return (
-    <section id="services" className="py-20 md:py-28 bg-[#FFFDFD] relative">
+    <section id="services" className="py-20 md:py-28 bg-white relative">
       <div className="w-full max-w-[1720px] mx-auto px-6 md:px-12 lg:px-16 xl:px-20">
         
         {/* Section Header */}
-        <div className="flex flex-col md:flex-row md:items-end justify-between mb-12 gap-6">
+        <div className="flex flex-col lg:flex-row lg:items-end justify-between mb-10 gap-6">
           <div className="max-w-2xl">
-            <span className="text-xs uppercase tracking-[0.25em] text-[#F35271] font-bold mb-2.5 block">
-              Marketplace Menu
+            <span className="text-xs uppercase tracking-[0.25em] text-[#F35271] font-bold mb-3 block">
+              BESPOKE SPA THERAPIES
             </span>
-            <h2 className="font-serif-luxury text-3xl sm:text-4xl md:text-5xl text-[#0D0D12] font-normal leading-tight">
-              Popular <span className="italic text-[#F35271] font-light">Treatments & Rituals</span>
+            <h2 className="text-3xl sm:text-4xl md:text-5xl lg:text-[48px] text-[#0D0D12] font-bold leading-tight tracking-tight">
+              Explore Our <span className="italic font-light text-[#F35271]">Spa Therapy</span><br className="hidden sm:inline" />
+              Menu
             </h2>
-            <p className="text-xs sm:text-sm text-[#757880] font-light mt-2 max-w-xl">
-              Browse top-booked massages, rejuvenating facials, and hair treatments across partner spas and salons.
-            </p>
           </div>
 
-          <Link
-            to="/services"
-            className="inline-flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-[#F35271] hover:text-[#0D0D12] transition-colors self-start md:self-auto"
-          >
-            <span>View Full Treatment Menu</span>
-            <ArrowRight className="w-4 h-4" />
-          </Link>
+          <p className="text-xs sm:text-sm text-[#757880] font-normal leading-relaxed max-w-lg lg:pb-2">
+            From deep thermal hydrotherapy baths to volcanic hot stone massage rituals, every treatment is tailored for your physical and mental rejuvenation.
+          </p>
         </div>
 
         {/* Category Filter Pills */}
-        <div className="flex items-center gap-2 overflow-x-auto pb-4 mb-10 scrollbar-none">
-          {SERVICE_CATEGORIES.map((cat) => (
+        <div className="flex items-center gap-2.5 overflow-x-auto pb-4 mb-12 scrollbar-none">
+          {CATEGORIES.map((cat) => (
             <button
               key={cat.id}
               onClick={() => setActiveCategory(cat.id)}
-              className={`px-5 py-2.5 rounded-full text-xs font-semibold tracking-wider whitespace-nowrap transition-all duration-300 ${
+              className={`px-6 py-2.5 rounded-full text-xs font-bold tracking-wider uppercase whitespace-nowrap transition-all duration-300 cursor-pointer ${
                 activeCategory === cat.id
                   ? 'bg-[#F35271] text-white shadow-md'
                   : 'bg-white text-[#757880] border border-[#AFB0B7]/30 hover:border-[#F35271] hover:text-[#0D0D12]'
               }`}
             >
-              {cat.name}
+              {cat.label}
             </button>
           ))}
         </div>
@@ -67,9 +145,9 @@ export default function Services({ onSelectServiceForBooking }) {
         {/* Services Grid */}
         <motion.div layout className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
           <AnimatePresence>
-            {filteredServices.slice(0, 6).map((service) => (
+            {filteredServices.map((service) => (
               <motion.div
-                key={`${service.businessSlug}-${service.id}`}
+                key={service.id}
                 layout
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
@@ -78,40 +156,39 @@ export default function Services({ onSelectServiceForBooking }) {
                 className="group bg-white rounded-[2rem] overflow-hidden border border-[#AFB0B7]/25 shadow-sm hover:shadow-xl transition-all duration-300 flex flex-col justify-between"
               >
                 {/* Image & Badges */}
-                <div className="relative h-60 overflow-hidden">
+                <div className="relative h-64 overflow-hidden bg-[#FFF0F3]">
                   <img
                     src={service.image}
                     alt={service.title}
                     className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700"
                   />
-                  <div className="absolute inset-0 bg-gradient-to-t from-[#0D0D12]/75 via-transparent to-transparent opacity-80" />
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent pointer-events-none" />
 
+                  {/* Top Badges */}
                   <div className="absolute top-4 left-4 right-4 flex items-center justify-between">
-                    <span className="px-3 py-1 rounded-full bg-white/95 backdrop-blur-md text-[10px] font-bold text-[#0D0D12] uppercase tracking-wider shadow-sm">
+                    <span className="px-3.5 py-1 rounded-full bg-white/95 backdrop-blur-md text-[10px] font-bold text-[#0D0D12] uppercase tracking-wider shadow-xs">
                       {service.category}
                     </span>
                     {service.popular && (
-                      <span className="px-3 py-1 rounded-full bg-[#F35271] text-white text-[10px] font-bold uppercase tracking-wider shadow-md flex items-center gap-1">
-                        <Sparkles className="w-3 h-3" /> Most Loved
+                      <span className="px-3.5 py-1 rounded-full bg-gradient-to-r from-[#F35271] to-[#FF5E7E] text-white text-[10px] font-bold uppercase tracking-wider shadow-md flex items-center gap-1">
+                        <Sparkles className="w-3 h-3" /> MOST LOVED
                       </span>
                     )}
                   </div>
 
-                  <div className="absolute bottom-3 left-4 right-4 flex items-center justify-between text-white">
-                    <span className="text-[11px] text-white/90 flex items-center gap-1">
-                      <MapPin className="w-3 h-3 text-[#FF5E7E]" />
-                      {service.businessName} ({service.businessCity})
-                    </span>
-                    <span className="bg-[#FFEEF1] px-2.5 py-0.5 rounded-full text-xs font-bold text-[#F35271]">
+                  {/* Price Tag Pill on Image */}
+                  <div className="absolute bottom-3.5 right-4">
+                    <span className="bg-white/95 backdrop-blur-md px-3.5 py-1 rounded-full text-xs sm:text-sm font-bold text-[#F35271] shadow-md border border-[#F35271]/20">
                       {service.price}
                     </span>
                   </div>
                 </div>
 
                 {/* Content */}
-                <div className="p-6 flex flex-col justify-between flex-grow space-y-4">
+                <div className="p-6 sm:p-7 flex flex-col justify-between flex-grow space-y-4">
                   <div>
-                    <div className="flex items-center gap-4 text-xs text-[#757880] mb-2">
+                    {/* Meta Specs */}
+                    <div className="flex items-center gap-4 text-xs text-[#757880] mb-2.5">
                       <span className="flex items-center gap-1 font-medium">
                         <Clock className="w-3.5 h-3.5 text-[#F35271]" />
                         {service.duration}
@@ -122,31 +199,25 @@ export default function Services({ onSelectServiceForBooking }) {
                       </span>
                     </div>
 
-                    <Link to={`/services/${service.id}`}>
-                      <h3 className="font-serif-luxury text-xl font-normal text-[#0D0D12] group-hover:text-[#F35271] transition-colors mb-2 line-clamp-1">
-                        {service.title}
-                      </h3>
-                    </Link>
+                    {/* Title */}
+                    <h3 className="text-xl font-bold text-[#0D0D12] group-hover:text-[#F35271] transition-colors mb-2.5 line-clamp-2 leading-snug">
+                      {service.title}
+                    </h3>
 
-                    <p className="text-xs text-[#757880] font-light leading-relaxed line-clamp-2">
-                      {service.shortDescription}
+                    {/* Description */}
+                    <p className="text-xs sm:text-sm text-[#757880] font-normal leading-relaxed line-clamp-3">
+                      {service.description}
                     </p>
                   </div>
 
-                  <div className="grid grid-cols-2 gap-2 pt-3 border-t border-[#AFB0B7]/20">
-                    <Link
-                      to={`/services/${service.id}`}
-                      className="py-2.5 rounded-full text-center text-xs font-semibold text-[#0D0D12] border border-[#AFB0B7]/30 hover:border-[#F35271] hover:text-[#F35271] transition-colors"
-                    >
-                      Details
-                    </Link>
-
+                  {/* Primary CTA Button */}
+                  <div className="pt-3">
                     <button
-                      onClick={() => handleBookService(service)}
-                      className="py-2.5 rounded-full text-center text-xs font-semibold text-white bg-[#F35271] hover:bg-[#E04362] transition-colors shadow-md flex items-center justify-center gap-1"
+                      onClick={() => handleBook(service)}
+                      className="w-full py-3.5 rounded-full text-center text-xs font-bold uppercase tracking-wider text-white bg-gradient-to-r from-[#F35271] to-[#FF5E7E] hover:from-[#E04362] hover:to-[#F35271] transition-all duration-300 shadow-md hover:shadow-lg flex items-center justify-center gap-2 cursor-pointer transform active:scale-98"
                     >
-                      <span>Book Slot</span>
-                      <ArrowRight className="w-3.5 h-3.5" />
+                      <span>RESERVE SPA THERAPY</span>
+                      <ArrowRight className="w-4 h-4" />
                     </button>
                   </div>
                 </div>

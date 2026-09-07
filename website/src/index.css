@@ -2,14 +2,14 @@
 
 @layer base {
   :root {
-    --color-blooms-rose: #F35271;
-    --color-blooms-blush: #E06278;
-    --color-blooms-soft-pink: #F0C9D0;
+    --color-blooms-rose: #DE4B73;
+    --color-blooms-blush: #FA7B9B;
+    --color-blooms-soft-pink: #FCE4EC;
     --color-blooms-cream: #FFFFFF;
-    --color-blooms-sand: #FFEEF1;
+    --color-blooms-sand: #FFF0F3;
     --color-blooms-espresso: #0D0D12;
     --color-blooms-muted: #757880;
-    --color-blooms-gold: #FF5E7E;
+    --color-blooms-gold: #FF7B9B;
     --color-blooms-border: #AFB0B7;
     --color-blooms-warm-grey: #E5D5D1;
     --color-blooms-add: #168821;
