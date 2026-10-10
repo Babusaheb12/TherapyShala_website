@@ -67,8 +67,9 @@ export default function Footer() {
             </h4>
             <ul className="space-y-3 text-xs sm:text-sm font-normal text-[#AFB0B7]">
               <li><a href="#" className="hover:text-white transition-colors">Home</a></li>
+              <li><Link to="/enquiry" className="hover:text-[#F35271] text-white font-medium transition-colors">Enquiry &amp; Concierge</Link></li>
+              <li><Link to="/login" className="hover:text-[#F35271] transition-colors">Customer Login</Link></li>
               <li><a href="#services" className="hover:text-white transition-colors">Services Menu</a></li>
-              <li><a href="#about" className="hover:text-white transition-colors">Why Choose Us</a></li>
               <li><a href="#pricing" className="hover:text-white transition-colors">Pricing Packages</a></li>
               <li><a href="#faq" className="hover:text-white transition-colors">FAQ</a></li>
               <li><Link to="/help-center" className="hover:text-white transition-colors">Help Center &amp; Support</Link></li>

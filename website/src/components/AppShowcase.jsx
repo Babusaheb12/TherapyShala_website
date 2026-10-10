@@ -1,11 +1,12 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { APP_SCREENS } from '../data/spaData';
-import { Smartphone, Star, Calendar, Bell, Shield, ArrowRight, CheckCircle2 } from 'lucide-react';
+import { Smartphone, Star, Calendar, Bell, Shield, ArrowRight, CheckCircle2, X } from 'lucide-react';
 import TherapyshalaLogo from './TherapyshalaLogo';
 
 export default function AppShowcase() {
   const [activeScreenIndex, setActiveScreenIndex] = useState(0);
+  const [showComingSoon, setShowComingSoon] = useState(false);
 
   const currentScreen = APP_SCREENS[activeScreenIndex];
 
@@ -71,14 +72,24 @@ export default function AppShowcase() {
 
             {/* App Store CTA Badges */}
             <div className="mt-6 flex flex-wrap items-center gap-4">
-              <a href="#download" className="inline-block hover:opacity-90 transition-opacity">
+              <button
+                type="button"
+                onClick={() => setShowComingSoon(true)}
+                className="inline-block hover:opacity-90 transition-opacity cursor-pointer"
+              >
                 <img
                   src="https://developer.apple.com/assets/elements/badges/download-on-the-app-store.svg"
                   alt="Download on the App Store"
                   className="h-[44px] w-auto"
                 />
-              </a>
-              <a href="#download" className="inline-block hover:opacity-90 transition-opacity">
+              </button>
+
+              <a
+                href="https://play.google.com/store/apps/details?id=com.bigwon.therapyshala&pcampaignid=web_share"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-block hover:opacity-90 transition-opacity"
+              >
                 <img
                   src="https://upload.wikimedia.org/wikipedia/commons/7/78/Google_Play_Store_badge_EN.svg"
                   alt="Get it on Google Play"
@@ -178,6 +189,59 @@ export default function AppShowcase() {
 
         </div>
       </div>
+
+      {/* iOS App Coming Soon Modal */}
+      <AnimatePresence>
+        {showComingSoon && (
+          <div className="fixed inset-0 z-50 bg-[#0D0D12]/60 backdrop-blur-xs flex items-center justify-center p-4">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              className="bg-white rounded-3xl p-6 sm:p-8 max-w-sm w-full shadow-2xl text-center relative border border-gray-100"
+            >
+              <button
+                onClick={() => setShowComingSoon(false)}
+                className="absolute right-4 top-4 w-8 h-8 rounded-full hover:bg-gray-100 flex items-center justify-center text-gray-500 hover:text-black cursor-pointer"
+              >
+                <X className="w-4 h-4" />
+              </button>
+
+              <div className="w-14 h-14 rounded-2xl bg-[#FFEEF1] text-[#F35271] flex items-center justify-center mx-auto mb-4">
+                <Bell className="w-6 h-6" />
+              </div>
+
+              <span className="text-[10px] font-bold text-[#F35271] uppercase tracking-widest bg-[#FFEEF1] px-2.5 py-1 rounded-full inline-block mb-2">
+                Apple App Store
+              </span>
+
+              <h3 className="text-xl font-bold text-[#0D0D12]">Coming Soon!</h3>
+
+              <p className="text-xs text-[#757880] mt-2 leading-relaxed">
+                Our iOS application is currently undergoing final App Store review. You can download the Android app on Google Play or continue booking through our website.
+              </p>
+
+              <div className="mt-6 flex flex-col gap-2">
+                <a
+                  href="https://play.google.com/store/apps/details?id=com.bigwon.therapyshala&pcampaignid=web_share"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="w-full py-3 rounded-xl bg-[#F35271] text-white text-xs font-semibold hover:bg-[#E04362] transition-colors"
+                >
+                  Download on Google Play
+                </a>
+                <button
+                  type="button"
+                  onClick={() => setShowComingSoon(false)}
+                  className="w-full py-2.5 rounded-xl border border-gray-200 text-xs font-semibold text-gray-600 hover:bg-gray-50 cursor-pointer"
+                >
+                  Close
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
     </section>
   );
 }

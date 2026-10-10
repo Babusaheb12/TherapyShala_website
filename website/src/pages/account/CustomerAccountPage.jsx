@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useLocation, Link, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { MOCK_USER_PROFILE, MOCK_USER_APPOINTMENTS, MOCK_USER_PACKAGES } from '../../data/spaData';
+import { useAuth } from '../../context/AuthContext';
 import Navbar from '../../components/Navbar';
 import Footer from '../../components/Footer';
 import PageHeader from '../../components/common/PageHeader';
@@ -14,6 +15,7 @@ import {
 export default function CustomerAccountPage() {
   const location = useLocation();
   const navigate = useNavigate();
+  const { user } = useAuth();
 
   const initialTab = location.pathname.includes('packages') 
     ? 'packages' 
@@ -22,7 +24,10 @@ export default function CustomerAccountPage() {
   const [activeTab, setActiveTab] = useState(initialTab);
   const [appointments, setAppointments] = useState(MOCK_USER_APPOINTMENTS);
   const [packages, setPackages] = useState(MOCK_USER_PACKAGES);
-  const [profile, setProfile] = useState(MOCK_USER_PROFILE);
+  const [profile, setProfile] = useState(() => ({
+    ...MOCK_USER_PROFILE,
+    ...(user || {})
+  }));
 
   const [selectedAppointmentForCancel, setSelectedAppointmentForCancel] = useState(null);
   const [toastMessage, setToastMessage] = useState('');

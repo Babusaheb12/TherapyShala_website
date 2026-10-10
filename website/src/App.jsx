@@ -1,6 +1,7 @@
 import React from 'react';
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import ScrollToTop from './components/common/ScrollToTop';
+import { AuthProvider } from './context/AuthContext';
 
 // Existing & Core Pages
 import LandingPage from './pages/LandingPage';
@@ -30,60 +31,81 @@ import BranchesPage from './pages/branches/BranchesPage';
 // Customer Account & Booking History
 import CustomerAccountPage from './pages/account/CustomerAccountPage';
 
+// New: Enquiry & Login Pages
+import EnquiryPage from './pages/enquiry/EnquiryPage';
+import LoginPage from './pages/auth/LoginPage';
+import SpaOwnerDashboardPage from './pages/owner/SpaOwnerDashboardPage';
+
 function App() {
   return (
     <BrowserRouter>
-      <ScrollToTop />
-      <Routes>
-        {/* Homepage */}
-        <Route path="/" element={<LandingPage />} />
+      <AuthProvider>
+        <ScrollToTop />
+        <Routes>
+          {/* Homepage */}
+          <Route path="/" element={<LandingPage />} />
 
-        {/* Multi-Business Discovery Routes */}
-        <Route path="/explore" element={<BusinessesDiscoveryPage />} />
-        <Route path="/businesses" element={<BusinessesDiscoveryPage />} />
-        <Route path="/spas" element={<BusinessesDiscoveryPage />} />
-        <Route path="/salons" element={<BusinessesDiscoveryPage />} />
-        <Route path="/business/:slug" element={<BusinessProfilePage />} />
+          {/* New Authentication & Login Routes */}
+          <Route path="/login" element={<LoginPage />} />
+          <Route path="/signin" element={<LoginPage />} />
 
-        {/* 10-Step Business Onboarding Setup */}
-        <Route path="/list-your-business" element={<ListYourBusinessPage />} />
-        <Route path="/register-business" element={<ListYourBusinessPage />} />
+          {/* Spa Owner Portal Routes */}
+          <Route path="/owner" element={<SpaOwnerDashboardPage />} />
+          <Route path="/owner/dashboard" element={<SpaOwnerDashboardPage />} />
+          <Route path="/spa-owner" element={<SpaOwnerDashboardPage />} />
+          <Route path="/spa-owner/dashboard" element={<SpaOwnerDashboardPage />} />
 
-        {/* Services Catalog & Details */}
-        <Route path="/services" element={<ServicesPage />} />
-        <Route path="/services/:id" element={<ServiceDetailPage />} />
+          {/* New Bespoke Concierge & Enquiry Routes */}
+          <Route path="/enquiry" element={<EnquiryPage />} />
+          <Route path="/contact" element={<EnquiryPage />} />
 
-        {/* Packages & Treatment Passes */}
-        <Route path="/packages" element={<PackagesPage />} />
-        <Route path="/packages/:id" element={<PackageDetailPage />} />
+          {/* Multi-Business Discovery Routes */}
+          <Route path="/explore" element={<BusinessesDiscoveryPage />} />
+          <Route path="/businesses" element={<BusinessesDiscoveryPage />} />
+          <Route path="/spas" element={<BusinessesDiscoveryPage />} />
+          <Route path="/salons" element={<BusinessesDiscoveryPage />} />
+          <Route path="/business/:slug" element={<BusinessProfilePage />} />
 
-        {/* Online Appointment Booking Engine */}
-        <Route path="/book" element={<BookingFlowPage />} />
+          {/* 10-Step Business Onboarding Setup */}
+          <Route path="/list-your-business" element={<ListYourBusinessPage />} />
+          <Route path="/register-business" element={<ListYourBusinessPage />} />
 
-        {/* Offers & Promo Codes */}
-        <Route path="/offers" element={<OffersPage />} />
+          {/* Services Catalog & Details */}
+          <Route path="/services" element={<ServicesPage />} />
+          <Route path="/services/:id" element={<ServiceDetailPage />} />
 
-        {/* Branches */}
-        <Route path="/branches" element={<BranchesPage />} />
+          {/* Packages & Treatment Passes */}
+          <Route path="/packages" element={<PackagesPage />} />
+          <Route path="/packages/:id" element={<PackageDetailPage />} />
 
-        {/* Customer Account & Appointments */}
-        <Route path="/account" element={<CustomerAccountPage />} />
-        <Route path="/account/appointments" element={<CustomerAccountPage />} />
-        <Route path="/account/packages" element={<CustomerAccountPage />} />
-        <Route path="/account/reviews" element={<CustomerAccountPage />} />
+          {/* Online Appointment Booking Engine */}
+          <Route path="/book" element={<BookingFlowPage />} />
 
-        {/* Dedicated CMS Document Routes */}
-        <Route path="/cms/:slug" element={<CmsPage />} />
-        <Route path="/privacy" element={<CmsPage docTypeOverride="PRIVACY" docTitleOverride="Privacy Policy" />} />
-        <Route path="/terms" element={<CmsPage docTypeOverride="TERMS" docTitleOverride="Terms & Conditions" />} />
-        <Route path="/therapist-terms" element={<CmsPage docTypeOverride="THERAPIST_TERMS" docTitleOverride="Therapist Terms" />} />
-        <Route path="/cancellation" element={<CmsPage docTypeOverride="CANCELLATION" docTitleOverride="Cancellation Policy" />} />
-        <Route path="/refund" element={<CmsPage docTypeOverride="REFUND" docTitleOverride="Refund Policy" />} />
-        <Route path="/about-us" element={<CmsPage docTypeOverride="ABOUT_US" docTitleOverride="About Us" />} />
+          {/* Offers & Promo Codes */}
+          <Route path="/offers" element={<OffersPage />} />
 
-        {/* Dedicated Help Center Route */}
-        <Route path="/help-center" element={<HelpCenterPage />} />
-      </Routes>
+          {/* Branches */}
+          <Route path="/branches" element={<BranchesPage />} />
+
+          {/* Customer Account & Appointments */}
+          <Route path="/account" element={<CustomerAccountPage />} />
+          <Route path="/account/appointments" element={<CustomerAccountPage />} />
+          <Route path="/account/packages" element={<CustomerAccountPage />} />
+          <Route path="/account/reviews" element={<CustomerAccountPage />} />
+
+          {/* Dedicated CMS Document Routes */}
+          <Route path="/cms/:slug" element={<CmsPage />} />
+          <Route path="/privacy" element={<CmsPage docTypeOverride="PRIVACY" docTitleOverride="Privacy Policy" />} />
+          <Route path="/terms" element={<CmsPage docTypeOverride="TERMS" docTitleOverride="Terms & Conditions" />} />
+          <Route path="/therapist-terms" element={<CmsPage docTypeOverride="THERAPIST_TERMS" docTitleOverride="Therapist Terms" />} />
+          <Route path="/cancellation" element={<CmsPage docTypeOverride="CANCELLATION" docTitleOverride="Cancellation Policy" />} />
+          <Route path="/refund" element={<CmsPage docTypeOverride="REFUND" docTitleOverride="Refund Policy" />} />
+          <Route path="/about-us" element={<CmsPage docTypeOverride="ABOUT_US" docTitleOverride="About Us" />} />
+
+          {/* Dedicated Help Center Route */}
+          <Route path="/help-center" element={<HelpCenterPage />} />
+        </Routes>
+      </AuthProvider>
     </BrowserRouter>
   );
 }

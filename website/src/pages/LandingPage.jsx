@@ -15,11 +15,14 @@ import FAQ from '../components/FAQ';
 import DownloadCTA from '../components/DownloadCTA';
 import Footer from '../components/Footer';
 import BookingModal from '../components/BookingModal';
+import EnquiryModal from '../components/EnquiryModal';
+import { MessageSquareText } from 'lucide-react';
 
 export default function LandingPage() {
   const [loading, setLoading] = useState(true);
   const [bookingModalOpen, setBookingModalOpen] = useState(false);
   const [selectedServiceForBooking, setSelectedServiceForBooking] = useState(null);
+  const [enquiryModalOpen, setEnquiryModalOpen] = useState(false);
 
   const handleOpenBooking = () => {
     setSelectedServiceForBooking(null);
@@ -87,6 +90,24 @@ export default function LandingPage() {
           onClose={() => setBookingModalOpen(false)}
           preselectedService={selectedServiceForBooking}
         />
+
+        {/* Interactive Quick Enquiry Modal */}
+        <EnquiryModal
+          isOpen={enquiryModalOpen}
+          onClose={() => setEnquiryModalOpen(false)}
+        />
+
+        {/* Floating Concierge Quick Enquiry Button */}
+        <div className="fixed bottom-6 right-6 z-40 flex flex-col items-end gap-2.5">
+          <button
+            onClick={() => setEnquiryModalOpen(true)}
+            className="group flex items-center gap-2.5 px-5 py-3 rounded-full bg-[#0D0D12] hover:bg-[#F35271] text-white shadow-xl hover:shadow-[0_8px_25px_rgba(243,82,113,0.4)] transition-all duration-300 border border-white/10 cursor-pointer transform hover:-translate-y-0.5 active:scale-95"
+          >
+            <div className="w-2 h-2 rounded-full bg-[#168821] animate-ping" />
+            <MessageSquareText className="w-4 h-4 text-[#FA7B9B] group-hover:text-white" />
+            <span className="text-xs font-bold uppercase tracking-wider">Quick Enquiry</span>
+          </button>
+        </div>
       </div>
     </>
   );

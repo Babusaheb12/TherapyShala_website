@@ -5,14 +5,14 @@ import path from 'path'
 
 // https://vite.dev/config/
 export default defineConfig(({ mode }) => {
-  const env = loadEnv(mode, path.resolve(import.meta.dirname, '..'), '');
-  const rawTarget = env.VITE_API_BASE_URL || '';
+  const localEnv = loadEnv(mode, process.cwd(), '');
+  const parentEnv = loadEnv(mode, path.resolve(import.meta.dirname, '..'), '');
+  const rawTarget = localEnv.VITE_API_BASE_URL || parentEnv.VITE_API_BASE_URL || 'https://yiddish-darkened-absolute.ngrok-free.dev/api/v1';
   const targetHost = rawTarget.startsWith('http')
     ? rawTarget.replace(/\/api\/v1\/?$/, '').replace(/\/+$/, '')
-    : 'https://api.therapyshala.com';
+    : 'https://yiddish-darkened-absolute.ngrok-free.dev';
 
   return {
-    envDir: '../',
     plugins: [react(), tailwindcss()],
     server: {
       proxy: {
@@ -20,14 +20,19 @@ export default defineConfig(({ mode }) => {
           target: targetHost,
           changeOrigin: true,
           secure: false,
+          timeout: 60000,
+          proxyTimeout: 60000,
           headers: {
             'ngrok-skip-browser-warning': 'true',
+            'Origin': 'http://localhost:5173',
           },
           configure: (proxy) => {
             proxy.on('proxyReq', (proxyReq) => {
+              proxyReq.setHeader('Origin', 'http://localhost:5173');
               proxyReq.setHeader('ngrok-skip-browser-warning', 'true');
-              proxyReq.setHeader('Origin', targetHost);
-              proxyReq.setHeader('Referer', targetHost);
+            });
+            proxy.on('error', (err, req, res) => {
+              console.warn('[Vite Proxy Warning]:', err?.message);
             });
           },
         },

@@ -1,8 +1,9 @@
-import React from 'react';
-import { motion } from 'framer-motion';
-import { Smartphone, QrCode, Sparkles, Star } from 'lucide-react';
+import React, { useState } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { Smartphone, QrCode, Sparkles, Star, X, Bell } from 'lucide-react';
 
 export default function DownloadCTA() {
+  const [showIosComingSoon, setShowIosComingSoon] = useState(false);
   return (
     <section id="download" className="py-24 md:py-32 bg-white relative overflow-hidden">
       <div className="w-full max-w-[1720px] mx-auto px-6 md:px-12 lg:px-16 xl:px-20 relative z-10">
@@ -33,15 +34,24 @@ export default function DownloadCTA() {
               {/* Badges & QR Code */}
               <div className="flex flex-wrap items-center gap-6">
                 <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-4">
-                  <a href="#download-ios" className="inline-block hover:opacity-90 transition-opacity">
+                  <button
+                    type="button"
+                    onClick={() => setShowIosComingSoon(true)}
+                    className="inline-block hover:opacity-90 transition-opacity cursor-pointer"
+                  >
                     <img
                       src="https://developer.apple.com/assets/elements/badges/download-on-the-app-store.svg"
                       alt="Download on the App Store"
                       className="h-[52px] w-auto"
                     />
-                  </a>
+                  </button>
 
-                  <a href="#download-android" className="inline-block hover:opacity-90 transition-opacity">
+                  <a
+                    href="https://play.google.com/store/apps/details?id=com.bigwon.therapyshala&pcampaignid=web_share"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-block hover:opacity-90 transition-opacity"
+                  >
                     <img
                       src="https://upload.wikimedia.org/wikipedia/commons/7/78/Google_Play_Store_badge_EN.svg"
                       alt="Get it on Google Play"
@@ -105,6 +115,59 @@ export default function DownloadCTA() {
         </div>
 
       </div>
+
+      {/* iOS App Coming Soon Modal */}
+      <AnimatePresence>
+        {showIosComingSoon && (
+          <div className="fixed inset-0 z-50 bg-[#0D0D12]/60 backdrop-blur-xs flex items-center justify-center p-4">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              className="bg-white rounded-3xl p-6 sm:p-8 max-w-sm w-full shadow-2xl text-center relative border border-gray-100"
+            >
+              <button
+                onClick={() => setShowIosComingSoon(false)}
+                className="absolute right-4 top-4 w-8 h-8 rounded-full hover:bg-gray-100 flex items-center justify-center text-gray-500 hover:text-black cursor-pointer"
+              >
+                <X className="w-4 h-4" />
+              </button>
+
+              <div className="w-14 h-14 rounded-2xl bg-[#FFEEF1] text-[#F35271] flex items-center justify-center mx-auto mb-4">
+                <Bell className="w-6 h-6" />
+              </div>
+
+              <span className="text-[10px] font-bold text-[#F35271] uppercase tracking-widest bg-[#FFEEF1] px-2.5 py-1 rounded-full inline-block mb-2">
+                Apple App Store
+              </span>
+
+              <h3 className="text-xl font-bold text-[#0D0D12]">Coming Soon!</h3>
+
+              <p className="text-xs text-[#757880] mt-2 leading-relaxed">
+                Our iOS application is currently undergoing final App Store review. You can download the Android app on Google Play or continue booking through our website.
+              </p>
+
+              <div className="mt-6 flex flex-col gap-2">
+                <a
+                  href="https://play.google.com/store/apps/details?id=com.bigwon.therapyshala&pcampaignid=web_share"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="w-full py-3 rounded-xl bg-[#F35271] text-white text-xs font-semibold hover:bg-[#E04362] transition-colors"
+                >
+                  Download on Google Play
+                </a>
+                <button
+                  type="button"
+                  onClick={() => setShowIosComingSoon(false)}
+                  className="w-full py-2.5 rounded-xl border border-gray-200 text-xs font-semibold text-gray-600 hover:bg-gray-50 cursor-pointer"
+                >
+                  Close
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
     </section>
   );
 }

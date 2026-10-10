@@ -1,4 +1,5 @@
 import React from 'react';
+import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Sparkles, ArrowUpRight, Star, ShieldCheck, Zap } from 'lucide-react';
 
@@ -59,12 +60,12 @@ export default function Hero({ onOpenBooking }) {
               Experience bespoke thermal hydrotherapy baths, volcanic hot stone massages, 24k gold body scrubs, and botanical facial therapies. Reserved in seconds online.
             </motion.p>
 
-            {/* Reserve Treatment Button */}
+            {/* Hero Action Buttons */}
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.6, delay: 0.2 }}
-              className="pt-2"
+              className="pt-2 flex flex-wrap items-center gap-4"
             >
               <button
                 onClick={handleReserveClick}
@@ -73,6 +74,13 @@ export default function Hero({ onOpenBooking }) {
                 <span>RESERVE TREATMENT</span>
                 <ArrowUpRight className="w-4 h-4" />
               </button>
+
+              <Link
+                to="/enquiry"
+                className="inline-flex items-center gap-2 px-7 py-4 rounded-full border border-[#0D0D12]/20 hover:border-[#F35271] text-[#0D0D12] hover:text-[#F35271] text-xs sm:text-sm font-bold uppercase tracking-wider transition-all duration-300 bg-white/80 backdrop-blur-xs shadow-xs hover:shadow-md cursor-pointer transform active:scale-95"
+              >
+                <span>ENQUIRE NOW</span>
+              </Link>
             </motion.div>
 
             {/* Horizontal Divider */}
