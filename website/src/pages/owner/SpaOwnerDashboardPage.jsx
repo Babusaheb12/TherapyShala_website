@@ -198,6 +198,10 @@ export default function SpaOwnerDashboardPage() {
   const [therapistsLoading, setTherapistsLoading] = useState(false);
   const [therapistsError, setTherapistsError] = useState('');
   const [selectedTherapistForModal, setSelectedTherapistForModal] = useState(null);
+  // An empty array is a valid successful response, not evidence that the API
+  // has not been loaded. Keep that state separately to prevent a fetch loop.
+  const therapistsLoadedRef = useRef(false);
+  const therapistsRequestInFlightRef = useRef(false);
 
   // Bookings State (API 1: GET /spa-owner/bookings)
   const [bookings, setBookings] = useState([]);
@@ -360,7 +364,9 @@ export default function SpaOwnerDashboardPage() {
 
   // 2. Fetch Therapists List (API 4)
   const fetchTherapists = useCallback(async () => {
-    if (!ownerToken) return;
+    if (!ownerToken || therapistsRequestInFlightRef.current) return;
+    therapistsRequestInFlightRef.current = true;
+    therapistsLoadedRef.current = true;
     setTherapistsLoading(true);
     setTherapistsError('');
     try {
@@ -374,6 +380,7 @@ export default function SpaOwnerDashboardPage() {
     } catch (err) {
       setTherapistsError(err?.data?.message || err?.message || 'Failed to load therapists.');
     } finally {
+      therapistsRequestInFlightRef.current = false;
       setTherapistsLoading(false);
     }
   }, [ownerToken]);
@@ -854,10 +861,15 @@ export default function SpaOwnerDashboardPage() {
 
   // When switching to therapists tab, ensure data is loaded
   useEffect(() => {
-    if (activeSection === 'therapists' && therapists.length === 0 && !therapistsLoading && !therapistsError) {
+    if (
+      activeSection === 'therapists' &&
+      !therapistsLoadedRef.current &&
+      !therapistsLoading &&
+      !therapistsError
+    ) {
       fetchTherapists();
     }
-  }, [activeSection, therapists.length, therapistsLoading, therapistsError, fetchTherapists]);
+  }, [activeSection, therapistsLoading, therapistsError, fetchTherapists]);
 
   // When switching to commission tab, ensure data is loaded
   useEffect(() => {
