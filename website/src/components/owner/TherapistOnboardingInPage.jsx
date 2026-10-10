@@ -390,7 +390,7 @@ export default function TherapistOnboardingInPage({
                     type="file"
                     accept="image/*,application/pdf"
                     className="hidden"
-                    onChange={(e) => handleFileUpload(e, 'frontAssetId', 'DOCUMENT')}
+                    onChange={(e) => handleFileUpload(e, 'frontAssetId', 'KYC_FRONT')}
                   />
                 </label>
               </div>
@@ -412,7 +412,7 @@ export default function TherapistOnboardingInPage({
                     type="file"
                     accept="image/*,application/pdf"
                     className="hidden"
-                    onChange={(e) => handleFileUpload(e, 'backAssetId', 'DOCUMENT')}
+                    onChange={(e) => handleFileUpload(e, 'backAssetId', 'KYC_BACK')}
                   />
                 </label>
               </div>
@@ -434,7 +434,7 @@ export default function TherapistOnboardingInPage({
                     type="file"
                     accept="image/*,application/pdf"
                     className="hidden"
-                    onChange={(e) => handleFileUpload(e, 'policeVerification', 'DOCUMENT')}
+                    onChange={(e) => handleFileUpload(e, 'policeVerification', 'SUPPORT_ATTACHMENT')}
                   />
                 </label>
               </div>
@@ -456,7 +456,7 @@ export default function TherapistOnboardingInPage({
                     type="file"
                     accept="image/*,application/pdf"
                     className="hidden"
-                    onChange={(e) => handleFileUpload(e, 'professionalCertificate', 'DOCUMENT')}
+                    onChange={(e) => handleFileUpload(e, 'professionalCertificate', 'SUPPORT_ATTACHMENT')}
                   />
                 </label>
               </div>

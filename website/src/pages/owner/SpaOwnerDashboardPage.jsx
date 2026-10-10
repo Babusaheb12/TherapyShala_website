@@ -81,93 +81,25 @@ import {
   getSpaOwnerCancellationPenaltiesReport,
 } from '../../services/spaOwner.service';
 
-const DEFAULT_CANCELLATION_PENALTIES_REPORT = {
+const EMPTY_CANCELLATION_PENALTIES_REPORT = {
   summary: {
-    totalCancellations: 1,
+    totalCancellations: 0,
     customerCancellations: 0,
-    therapistCancellations: 1,
+    therapistCancellations: 0,
     customerPaid: {
-      minor: 200000,
-      rupees: 2000.0,
+      minor: 0,
+      rupees: 0,
     },
     penaltyDeducted: {
-      minor: 25000,
-      rupees: 250.0,
+      minor: 0,
+      rupees: 0,
     },
     therapistCompensation: {
       minor: 0,
-      rupees: 0.0,
+      rupees: 0,
     },
   },
-  records: [
-    {
-      bookingId: '01BOOKINGPENALTY000000001',
-      bookingNumber: 'TS-BK-PENALTY-001',
-      cancelledAt: '2026-10-10T11:20:00.000Z',
-      cancelledBy: 'THERAPIST',
-      cancellationReason: 'THERAPIST_EMERGENCY',
-      customer: {
-        id: '01CUSTOMER000000000000001',
-        name: 'Rahul Customer',
-        phone: '+919111122222',
-        email: 'rahul.customer@gmail.com',
-        avatarUrl: null,
-      },
-      therapist: {
-        id: '01THERAPROF100000000000001',
-        name: 'Pooja Verma',
-        businessName: 'Royal Bliss Spa',
-        phone: '+919876543210',
-        email: 'pooja.bliss@therapyshala.com',
-        avatarUrl: 'https://res.cloudinary.com/therapyshala/image/upload/v1/therapists/avatar.jpg',
-        spaCode: 'SPA-ROYAL-01',
-      },
-      customerPayment: {
-        minor: 200000,
-        rupees: 2000.0,
-      },
-      customerPaymentStatus: 'CAPTURED',
-      penaltyDeducted: {
-        minor: 25000,
-        rupees: 250.0,
-      },
-      therapistCompensation: {
-        amount: {
-          minor: 0,
-          rupees: 0.0,
-        },
-        status: 'NOT_RECORDED',
-      },
-      therapistWallet: {
-        available: {
-          minor: 25000,
-          rupees: 250.0,
-        },
-        pending: {
-          minor: 0,
-          rupees: 0.0,
-        },
-      },
-      payoutSummary: {
-        paid: { minor: 0, rupees: 0.0 },
-        processing: { minor: 0, rupees: 0.0 },
-        records: [],
-      },
-      ledger: [
-        {
-          id: '01J98X7PENALTYLEDGER001',
-          type: 'CANCELLATION_PENALTY',
-          direction: 'DEBIT',
-          amount: {
-            minor: 25000,
-            rupees: 250.0,
-          },
-          description: 'Cancellation penalty for booking TS-BK-PENALTY-001',
-          createdAt: '2026-10-10T11:20:00.000Z',
-        },
-      ],
-    },
-  ],
+  records: [],
 };
 
 export default function SpaOwnerDashboardPage() {
@@ -799,31 +731,32 @@ export default function SpaOwnerDashboardPage() {
     try {
       const res = await getSpaOwnerCancellationPenaltiesReport({ limit: 100 });
       if (res?.success && res?.data) {
-        if (Array.isArray(res.data.records) && res.data.records.length > 0) {
-          setPenaltiesReport(res.data);
-        } else if (res.data.summary?.totalCancellations > 0) {
-          setPenaltiesReport(res.data);
-        } else {
-          setPenaltiesReport(DEFAULT_CANCELLATION_PENALTIES_REPORT);
-        }
+        setPenaltiesReport(res.data);
       } else {
-        setPenaltiesReport(DEFAULT_CANCELLATION_PENALTIES_REPORT);
+        setPenaltiesReport(EMPTY_CANCELLATION_PENALTIES_REPORT);
       }
     } catch (err) {
       console.warn('Penalties report fetch fallback:', err);
-      setPenaltiesReport(DEFAULT_CANCELLATION_PENALTIES_REPORT);
+      setPenaltiesReport(EMPTY_CANCELLATION_PENALTIES_REPORT);
     } finally {
       setPenaltiesReportLoading(false);
     }
   }, [ownerToken]);
 
-  // Initial Load - Robust sequential execution
+  // Initial Load - Robust execution once per session
   const hasLoadedRef = useRef(false);
+  const prevTokenRef = useRef(ownerToken);
 
   useEffect(() => {
+    // Reset load guard if owner token changes (e.g. re-login)
+    if (ownerToken !== prevTokenRef.current) {
+      prevTokenRef.current = ownerToken;
+      hasLoadedRef.current = false;
+    }
+
     if (ownerToken && !hasLoadedRef.current) {
       hasLoadedRef.current = true;
-      // Fetch data independently so one failure does not halt the others
+      // Fetch initial data once on mount independently
       fetchDashboard();
       fetchProfile();
       fetchTherapists();
@@ -833,105 +766,7 @@ export default function SpaOwnerDashboardPage() {
       fetchCancellationPolicy();
       fetchPenaltiesReport();
     }
-  }, [
-    ownerToken,
-    fetchDashboard,
-    fetchProfile,
-    fetchTherapists,
-    fetchBookings,
-    fetchCommissions,
-    fetchPayoutAccount,
-    fetchCancellationPolicy,
-    fetchPenaltiesReport,
-  ]);
-
-  // When switching to overview tab, ensure dashboard is loaded
-  useEffect(() => {
-    // Do not continuously retry a failed request. The user can explicitly use
-    // the refresh/retry control after the API rate-limit window has elapsed.
-    if (
-      activeSection === 'overview' &&
-      !dashboardData &&
-      !dashboardLoading &&
-      !dashboardError
-    ) {
-      fetchDashboard();
-    }
-  }, [activeSection, dashboardData, dashboardLoading, dashboardError, fetchDashboard]);
-
-  // When switching to therapists tab, ensure data is loaded
-  useEffect(() => {
-    if (
-      activeSection === 'therapists' &&
-      !therapistsLoadedRef.current &&
-      !therapistsLoading &&
-      !therapistsError
-    ) {
-      fetchTherapists();
-    }
-  }, [activeSection, therapistsLoading, therapistsError, fetchTherapists]);
-
-  // When switching to commission tab, ensure data is loaded
-  useEffect(() => {
-    if (activeSection === 'commission' && !commissionsData && !commissionsLoading) {
-      fetchCommissions();
-    }
-  }, [activeSection, commissionsData, commissionsLoading, fetchCommissions]);
-
-  // When switching to payout tab, ensure account and payouts history are loaded
-  useEffect(() => {
-    if (activeSection === 'payout') {
-      if (!payoutAccount && !payoutAccountLoading) {
-        fetchPayoutAccount();
-      }
-      if (!payoutsData && !payoutsLoading) {
-        fetchPayoutsHistory();
-      }
-      if (!commissionsData && !commissionsLoading) {
-        fetchCommissions();
-      }
-    }
-  }, [
-    activeSection,
-    payoutAccount,
-    payoutAccountLoading,
-    payoutsData,
-    payoutsLoading,
-    commissionsData,
-    commissionsLoading,
-    fetchPayoutAccount,
-    fetchPayoutsHistory,
-    fetchCommissions,
-  ]);
-
-  // When switching to penalty or penalty-report tab, ensure cancellation policy & penalties report are loaded
-  useEffect(() => {
-    if (activeSection === 'penalty' || activeSection === 'penalty-report') {
-      if (!penaltiesReport && !penaltiesReportLoading) {
-        fetchPenaltiesReport();
-      }
-      if (!cancellationPolicy && !cancellationPolicyLoading) {
-        fetchCancellationPolicy();
-      }
-    }
-  }, [
-    activeSection,
-    cancellationPolicy,
-    cancellationPolicyLoading,
-    penaltiesReport,
-    penaltiesReportLoading,
-    fetchCancellationPolicy,
-    fetchPenaltiesReport,
-  ]);
-
-  // When switching to settings tab, ensure payout account is loaded
-  useEffect(() => {
-    if (activeSection === 'settings') {
-      if (!payoutAccount && !payoutAccountLoading) {
-        fetchPayoutAccount();
-      }
-    }
-  }, [activeSection, payoutAccount, payoutAccountLoading, fetchPayoutAccount]);
+  }, [ownerToken, fetchDashboard, fetchProfile, fetchTherapists, fetchBookings, fetchCommissions, fetchPayoutAccount, fetchCancellationPolicy, fetchPenaltiesReport]);
 
   // Copy Spa Code to clipboard
   const handleCopyCode = (code) => {
@@ -1041,8 +876,8 @@ export default function SpaOwnerDashboardPage() {
 
     try {
       const res = await uploadAsset({ file, kind });
-      if (res?.success && res?.data?.url) {
-        const uploadedUrl = res.data.url;
+      if (res?.success && (res?.data?.url || res?.data?.assetId)) {
+        const uploadedUrl = res.data.url || res.data.assetId;
         setFormData((prev) => {
           if (fieldName === 'galleryImages') {
             return { ...prev, galleryImages: [...prev.galleryImages, uploadedUrl] };
@@ -2253,7 +2088,7 @@ export default function SpaOwnerDashboardPage() {
                   </div>
                 ) : (
                   /* Luxury Therapists Fleet Grid */
-                  <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+                  <div className="grid grid-cols-1 lg:grid-cols-2 2xl:grid-cols-3 gap-6">
                     {therapists
                       .filter((th) => {
                         const term = therapistSearchTerm.toLowerCase().trim();
@@ -2299,68 +2134,23 @@ export default function SpaOwnerDashboardPage() {
                         return (
                           <div
                             key={therapist.id || therapist.profileId || idx}
-                            className="group bg-white rounded-3xl border border-gray-200/80 hover:border-gray-300 shadow-xs hover:shadow-lg transition-all duration-300 flex flex-col justify-between overflow-hidden"
+                            className="group bg-white rounded-3xl border border-gray-200/90 hover:border-gray-300 shadow-xs hover:shadow-lg transition-all duration-300 flex flex-col justify-between overflow-hidden"
                           >
-                            <div className="p-6 pb-5 space-y-5">
-                              {/* Top Bar: Avatar, Info & Duty Status Toggle */}
-                              <div className="flex items-start justify-between gap-3">
-                                <div className="flex items-center gap-3.5 min-w-0">
-                                  {/* Avatar with fixed aspect ratio and Duty status ring */}
-                                  <div className="relative shrink-0 w-16 h-16 rounded-2xl overflow-hidden bg-gray-100 ring-2 ring-gray-100 shadow-xs">
-                                    <img
-                                      src={
-                                        therapist.avatarUrl ||
-                                        'https://res.cloudinary.com/therapyshala/image/upload/v1/therapists/avatar.jpg'
-                                      }
-                                      alt={therapist.fullName}
-                                      className="w-full h-full object-cover shrink-0"
-                                      onError={(e) => {
-                                        e.target.src =
-                                          'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&w=160&q=80';
-                                      }}
-                                    />
-                                    <span
-                                      className={`absolute bottom-1 right-1 w-3.5 h-3.5 rounded-full ring-2 ring-white ${
-                                        isDuty ? 'bg-emerald-500' : 'bg-gray-400'
-                                      }`}
-                                      title={isDuty ? 'On Duty' : 'Off Duty'}
-                                    />
-                                  </div>
-
-                                  {/* Identity & Basic Credentials */}
-                                  <div className="min-w-0">
-                                    <div className="flex items-center gap-1.5">
-                                      <h4 className="text-base font-bold text-[#0D0D12] group-hover:text-[#F35271] transition-colors truncate">
-                                        {therapist.fullName}
-                                      </h4>
-                                      <CheckCircle2 className="w-4 h-4 text-emerald-500 shrink-0" />
-                                    </div>
-
-                                    <p className="text-xs text-[#757880] font-medium mt-0.5">
-                                      {genderLabel} • {therapist.experienceYears || 3} Years Exp
-                                    </p>
-
-                                    <div className="flex items-center gap-2 mt-1.5 text-xs">
-                                      <span className="flex items-center gap-1 text-amber-500 font-bold">
-                                        <Star className="w-3.5 h-3.5 fill-amber-400 text-amber-400" />
-                                        <span>4.9</span>
-                                      </span>
-                                      <span className="text-gray-300">•</span>
-                                      <span className="text-[#757880] text-[11px]">
-                                        {therapist.jobsCompleted || 24} jobs completed
-                                      </span>
-                                    </div>
-                                  </div>
-                                </div>
+                            <div className="p-6 pb-5 space-y-4">
+                              {/* Top Meta Strip: Status & Duty Toggle */}
+                              <div className="flex items-center justify-between gap-2 pb-1">
+                                <span className="text-[10px] font-bold uppercase tracking-wider text-gray-400">
+                                  Fleet Practitioner
+                                </span>
 
                                 {/* Duty Status Toggle Pill */}
                                 <button
                                   type="button"
                                   onClick={() => handleToggleTherapistDuty(therapist.id || therapist.profileId)}
-                                  className={`shrink-0 px-3 py-1.5 rounded-full text-[11px] font-bold border transition-all cursor-pointer flex items-center gap-1.5 shadow-2xs ${
+                                  className={`px-3 py-1 rounded-full text-[11px] font-bold border transition-all cursor-pointer flex items-center gap-1.5 shadow-2xs ${
                                     isDuty
                                       ? 'bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100'
-                                      : 'bg-gray-50 text-gray-500 border-gray-200 hover:bg-gray-100'
+                                      : 'bg-gray-50 text-gray-600 border-gray-200 hover:bg-gray-100'
                                   }`}
                                   title="Toggle Duty Availability"
                                 >
@@ -2373,24 +2163,77 @@ export default function SpaOwnerDashboardPage() {
                                 </button>
                               </div>
 
+                              {/* Identity Hero: Avatar & Full Name (Uncut) */}
+                              <div className="flex items-center gap-4">
+                                {/* Avatar with fixed aspect ratio and Duty status ring */}
+                                <div className="relative shrink-0 w-16 h-16 rounded-2xl overflow-hidden bg-gray-100 ring-2 ring-gray-100 shadow-xs">
+                                  <img
+                                    src={
+                                      therapist.avatarUrl ||
+                                      'https://res.cloudinary.com/therapyshala/image/upload/v1/therapists/avatar.jpg'
+                                    }
+                                    alt={therapist.fullName}
+                                    className="w-full h-full object-cover shrink-0"
+                                    onError={(e) => {
+                                      e.target.src =
+                                        'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&w=160&q=80';
+                                    }}
+                                  />
+                                  <span
+                                    className={`absolute bottom-1 right-1 w-3.5 h-3.5 rounded-full ring-2 ring-white ${
+                                      isDuty ? 'bg-emerald-500' : 'bg-gray-400'
+                                    }`}
+                                    title={isDuty ? 'On Duty' : 'Off Duty'}
+                                  />
+                                </div>
+
+                                {/* Identity & Full Name */}
+                                <div className="flex-1 min-w-0">
+                                  <div className="flex items-center gap-1.5 flex-wrap">
+                                    <h4 className="text-base font-bold text-[#0D0D12] group-hover:text-[#F35271] transition-colors leading-snug">
+                                      {therapist.fullName}
+                                    </h4>
+                                    <CheckCircle2 className="w-4 h-4 text-emerald-500 shrink-0" />
+                                  </div>
+
+                                  <p className="text-xs text-[#757880] font-medium mt-0.5">
+                                    {genderLabel} • {therapist.experienceYears || 3} Years Exp
+                                  </p>
+
+                                  <div className="flex items-center gap-2 mt-1 text-xs">
+                                    <span className="flex items-center gap-1 text-amber-500 font-bold">
+                                      <Star className="w-3.5 h-3.5 fill-amber-400 text-amber-400" />
+                                      <span>4.9</span>
+                                    </span>
+                                    <span className="text-gray-300">•</span>
+                                    <span className="text-[#757880] text-[11px]">
+                                      {therapist.jobsCompleted || 24} jobs completed
+                                    </span>
+                                  </div>
+                                </div>
+                              </div>
+
                               {/* Clean Contact & Location Info */}
-                              <div className="pt-3.5 border-t border-gray-100 space-y-2 text-xs">
-                                <div className="flex items-center justify-between text-[#757880]">
-                                  <span className="flex items-center gap-2 text-gray-500">
+                              <div className="pt-3 border-t border-gray-100 space-y-2 text-xs">
+                                <div className="flex items-center justify-between text-[#757880] gap-2">
+                                  <span className="flex items-center gap-2 text-gray-500 shrink-0">
                                     <Phone className="w-3.5 h-3.5 text-gray-400" />
                                     <span>Phone:</span>
                                   </span>
-                                  <strong className="text-[#0D0D12] font-semibold">
+                                  <a
+                                    href={`tel:${therapist.phone || therapist.mobileNumber || ''}`}
+                                    className="text-[#0D0D12] font-semibold hover:text-[#F35271] transition-colors font-mono"
+                                  >
                                     {therapist.phone || therapist.mobileNumber || '—'}
-                                  </strong>
+                                  </a>
                                 </div>
 
-                                <div className="flex items-center justify-between text-[#757880]">
-                                  <span className="flex items-center gap-2 text-gray-500">
+                                <div className="flex items-center justify-between text-[#757880] gap-2">
+                                  <span className="flex items-center gap-2 text-gray-500 shrink-0">
                                     <MapPin className="w-3.5 h-3.5 text-gray-400" />
                                     <span>Location:</span>
                                   </span>
-                                  <span className="text-[#0D0D12] font-semibold text-right truncate max-w-[200px]">
+                                  <span className="text-[#0D0D12] font-semibold text-right">
                                     {therapist.area ? `${therapist.area}, ` : ''}{therapist.city || 'Jaipur'}
                                     {therapist.serviceRadiusKm ? ` (${therapist.serviceRadiusKm} km)` : ''}
                                   </span>
@@ -2398,7 +2241,7 @@ export default function SpaOwnerDashboardPage() {
                               </div>
 
                               {/* Specializations & Starting Service Highlight */}
-                              <div className="pt-3.5 border-t border-gray-100">
+                              <div className="pt-3 border-t border-gray-100">
                                 <div className="flex items-center justify-between mb-2">
                                   <span className="text-[11px] font-bold text-gray-400 uppercase tracking-wider">
                                     Specializations
@@ -2426,21 +2269,21 @@ export default function SpaOwnerDashboardPage() {
                               </div>
 
                               {/* Trust & Compliance Row */}
-                              <div className="pt-3.5 border-t border-gray-100 flex items-center justify-between text-[11px]">
-                                <div className="flex items-center gap-3">
-                                  <span className="flex items-center gap-1 text-emerald-700 font-medium">
-                                    <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" />
+                              <div className="pt-3 border-t border-gray-100 flex flex-wrap items-center justify-between gap-2 text-[11px]">
+                                <div className="flex items-center gap-2 flex-wrap">
+                                  <span className="inline-flex items-center gap-1 text-emerald-700 bg-emerald-50 px-2.5 py-0.5 rounded-lg font-medium border border-emerald-100">
+                                    <ShieldCheck className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
                                     <span>KYC Verified</span>
                                   </span>
-                                  <span className="flex items-center gap-1 text-blue-700 font-medium">
-                                    <CreditCard className="w-3.5 h-3.5 text-blue-600" />
+                                  <span className="inline-flex items-center gap-1 text-blue-700 bg-blue-50 px-2.5 py-0.5 rounded-lg font-medium border border-blue-100">
+                                    <CreditCard className="w-3.5 h-3.5 text-blue-600 shrink-0" />
                                     <span>Payout Linked</span>
                                   </span>
                                 </div>
 
                                 {languagesList.length > 0 && (
                                   <span
-                                    className="text-gray-400 truncate max-w-[120px]"
+                                    className="text-gray-500 font-medium text-[11px]"
                                     title={languagesList.join(', ')}
                                   >
                                     {languagesList.join(', ')}
@@ -2450,11 +2293,11 @@ export default function SpaOwnerDashboardPage() {
                             </div>
 
                             {/* Card Footer: Spa Code & View Dossier Action */}
-                            <div className="px-6 py-4 bg-gray-50/70 border-t border-gray-100 flex items-center justify-between">
+                            <div className="px-6 py-4 bg-gray-50/70 border-t border-gray-100 flex items-center justify-between gap-2">
                               <span className="text-[11px] text-[#757880]">
                                 Spa Code:{' '}
                                 <strong className="font-mono text-[#0D0D12]">
-                                  {therapist.spaCode || ownerProfile?.spaCode || 'SPA'}
+                                  {therapist.spaCode || ownerProfile?.spaCode || 'SPA-973464'}
                                 </strong>
                               </span>
 
@@ -2464,7 +2307,7 @@ export default function SpaOwnerDashboardPage() {
                                   setSelectedTherapist(therapist);
                                   setTherapistSubView('details');
                                 }}
-                                className="px-4 py-2 rounded-xl bg-[#0D0D12] hover:bg-[#F35271] text-white font-bold text-xs transition-colors cursor-pointer flex items-center gap-1.5 shadow-2xs"
+                                className="px-4 py-2 rounded-xl bg-[#0D0D12] hover:bg-[#F35271] text-white font-bold text-xs transition-colors cursor-pointer flex items-center gap-1.5 shadow-2xs shrink-0"
                               >
                                 <Eye className="w-3.5 h-3.5" />
                                 <span>View Full Dossier</span>
@@ -2918,11 +2761,9 @@ export default function SpaOwnerDashboardPage() {
             }
 
             const effectiveReport =
-              penaltiesReport?.records?.length > 0
+              penaltiesReport && penaltiesReport.summary
                 ? penaltiesReport
-                : penaltiesReport?.summary?.totalCancellations > 0
-                ? penaltiesReport
-                : DEFAULT_CANCELLATION_PENALTIES_REPORT;
+                : EMPTY_CANCELLATION_PENALTIES_REPORT;
 
             return (
               <div className="space-y-6">
@@ -3084,7 +2925,20 @@ export default function SpaOwnerDashboardPage() {
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-gray-100">
-                        {effectiveReport.records.map((record, idx) => {
+                        {(!effectiveReport.records || effectiveReport.records.length === 0) ? (
+                          <tr>
+                            <td colSpan={7} className="py-12 text-center text-gray-500">
+                              <div className="flex flex-col items-center justify-center gap-2">
+                                <div className="w-10 h-10 rounded-full bg-emerald-50 text-emerald-600 flex items-center justify-center">
+                                  <ShieldCheck className="w-5 h-5" />
+                                </div>
+                                <p className="font-semibold text-sm text-[#0D0D12]">No Cancellation Penalty Records</p>
+                                <p className="text-xs text-gray-400">All bookings have completed smoothly with zero penalty deductions.</p>
+                              </div>
+                            </td>
+                          </tr>
+                        ) : (
+                          effectiveReport.records.map((record, idx) => {
                           const cancelledByTherapist = record.cancelledBy === 'THERAPIST';
                           const custRupees =
                             record.customerPayment?.rupees ??
@@ -3206,7 +3060,7 @@ export default function SpaOwnerDashboardPage() {
                               </td>
                             </tr>
                           );
-                        })}
+                        }))}
                       </tbody>
                     </table>
                   </div>
