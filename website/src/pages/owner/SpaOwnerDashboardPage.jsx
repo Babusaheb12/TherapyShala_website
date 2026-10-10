@@ -184,6 +184,9 @@ export default function SpaOwnerDashboardPage() {
   const [dashboardData, setDashboardData] = useState(null);
   const [dashboardLoading, setDashboardLoading] = useState(false);
   const [dashboardError, setDashboardError] = useState('');
+  // State updates are asynchronous, so use a ref to prevent effects from
+  // starting another dashboard request while the current one is unresolved.
+  const dashboardRequestInFlightRef = useRef(false);
 
   // Profile State (API 3)
   const [profileLoading, setProfileLoading] = useState(false);
@@ -301,7 +304,8 @@ export default function SpaOwnerDashboardPage() {
 
   // 0. Fetch Spa Owner Dashboard (GET /spa-owner/dashboard)
   const fetchDashboard = useCallback(async () => {
-    if (!ownerToken) return;
+    if (!ownerToken || dashboardRequestInFlightRef.current) return;
+    dashboardRequestInFlightRef.current = true;
     setDashboardLoading(true);
     setDashboardError('');
     try {
@@ -325,6 +329,7 @@ export default function SpaOwnerDashboardPage() {
       }
       setDashboardError(err?.data?.message || err?.message || 'Failed to load spa owner dashboard.');
     } finally {
+      dashboardRequestInFlightRef.current = false;
       setDashboardLoading(false);
     }
   }, [ownerToken, setOwnerProfile, logoutOwner, navigate]);
@@ -835,10 +840,17 @@ export default function SpaOwnerDashboardPage() {
 
   // When switching to overview tab, ensure dashboard is loaded
   useEffect(() => {
-    if (activeSection === 'overview' && !dashboardData && !dashboardLoading) {
+    // Do not continuously retry a failed request. The user can explicitly use
+    // the refresh/retry control after the API rate-limit window has elapsed.
+    if (
+      activeSection === 'overview' &&
+      !dashboardData &&
+      !dashboardLoading &&
+      !dashboardError
+    ) {
       fetchDashboard();
     }
-  }, [activeSection, dashboardData, dashboardLoading, fetchDashboard]);
+  }, [activeSection, dashboardData, dashboardLoading, dashboardError, fetchDashboard]);
 
   // When switching to therapists tab, ensure data is loaded
   useEffect(() => {
