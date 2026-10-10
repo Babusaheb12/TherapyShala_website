@@ -20,7 +20,7 @@ export const submitSpaInquiry = async (payload) => {
     body: JSON.stringify({
       businessName: (payload.businessName || '').trim(),
       ownerName: (payload.ownerName || '').trim(),
-      email: (payload.email || '').trim(),
+      email: (payload.email || '').trim().toLowerCase(),
       phone: (payload.phone || '').trim(),
       therapistCount: Math.max(1, Number(payload.therapistCount) || 1),
       servicesOffered: Array.isArray(payload.servicesOffered) ? payload.servicesOffered : [],

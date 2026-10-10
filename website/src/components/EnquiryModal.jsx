@@ -62,7 +62,12 @@ export default function EnquiryModal({ isOpen, onClose }) {
       }
     } catch (err) {
       console.error(err);
-      setErrorMsg(err?.data?.error?.message || err?.message || 'Failed to submit inquiry.');
+      const is500 = err?.status === 500 || err?.code === 'INTERNAL_ERROR';
+      setErrorMsg(
+        is500
+          ? 'The server encountered a temporary delay. Please try submitting again.'
+          : (err?.data?.error?.message || err?.message || 'Failed to submit inquiry.')
+      );
     } finally {
       setLoading(false);
     }

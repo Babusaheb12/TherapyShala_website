@@ -79,7 +79,11 @@ export default function EnquiryPage() {
       }
     } catch (err) {
       console.error('Inquiry submission error:', err);
-      setErrorMsg(err?.data?.error?.message || err?.message || 'Failed to submit inquiry to server. Please verify your details and try again.');
+      const is500 = err?.status === 500 || err?.code === 'INTERNAL_ERROR';
+      const msg = is500
+        ? 'The server encountered a temporary delay. Please try clicking submit again.'
+        : (err?.data?.error?.message || err?.message || 'Failed to submit inquiry to server. Please verify your details and try again.');
+      setErrorMsg(msg);
     } finally {
       setLoading(false);
     }
