@@ -296,6 +296,29 @@ export const getSpaOwnerCancellationPenaltiesReport = async (params = {}) => {
 };
 export const getCancellationPenaltiesReport = getSpaOwnerCancellationPenaltiesReport;
 
+/**
+ * GET /spa-owner/sub-owners/:codeOrId
+ * Retrieves sub-spa owners / downline list by spaCode, Mongo ID, or authenticated owner
+ *
+ * @param {string} codeOrId - Spa Code (e.g. SPA-427939) or Mongo ID
+ * @returns {Promise<Object>} { success, message, data: { sponsor, totalSubOwners, activeSubOwners, subOwners: [], pendingInquiriesCount, pendingInquiries: [] } }
+ */
+export const getSpaOwnerSubOwners = async (codeOrId) => {
+  if (!codeOrId?.trim()) {
+    throw new Error('A spa code is required to retrieve sponsored sub-spas.');
+  }
+
+  return await apiClient(
+    `/spa-owner/sub-owners/${encodeURIComponent(codeOrId.trim())}`,
+    { method: 'GET' }
+  );
+};
+
+/**
+ * Retrieves sponsored sub-spas for the supplied spa code.
+ */
+export const getSponsoredSpas = getSpaOwnerSubOwners;
+
 export default {
   getSpaOwnerDashboard,
   getOwnerDashboard,
@@ -323,7 +346,8 @@ export default {
   getCancellationPolicy,
   getSpaOwnerCancellationPenaltiesReport,
   getCancellationPenaltiesReport,
+  getSponsoredSpas,
+  getSpaOwnerSubOwners,
 };
-
 
 

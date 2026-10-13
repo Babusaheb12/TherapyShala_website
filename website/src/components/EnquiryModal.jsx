@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Send, CheckCircle2, MessageSquare, AlertCircle } from 'lucide-react';
+import { X, Send, CheckCircle2, MessageSquare, AlertCircle, Tag, Check } from 'lucide-react';
 import { submitSpaInquiry } from '../services/inquiry.service';
 
 export default function EnquiryModal({ isOpen, onClose }) {
@@ -11,17 +11,28 @@ export default function EnquiryModal({ isOpen, onClose }) {
     email: '',
     service: 'Massage',
     message: '',
+    sponsorCode: '',
   });
 
+  const [showSponsorField, setShowSponsorField] = useState(false);
+  const [sponsorApplied, setSponsorApplied] = useState(false);
   const [loading, setLoading] = useState(false);
   const [submitted, setSubmitted] = useState(false);
+  const [responseResult, setResponseResult] = useState(null);
   const [inquiryId, setInquiryId] = useState('');
   const [errorMsg, setErrorMsg] = useState('');
 
   if (!isOpen) return null;
 
   const handleChange = (e) => {
-    setFormData((prev) => ({ ...prev, [e.target.name]: e.target.value }));
+    const { name, value } = e.target;
+    setFormData((prev) => ({ ...prev, [name]: value }));
+  };
+
+  const handleApplySponsorCode = () => {
+    if (formData.sponsorCode?.trim()) {
+      setSponsorApplied(true);
+    }
   };
 
   const handleSubmit = async (e) => {
@@ -45,10 +56,12 @@ export default function EnquiryModal({ isOpen, onClose }) {
         therapistCount: 1,
         branchCount: 1,
         message: formData.message,
+        sponsorCode: formData.sponsorCode,
       });
 
       const assignedId = res?.data?._id || res?.data?.id || `TS-ENQ-${Math.floor(100000 + Math.random() * 900000)}`;
       setInquiryId(assignedId);
+      setResponseResult(res?.data || res);
       setSubmitted(true);
 
       try {
@@ -75,6 +88,8 @@ export default function EnquiryModal({ isOpen, onClose }) {
 
   const handleClose = () => {
     setSubmitted(false);
+    setShowSponsorField(false);
+    setSponsorApplied(false);
     setErrorMsg('');
     onClose();
   };
@@ -197,6 +212,78 @@ export default function EnquiryModal({ isOpen, onClose }) {
                 </select>
               </div>
 
+              {/* Sponsor Code Button & Section */}
+              <div className="pt-0.5">
+                {!showSponsorField ? (
+                  <button
+                    type="button"
+                    onClick={() => setShowSponsorField(true)}
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-dashed border-[#F35271]/50 bg-rose-50/40 text-[#F35271] hover:bg-rose-50 hover:border-[#F35271] text-[11px] font-semibold transition-all cursor-pointer group"
+                  >
+                    <Tag className="w-3 h-3 group-hover:rotate-12 transition-transform" />
+                    <span>+ Have a Sponsor / Partner Code?</span>
+                  </button>
+                ) : (
+                  <div className="p-3 rounded-2xl bg-gradient-to-br from-rose-50/60 via-[#FFFDFD] to-orange-50/40 border border-[#F35271]/25 space-y-2">
+                    <div className="flex items-center justify-between">
+                      <label className="text-[11px] font-bold text-[#0D0D12] flex items-center gap-1.5">
+                        <Tag className="w-3 h-3 text-[#F35271]" />
+                        <span>Sponsor Code (Optional)</span>
+                      </label>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setShowSponsorField(false);
+                          setFormData((prev) => ({ ...prev, sponsorCode: '' }));
+                          setSponsorApplied(false);
+                        }}
+                        className="text-[10px] text-[#757880] hover:text-[#0D0D12] font-medium transition-colors cursor-pointer"
+                      >
+                        Remove
+                      </button>
+                    </div>
+
+                    <div className="flex gap-1.5">
+                      <div className="relative flex-1">
+                        <input
+                          type="text"
+                          name="sponsorCode"
+                          value={formData.sponsorCode}
+                          onChange={(e) => {
+                            handleChange(e);
+                            if (sponsorApplied) setSponsorApplied(false);
+                          }}
+                          placeholder="e.g. SPONSOR2026"
+                          className="w-full uppercase font-mono px-3 py-2 rounded-xl border border-gray-200 focus:border-[#F35271] focus:ring-1 focus:ring-[#F35271] outline-none text-xs bg-white tracking-wider text-[#0D0D12]"
+                        />
+                      </div>
+                      <button
+                        type="button"
+                        onClick={handleApplySponsorCode}
+                        disabled={!formData.sponsorCode?.trim()}
+                        className="px-3 py-2 rounded-xl bg-[#0D0D12] hover:bg-[#F35271] text-white text-[11px] font-bold transition-all disabled:opacity-40 cursor-pointer flex items-center gap-1 shrink-0"
+                      >
+                        {sponsorApplied ? (
+                          <>
+                            <Check className="w-3 h-3 text-emerald-400" />
+                            <span>Applied</span>
+                          </>
+                        ) : (
+                          <span>Apply</span>
+                        )}
+                      </button>
+                    </div>
+
+                    {sponsorApplied && (
+                      <div className="flex items-center gap-1 text-[10px] text-emerald-600 font-semibold bg-emerald-50 px-2 py-0.5 rounded-lg border border-emerald-200 w-max">
+                        <CheckCircle2 className="w-3 h-3" />
+                        <span>Code '{formData.sponsorCode.toUpperCase()}' linked!</span>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+
               <div>
                 <label className="block text-xs font-semibold text-[#0D0D12] mb-1">
                   Message / Details
@@ -229,9 +316,24 @@ export default function EnquiryModal({ isOpen, onClose }) {
               <p className="text-xs text-[#757880]">
                 Reference ID: <strong className="text-[#0D0D12] font-mono">{inquiryId}</strong>. Our onboarding team has received your submission.
               </p>
+              {(responseResult?.sponsorCode || formData.sponsorCode) && (
+                <div className="inline-flex flex-col items-center gap-0.5 px-3 py-1.5 rounded-2xl bg-rose-50 border border-rose-200 text-xs font-bold text-[#F35271] font-mono mx-auto">
+                  <div className="flex items-center gap-1.5">
+                    <Tag className="w-3 h-3" />
+                    <span>Sponsor: {(responseResult?.sponsorCode || formData.sponsorCode).toUpperCase()} (Attached)</span>
+                  </div>
+                  {(responseResult?.sponsorBusinessName || responseResult?.sponsorOwnerName) && (
+                    <span className="text-[10px] text-gray-500 font-sans font-medium">
+                      {responseResult.sponsorBusinessName || responseResult.sponsorOwnerName}
+                    </span>
+                  )}
+                </div>
+              )}
               <div className="pt-3 flex gap-2">
                 <a
-                  href={`https://wa.me/919876543210?text=Hello,%20I%20have%20an%20enquiry%20reference%20${inquiryId}`}
+                  href={`https://wa.me/919876543210?text=${encodeURIComponent(
+                    `Hello, I submitted an enquiry for ${formData.businessName || formData.ownerName} (Reference: ${inquiryId}${formData.sponsorCode ? `, Sponsor Code: ${formData.sponsorCode.toUpperCase()}` : ''})`
+                  )}`}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="flex-1 py-2.5 rounded-xl bg-[#25D366] text-white text-xs font-semibold flex items-center justify-center gap-1.5"

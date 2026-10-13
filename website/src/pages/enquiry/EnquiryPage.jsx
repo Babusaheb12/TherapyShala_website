@@ -2,7 +2,8 @@ import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   Send, Phone, Mail, MapPin, CheckCircle2, 
-  MessageSquare, Clock, ArrowLeft, AlertCircle, Building2, User, Users, Store
+  MessageSquare, Clock, ArrowLeft, AlertCircle, Building2, User, Users, Store,
+  Tag, Gift, Sparkles, Check
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import Navbar from '../../components/Navbar';
@@ -29,8 +30,11 @@ export default function EnquiryPage() {
     branchCount: 1,
     servicesOffered: ['Massage', 'Ayurveda', 'Facial'],
     message: '',
+    sponsorCode: '',
   });
 
+  const [showSponsorField, setShowSponsorField] = useState(false);
+  const [sponsorApplied, setSponsorApplied] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const [responseResult, setResponseResult] = useState(null);
   const [loading, setLoading] = useState(false);
@@ -39,6 +43,12 @@ export default function EnquiryPage() {
   const handleChange = (e) => {
     const { name, value } = e.target;
     setFormData((prev) => ({ ...prev, [name]: value }));
+  };
+
+  const handleApplySponsorCode = () => {
+    if (formData.sponsorCode?.trim()) {
+      setSponsorApplied(true);
+    }
   };
 
   const toggleService = (srv) => {
@@ -92,6 +102,8 @@ export default function EnquiryPage() {
   const handleReset = () => {
     setSubmitted(false);
     setResponseResult(null);
+    setShowSponsorField(false);
+    setSponsorApplied(false);
     setFormData({
       businessName: '',
       ownerName: '',
@@ -101,6 +113,7 @@ export default function EnquiryPage() {
       branchCount: 1,
       servicesOffered: ['Massage', 'Ayurveda', 'Facial'],
       message: '',
+      sponsorCode: '',
     });
   };
 
@@ -284,6 +297,78 @@ export default function EnquiryPage() {
                     </div>
                   </div>
 
+                  {/* Sponsor Code Button & Section */}
+                  <div className="pt-1">
+                    {!showSponsorField ? (
+                      <button
+                        type="button"
+                        onClick={() => setShowSponsorField(true)}
+                        className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl border border-dashed border-[#F35271]/50 bg-rose-50/40 text-[#F35271] hover:bg-rose-50 hover:border-[#F35271] text-xs font-semibold transition-all cursor-pointer shadow-2xs group"
+                      >
+                        <Tag className="w-3.5 h-3.5 group-hover:rotate-12 transition-transform" />
+                        <span>+ Have a Sponsor / Partner Code?</span>
+                      </button>
+                    ) : (
+                      <div className="p-4 rounded-2xl bg-gradient-to-br from-rose-50/60 via-[#FFFDFD] to-orange-50/40 border border-[#F35271]/25 space-y-2.5">
+                        <div className="flex items-center justify-between">
+                          <label className="text-xs font-bold text-[#0D0D12] flex items-center gap-1.5">
+                            <Tag className="w-3.5 h-3.5 text-[#F35271]" />
+                            <span>Sponsor / Partner Code (Optional)</span>
+                          </label>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setShowSponsorField(false);
+                              setFormData((prev) => ({ ...prev, sponsorCode: '' }));
+                              setSponsorApplied(false);
+                            }}
+                            className="text-[11px] text-[#757880] hover:text-[#0D0D12] font-medium transition-colors cursor-pointer"
+                          >
+                            Remove
+                          </button>
+                        </div>
+
+                        <div className="flex gap-2">
+                          <div className="relative flex-1">
+                            <input
+                              type="text"
+                              name="sponsorCode"
+                              value={formData.sponsorCode}
+                              onChange={(e) => {
+                                handleChange(e);
+                                if (sponsorApplied) setSponsorApplied(false);
+                              }}
+                              placeholder="e.g. SPONSOR2026 or TS-REF"
+                              className="w-full uppercase font-mono px-3.5 py-2.5 rounded-xl border border-gray-200 focus:border-[#F35271] focus:ring-1 focus:ring-[#F35271] outline-none text-xs bg-white tracking-wider text-[#0D0D12]"
+                            />
+                          </div>
+                          <button
+                            type="button"
+                            onClick={handleApplySponsorCode}
+                            disabled={!formData.sponsorCode?.trim()}
+                            className="px-4 py-2.5 rounded-xl bg-[#0D0D12] hover:bg-[#F35271] text-white text-xs font-bold transition-all disabled:opacity-40 cursor-pointer flex items-center gap-1.5 shrink-0"
+                          >
+                            {sponsorApplied ? (
+                              <>
+                                <Check className="w-3.5 h-3.5 text-emerald-400" />
+                                <span>Applied</span>
+                              </>
+                            ) : (
+                              <span>Apply Code</span>
+                            )}
+                          </button>
+                        </div>
+
+                        {sponsorApplied && (
+                          <div className="flex items-center gap-1.5 text-[11px] text-emerald-600 font-semibold bg-emerald-50 px-2.5 py-1 rounded-lg border border-emerald-200 w-max">
+                            <CheckCircle2 className="w-3.5 h-3.5" />
+                            <span>Sponsor code '{formData.sponsorCode.toUpperCase()}' verified and attached!</span>
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+
                   <div>
                     <label className="block text-xs font-semibold text-[#0D0D12] mb-1.5">
                       Message / Onboarding Details
@@ -327,10 +412,25 @@ export default function EnquiryPage() {
 
                   {/* Reference Card */}
                   <div className="max-w-md mx-auto p-4 rounded-2xl bg-gray-50 border border-gray-200 text-left text-xs space-y-1.5">
-                    <div className="flex justify-between">
+                    <div className="flex justify-between items-center">
                       <span className="text-[#757880]">Inquiry Reference ID:</span>
                       <strong className="text-[#0D0D12] font-mono">{inquiryId}</strong>
                     </div>
+                    {(responseResult?.sponsorCode || formData.sponsorCode) && (
+                      <div className="flex justify-between items-start">
+                        <span className="text-[#757880]">Sponsor:</span>
+                        <div className="text-right">
+                          <span className="font-mono font-bold text-[#F35271] bg-rose-50 px-2 py-0.5 rounded border border-rose-200 inline-block text-[11px]">
+                            {(responseResult?.sponsorCode || formData.sponsorCode).toUpperCase()} (Attached)
+                          </span>
+                          {(responseResult?.sponsorBusinessName || responseResult?.sponsorOwnerName) && (
+                            <span className="block text-[10px] text-gray-500 font-medium mt-0.5">
+                              {responseResult.sponsorBusinessName || responseResult.sponsorOwnerName}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    )}
                     <div className="flex justify-between">
                       <span className="text-[#757880]">Email:</span>
                       <strong className="text-[#0D0D12]">{formData.email}</strong>
@@ -348,7 +448,7 @@ export default function EnquiryPage() {
                   <div className="pt-4 flex flex-col sm:flex-row gap-3 justify-center">
                     <a
                       href={`https://wa.me/919876543210?text=${encodeURIComponent(
-                        `Hi Therapyshala, I submitted spa inquiry for ${formData.businessName} (Ref: ${inquiryId}).`
+                        `Hi Therapyshala, I submitted spa inquiry for ${formData.businessName} (Ref: ${inquiryId}${formData.sponsorCode ? `, Sponsor Code: ${formData.sponsorCode.toUpperCase()}` : ''}).`
                       )}`}
                       target="_blank"
                       rel="noopener noreferrer"

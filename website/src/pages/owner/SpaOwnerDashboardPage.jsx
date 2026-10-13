@@ -53,6 +53,9 @@ import {
   Smartphone,
   Send,
   Award,
+  Share2,
+  Tag,
+  Network,
 } from 'lucide-react';
 import TherapyshalaLogo from '../../components/TherapyshalaLogo';
 import LanguageSelect from '../../components/LanguageSelect';
@@ -79,6 +82,7 @@ import {
   getSpaOwnerPayoutHistory,
   getSpaOwnerCancellationPolicy,
   getSpaOwnerCancellationPenaltiesReport,
+  getSponsoredSpas,
 } from '../../services/spaOwner.service';
 
 const EMPTY_CANCELLATION_PENALTIES_REPORT = {
@@ -230,6 +234,53 @@ export default function SpaOwnerDashboardPage() {
 
   // Uploading status indicators
   const [uploadingField, setUploadingField] = useState(null);
+
+  // Sponsored Spas State (GET /spa-owner/sponsored-spas)
+  const [sponsoredData, setSponsoredData] = useState(null);
+  const [sponsoredLoading, setSponsoredLoading] = useState(false);
+  const [sponsoredError, setSponsoredError] = useState('');
+  const [copiedSponsorCode, setCopiedSponsorCode] = useState(false);
+
+  // The sub-owner endpoint is scoped by this code; derive it from the live
+  // dashboard/profile data instead of sending the invalid collection route.
+  const activeSpaCode =
+    dashboardData?.assignedCode ||
+    dashboardData?.registeredSpa?.assignedSpaCode ||
+    dashboardData?.registeredSpa?.spaCode ||
+    ownerProfile?.spaCode ||
+    'SPA-PENDING';
+
+  // Fetch Sponsored Sub-Spas
+  const fetchSponsoredSpas = useCallback(async () => {
+    const token =
+      ownerToken ||
+      localStorage.getItem('therapyshala_owner_token') ||
+      localStorage.getItem('therapyshala_admin_token');
+    if (!token || activeSpaCode === 'SPA-PENDING') return;
+
+    setSponsoredLoading(true);
+    setSponsoredError('');
+    try {
+      const res = await getSponsoredSpas(activeSpaCode);
+      if (res?.success && res?.data) {
+        setSponsoredData(res.data);
+      } else {
+        setSponsoredError(res?.message || 'Failed to retrieve sponsored sub-spas.');
+      }
+    } catch (err) {
+      console.error('Error fetching sponsored spas:', err);
+      setSponsoredError(err?.data?.message || err?.message || 'Failed to load sponsored sub-spas.');
+    } finally {
+      setSponsoredLoading(false);
+    }
+  }, [ownerToken, activeSpaCode]);
+
+  const handleCopySponsorCode = (code) => {
+    if (!code) return;
+    navigator.clipboard.writeText(code);
+    setCopiedSponsorCode(true);
+    setTimeout(() => setCopiedSponsorCode(false), 2000);
+  };
 
   // Redirect if unauthenticated
   useEffect(() => {
@@ -768,6 +819,14 @@ export default function SpaOwnerDashboardPage() {
     }
   }, [ownerToken, fetchDashboard, fetchProfile, fetchTherapists, fetchBookings, fetchCommissions, fetchPayoutAccount, fetchCancellationPolicy, fetchPenaltiesReport]);
 
+  // Dashboard and profile data are loaded independently. Start this request
+  // only once a valid spa code is available for the parameterized route.
+  useEffect(() => {
+    if (ownerToken && activeSpaCode !== 'SPA-PENDING') {
+      fetchSponsoredSpas();
+    }
+  }, [ownerToken, activeSpaCode, fetchSponsoredSpas]);
+
   // Copy Spa Code to clipboard
   const handleCopyCode = (code) => {
     if (!code) return;
@@ -1020,12 +1079,6 @@ export default function SpaOwnerDashboardPage() {
   const sidebarBadges = dashboardData?.sidebarBadges || {};
 
   // Active Display Info (derived with API 1st priority, profile fallback)
-  const activeSpaCode =
-    dashboardData?.assignedCode ||
-    dashboardData?.registeredSpa?.assignedSpaCode ||
-    dashboardData?.registeredSpa?.spaCode ||
-    ownerProfile?.spaCode ||
-    'SPA-PENDING';
   const activeBusinessName =
     dashboardData?.registeredSpa?.businessName || ownerProfile?.businessName || 'Sanctuary';
   const activeOwnerName =
@@ -1063,6 +1116,12 @@ export default function SpaOwnerDashboardPage() {
     { id: 'penalty', label: 'Cancellation Policy Matrix', icon: AlertTriangle, badge: sidebarBadges.cancellationPolicyMatrix },
     { id: 'commission', label: 'Owner Commission', icon: Percent, badge: sidebarBadges.ownerCommission },
     { id: 'payout', label: 'Commission Payout', icon: Wallet, badge: sidebarBadges.commissionPayout },
+    {
+      id: 'sponsored',
+      label: 'Sponsored Sub-Spas',
+      icon: Share2,
+      badge: sponsoredData?.totalSponsoredSpas,
+    },
     { id: 'settings', label: 'Spa Settings', icon: Settings, badge: sidebarBadges.spaSettings },
   ];
 
@@ -1269,6 +1328,56 @@ export default function SpaOwnerDashboardPage() {
                   </button>
                 </div>
               )}
+
+              {/* Partner Sponsor Program Banner in Overview */}
+              <div className="bg-gradient-to-r from-rose-50/70 via-white to-amber-50/50 rounded-3xl p-5 sm:p-6 border border-rose-100 shadow-2xs flex flex-col md:flex-row md:items-center justify-between gap-4">
+                <div className="flex items-start sm:items-center gap-4">
+                  <div className="w-12 h-12 rounded-2xl bg-[#F35271] text-white flex items-center justify-center shadow-xs shrink-0 mt-1 sm:mt-0">
+                    <Share2 className="w-6 h-6" />
+                  </div>
+                  <div>
+                    <div className="flex flex-wrap items-center gap-2 mb-1">
+                      <span className="text-[10px] uppercase font-bold tracking-wider text-[#F35271] bg-rose-100/70 px-2.5 py-0.5 rounded-full">
+                        Partner Sponsor Network
+                      </span>
+                      <span className="text-xs font-semibold text-gray-500">
+                        {sponsoredData?.totalSponsoredSpas ? `${sponsoredData.totalSponsoredSpas} Sub-Spas Registered` : '0 Sub-Spas Registered'}
+                      </span>
+                    </div>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <h3 className="text-sm font-bold text-[#0D0D12]">
+                        My Sponsor Code:
+                      </h3>
+                      <span className="font-mono font-black text-sm tracking-wider text-[#F35271] bg-white px-2.5 py-0.5 rounded-lg border border-rose-200">
+                        {sponsoredData?.mySponsorCode || activeSpaCode}
+                      </span>
+                    </div>
+                    <p className="text-[11px] text-[#757880] mt-1">
+                      Share this code with new Spa Owners. When they register in the Enquiry form, they link to your partner network.
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2 shrink-0 pt-2 md:pt-0 border-t md:border-t-0 border-rose-100">
+                  <button
+                    onClick={() => handleCopySponsorCode(sponsoredData?.mySponsorCode || activeSpaCode)}
+                    className="px-3.5 py-2.5 rounded-xl bg-white border border-gray-200 text-[#0D0D12] text-xs font-bold hover:bg-gray-50 transition-colors flex items-center gap-1.5 cursor-pointer shadow-2xs"
+                  >
+                    {copiedSponsorCode ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5" />}
+                    <span>{copiedSponsorCode ? 'Copied' : 'Copy Code'}</span>
+                  </button>
+                  <button
+                    onClick={() => {
+                      setActiveSection('sponsored');
+                      fetchSponsoredSpas();
+                    }}
+                    className="px-4 py-2.5 rounded-xl bg-[#0D0D12] hover:bg-[#F35271] text-white text-xs font-bold transition-colors cursor-pointer flex items-center gap-1.5 shadow-2xs"
+                  >
+                    <span>View Network</span>
+                    <ArrowUpRight className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              </div>
 
               {/* 1. Core Metrics KPI Grid */}
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -4689,6 +4798,342 @@ export default function SpaOwnerDashboardPage() {
                   </button>
                 </div>
               </div>
+            </div>
+          )}
+
+          {/* 7. SPONSORED SUB-SPAS & REFERRAL NETWORK (API: GET /spa-owner/sponsored-spas) */}
+          {activeSection === 'sponsored' && (
+            <div className="space-y-6">
+              {/* Header */}
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-[10px] uppercase font-bold tracking-wider text-[#F35271] bg-rose-50 px-2.5 py-0.5 rounded-full border border-rose-200/60">
+                      Partner Referral Network
+                    </span>
+                    <span className="text-xs text-gray-400">•</span>
+                    <span className="text-xs text-[#757880]">Sub-Spa Fleet Overview</span>
+                  </div>
+                  <h2 className="text-xl sm:text-2xl font-black text-[#0D0D12] mt-1">
+                    Sponsored Sub-Spas Network
+                  </h2>
+                  <p className="text-xs text-[#757880] mt-0.5">
+                    Track, mentor, and monitor all partner spas registered across the platform using your sponsor code.
+                  </p>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={fetchSponsoredSpas}
+                    disabled={sponsoredLoading}
+                    className="px-3.5 py-2 rounded-xl bg-white border border-gray-200 text-gray-700 hover:text-[#0D0D12] hover:bg-gray-50 text-xs font-bold transition-all shadow-2xs flex items-center gap-2 cursor-pointer disabled:opacity-60"
+                  >
+                    <RotateCcw className={`w-3.5 h-3.5 ${sponsoredLoading ? 'animate-spin text-[#F35271]' : ''}`} />
+                    <span>Refresh</span>
+                  </button>
+                </div>
+              </div>
+
+              {/* Error Banner */}
+              {sponsoredError && (
+                <div className="p-4 rounded-2xl bg-red-50 border border-red-200 text-red-700 text-xs flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <AlertCircle className="w-4 h-4 shrink-0" />
+                    <span>{sponsoredError}</span>
+                  </div>
+                  <button
+                    onClick={fetchSponsoredSpas}
+                    className="px-3 py-1 bg-white border border-red-200 rounded-lg font-semibold hover:bg-red-100 cursor-pointer"
+                  >
+                    Retry
+                  </button>
+                </div>
+              )}
+
+              {/* Hero Sponsor Code & Invite Banner */}
+              <div className="bg-gradient-to-br from-[#0D0D12] via-[#1a1a24] to-[#0D0D12] rounded-3xl p-6 sm:p-8 text-white relative overflow-hidden shadow-lg border border-gray-800">
+                <div className="absolute -right-8 -bottom-8 w-64 h-64 bg-[#F35271]/10 rounded-full blur-3xl pointer-events-none" />
+                
+                <div className="relative z-10 max-w-3xl space-y-4">
+                  <div className="flex items-center gap-2">
+                    <div className="w-8 h-8 rounded-xl bg-[#F35271]/20 border border-[#F35271]/40 flex items-center justify-center text-[#F35271]">
+                      <Share2 className="w-4 h-4" />
+                    </div>
+                    <span className="text-xs font-bold uppercase tracking-wider text-[#F35271]">
+                      Your Official Sponsor Code
+                    </span>
+                  </div>
+
+                  <div className="flex flex-col sm:flex-row sm:items-center gap-3">
+                    <div className="px-5 py-3 rounded-2xl bg-white/10 border border-white/15 backdrop-blur-sm flex items-center justify-between sm:justify-start gap-4">
+                      <span className="text-[11px] text-gray-400 font-semibold uppercase">Code:</span>
+                      <strong className="text-xl sm:text-2xl font-mono font-black text-white tracking-widest">
+                        {sponsoredData?.mySponsorCode || sponsoredData?.sponsor?.spaCode || activeSpaCode}
+                      </strong>
+                    </div>
+
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={() => handleCopySponsorCode(sponsoredData?.mySponsorCode || sponsoredData?.sponsor?.spaCode || activeSpaCode)}
+                        className="px-4 py-3 rounded-xl bg-[#F35271] hover:bg-[#E04362] text-white text-xs font-bold transition-all shadow-md flex items-center gap-2 cursor-pointer"
+                      >
+                        {copiedSponsorCode ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
+                        <span>{copiedSponsorCode ? 'Code Copied!' : 'Copy Sponsor Code'}</span>
+                      </button>
+
+                      <button
+                        onClick={() => {
+                          const code = sponsoredData?.mySponsorCode || sponsoredData?.sponsor?.spaCode || activeSpaCode;
+                          const url = `https://wa.me/?text=${encodeURIComponent(
+                            `Hi! Register your Spa & Salon on Therapyshala using my Sponsor Code: ${code}. Submit your onboarding enquiry here: ${window.location.origin}/enquiry`
+                          )}`;
+                          window.open(url, '_blank');
+                        }}
+                        className="px-4 py-3 rounded-xl bg-[#25D366] hover:bg-[#20ba59] text-white text-xs font-bold transition-all shadow-md flex items-center gap-2 cursor-pointer"
+                      >
+                        <Send className="w-4 h-4" />
+                        <span>Invite on WhatsApp</span>
+                      </button>
+                    </div>
+                  </div>
+
+                  <p className="text-xs text-gray-300 leading-relaxed pt-1">
+                    Provide your Sponsor Code to partner spa owners. When they submit an inquiry and receive admin approval, they will automatically be linked under your network.
+                  </p>
+                </div>
+              </div>
+
+              {/* KPI Metrics */}
+              {(() => {
+                const subOwnersList = sponsoredData?.subOwners || sponsoredData?.sponsoredSpas || [];
+                const totalCount = sponsoredData?.totalSubOwners ?? sponsoredData?.totalSponsoredSpas ?? subOwnersList.length;
+                const activeCount = sponsoredData?.activeSubOwners ?? sponsoredData?.activeSponsoredSpas ?? subOwnersList.filter(s => (s.status || 'ACTIVE') === 'ACTIVE').length;
+                const pendingCount = sponsoredData?.pendingInquiriesCount ?? (sponsoredData?.pendingInquiries?.length || 0);
+
+                return (
+                  <>
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                      <div className="bg-white rounded-3xl p-5 border border-gray-200 shadow-xs hover:border-gray-300 transition-all">
+                        <div className="flex items-center justify-between text-[#757880] mb-2">
+                          <span className="text-[11px] font-bold uppercase tracking-wider">Total Sub-Owners</span>
+                          <div className="w-8 h-8 rounded-xl bg-rose-50 text-[#F35271] flex items-center justify-center">
+                            <Building2 className="w-4 h-4" />
+                          </div>
+                        </div>
+                        <div className="text-3xl font-extrabold text-[#0D0D12]">
+                          {sponsoredLoading ? (
+                            <div className="h-8 w-12 bg-gray-200 rounded-md animate-pulse" />
+                          ) : (
+                            totalCount
+                          )}
+                        </div>
+                        <p className="text-[11px] text-[#757880] mt-1">
+                          Partner wellness centers under your code
+                        </p>
+                      </div>
+
+                      <div className="bg-white rounded-3xl p-5 border border-gray-200 shadow-xs hover:border-gray-300 transition-all">
+                        <div className="flex items-center justify-between text-[#757880] mb-2">
+                          <span className="text-[11px] font-bold uppercase tracking-wider">Active Verified Spas</span>
+                          <div className="w-8 h-8 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center">
+                            <ShieldCheck className="w-4 h-4" />
+                          </div>
+                        </div>
+                        <div className="text-3xl font-extrabold text-[#0D0D12]">
+                          {sponsoredLoading ? (
+                            <div className="h-8 w-12 bg-gray-200 rounded-md animate-pulse" />
+                          ) : (
+                            activeCount
+                          )}
+                        </div>
+                        <p className="text-[11px] text-[#757880] mt-1">
+                          Live operational spas with verified fleet
+                        </p>
+                      </div>
+
+                      <div className="bg-white rounded-3xl p-5 border border-gray-200 shadow-xs hover:border-gray-300 transition-all">
+                        <div className="flex items-center justify-between text-[#757880] mb-2">
+                          <span className="text-[11px] font-bold uppercase tracking-wider">Pending Inquiries</span>
+                          <div className="w-8 h-8 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center">
+                            <Clock className="w-4 h-4" />
+                          </div>
+                        </div>
+                        <div className="text-3xl font-extrabold text-[#0D0D12]">
+                          {sponsoredLoading ? (
+                            <div className="h-8 w-12 bg-gray-200 rounded-md animate-pulse" />
+                          ) : (
+                            pendingCount
+                          )}
+                        </div>
+                        <p className="text-[11px] text-[#757880] mt-1">
+                          Awaiting admin review & onboarding verification
+                        </p>
+                      </div>
+                    </div>
+
+                    {/* Sponsored Spas Roster List */}
+                    <div className="bg-white rounded-3xl border border-gray-200 shadow-xs overflow-hidden">
+                      <div className="p-5 border-b border-gray-100 flex items-center justify-between">
+                        <div>
+                          <h3 className="font-bold text-sm text-[#0D0D12]">
+                            Registered Sub-Spa Partners (Downline)
+                          </h3>
+                          <p className="text-xs text-[#757880] mt-0.5">
+                            Spas currently affiliated and active under your sponsor code.
+                          </p>
+                        </div>
+                        <span className="px-3 py-1 rounded-full bg-rose-50 text-[#F35271] text-xs font-bold border border-rose-100">
+                          {subOwnersList.length} Spas
+                        </span>
+                      </div>
+
+                      {sponsoredLoading ? (
+                        <div className="p-12 text-center text-xs text-gray-500 space-y-2">
+                          <Loader2 className="w-6 h-6 animate-spin mx-auto text-[#F35271]" />
+                          <p>Loading sponsored sub-spas...</p>
+                        </div>
+                      ) : subOwnersList.length === 0 ? (
+                        <div className="p-12 text-center space-y-3">
+                          <div className="w-14 h-14 rounded-2xl bg-rose-50 text-[#F35271] flex items-center justify-center mx-auto">
+                            <Share2 className="w-7 h-7" />
+                          </div>
+                          <h4 className="text-sm font-bold text-[#0D0D12]">No Sub-Spas Registered Yet</h4>
+                          <p className="text-xs text-[#757880] max-w-sm mx-auto">
+                            Share your sponsor code <strong>{sponsoredData?.mySponsorCode || sponsoredData?.sponsor?.spaCode || activeSpaCode}</strong> with wellness center owners to onboard them into your partner network.
+                          </p>
+                          <button
+                            onClick={() => handleCopySponsorCode(sponsoredData?.mySponsorCode || sponsoredData?.sponsor?.spaCode || activeSpaCode)}
+                            className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-[#0D0D12] hover:bg-[#F35271] text-white text-xs font-bold transition-all cursor-pointer"
+                          >
+                            <Copy className="w-3.5 h-3.5" />
+                            <span>Copy Code & Share</span>
+                          </button>
+                        </div>
+                      ) : (
+                        <div className="divide-y divide-gray-100">
+                          {subOwnersList.map((spa) => {
+                            const isLive = (spa.status || 'ACTIVE') === 'ACTIVE';
+                            return (
+                              <div
+                                key={spa.id || spa._id || spa.spaCode}
+                                className="p-5 hover:bg-gray-50/70 transition-colors flex flex-col lg:flex-row lg:items-center justify-between gap-4"
+                              >
+                                <div className="flex items-start gap-3.5">
+                                  <div className="w-10 h-10 rounded-2xl bg-rose-50 text-[#F35271] flex items-center justify-center font-bold text-sm shrink-0 border border-rose-100">
+                                    <Building2 className="w-5 h-5" />
+                                  </div>
+                                  <div>
+                                    <div className="flex items-center gap-2">
+                                      <h4 className="font-bold text-sm text-[#0D0D12]">
+                                        {spa.businessName}
+                                      </h4>
+                                      <span
+                                        className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider ${
+                                          isLive
+                                            ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                                            : 'bg-amber-50 text-amber-700 border border-amber-200'
+                                        }`}
+                                      >
+                                        {spa.status || 'ACTIVE'}
+                                      </span>
+                                    </div>
+
+                                    <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mt-1 text-xs text-[#757880]">
+                                      <span>Owner: <strong className="text-[#0D0D12]">{spa.ownerName}</strong></span>
+                                      <span>•</span>
+                                      <span>Phone: <strong className="text-[#0D0D12]">{spa.phone}</strong></span>
+                                      {spa.email && (
+                                        <>
+                                          <span>•</span>
+                                          <span>{spa.email}</span>
+                                        </>
+                                      )}
+                                    </div>
+
+                                    {Array.isArray(spa.servicesOffered) && spa.servicesOffered.length > 0 && (
+                                      <div className="flex flex-wrap gap-1 mt-2">
+                                        {spa.servicesOffered.map((srv, idx) => (
+                                          <span
+                                            key={idx}
+                                            className="px-2 py-0.5 rounded-md bg-gray-100 text-gray-600 text-[10px] font-semibold"
+                                          >
+                                            {srv}
+                                          </span>
+                                        ))}
+                                      </div>
+                                    )}
+                                  </div>
+                                </div>
+
+                                <div className="flex flex-wrap items-center gap-4 text-xs border-t lg:border-t-0 pt-3 lg:pt-0">
+                                  <div className="text-left lg:text-right">
+                                    <span className="text-[10px] uppercase font-bold text-gray-400 block">Assigned Spa Code</span>
+                                    <strong className="font-mono text-xs text-[#0D0D12]">{spa.spaCode}</strong>
+                                  </div>
+
+                                  <div className="text-left lg:text-right">
+                                    <span className="text-[10px] uppercase font-bold text-gray-400 block">Therapists</span>
+                                    <strong className="text-xs text-[#0D0D12]">
+                                      {spa.linkedTherapistsCount ?? (spa.declaredTherapists || 0)} Fleet
+                                    </strong>
+                                  </div>
+
+                                  <div className="text-left lg:text-right">
+                                    <span className="text-[10px] uppercase font-bold text-gray-400 block">Joined</span>
+                                    <span className="text-xs text-gray-600">
+                                      {spa.registeredDate
+                                        ? new Date(spa.registeredDate).toLocaleDateString('en-IN', {
+                                            day: '2-digit',
+                                            month: 'short',
+                                            year: 'numeric',
+                                          })
+                                        : '—'}
+                                    </span>
+                                  </div>
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      )}
+                    </div>
+                  </>
+                );
+              })()}
+
+
+              {/* Pending Inquiries Section (if any) */}
+              {Array.isArray(sponsoredData?.pendingInquiries) && sponsoredData.pendingInquiries.length > 0 && (
+                <div className="bg-white rounded-3xl border border-amber-200/80 shadow-xs overflow-hidden">
+                  <div className="p-5 border-b border-amber-100 bg-amber-50/40 flex items-center justify-between">
+                    <div>
+                      <h3 className="font-bold text-sm text-[#0D0D12]">
+                        Pending Applications Under Your Sponsor Code
+                      </h3>
+                      <p className="text-xs text-[#757880] mt-0.5">
+                        These inquiries were submitted with your sponsor code and are awaiting admin review.
+                      </p>
+                    </div>
+                    <span className="px-2.5 py-0.5 rounded-full bg-amber-100 text-amber-800 text-xs font-bold">
+                      {sponsoredData.pendingInquiries.length} Pending
+                    </span>
+                  </div>
+
+                  <div className="divide-y divide-gray-100">
+                    {sponsoredData.pendingInquiries.map((inq, idx) => (
+                      <div key={inq.id || inq._id || idx} className="p-4 flex items-center justify-between text-xs">
+                        <div>
+                          <strong className="text-[#0D0D12] block text-sm">{inq.businessName}</strong>
+                          <span className="text-[#757880]">Owner: {inq.ownerName} • {inq.phone}</span>
+                        </div>
+                        <span className="px-2.5 py-1 rounded-full bg-amber-50 border border-amber-200 text-amber-700 font-bold text-[10px]">
+                          Pending Approval
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
           )}
 

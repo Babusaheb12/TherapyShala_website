@@ -15,18 +15,25 @@ import publicFetch from './apiClient';
  * @param {string} payload.message - Inquiry message or requirements
  */
 export const submitSpaInquiry = async (payload) => {
+  const body = {
+    businessName: (payload.businessName || '').trim(),
+    ownerName: (payload.ownerName || '').trim(),
+    email: (payload.email || '').trim().toLowerCase(),
+    phone: (payload.phone || '').trim(),
+    therapistCount: Math.max(1, Number(payload.therapistCount) || 1),
+    servicesOffered: Array.isArray(payload.servicesOffered) ? payload.servicesOffered : [],
+    branchCount: Math.max(1, Number(payload.branchCount) || 1),
+    message: (payload.message || '').trim(),
+  };
+
+  const sponsorCode = (payload.sponsorCode || '').trim();
+  if (sponsorCode) {
+    body.sponsorCode = sponsorCode.toUpperCase();
+  }
+
   return await publicFetch('/spa-owner/inquiries', {
     method: 'POST',
-    body: JSON.stringify({
-      businessName: (payload.businessName || '').trim(),
-      ownerName: (payload.ownerName || '').trim(),
-      email: (payload.email || '').trim().toLowerCase(),
-      phone: (payload.phone || '').trim(),
-      therapistCount: Math.max(1, Number(payload.therapistCount) || 1),
-      servicesOffered: Array.isArray(payload.servicesOffered) ? payload.servicesOffered : [],
-      branchCount: Math.max(1, Number(payload.branchCount) || 1),
-      message: (payload.message || '').trim(),
-    }),
+    body: JSON.stringify(body),
   });
 };
 
