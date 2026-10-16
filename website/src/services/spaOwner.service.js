@@ -194,6 +194,10 @@ export const getSpaOwnerCommissions = async (params = {}) => {
     query.append('therapistId', String(params.therapistId).trim());
   }
 
+  if (params.commissionType && params.commissionType !== 'ALL') {
+    query.append('commissionType', String(params.commissionType).trim());
+  }
+
   const queryString = query.toString();
   const endpoint = `/spa-owner/commissions${queryString ? `?${queryString}` : ''}`;
 
@@ -318,6 +322,21 @@ export const getSpaOwnerSubOwners = async (codeOrId) => {
  * Retrieves sponsored sub-spas for the supplied spa code.
  */
 export const getSponsoredSpas = getSpaOwnerSubOwners;
+export const getSubOwners = getSpaOwnerSubOwners;
+
+/**
+ * Admin Referral Commission Configuration
+ */
+export const getReferralCommission = async () => {
+  return await apiClient('/admin/spa-owner-referral-commission', { method: 'GET' });
+};
+
+export const updateReferralCommission = async (percentage) => {
+  return await apiClient('/admin/spa-owner-referral-commission', {
+    method: 'PUT',
+    body: JSON.stringify({ percentage: Number(percentage) }),
+  });
+};
 
 export default {
   getSpaOwnerDashboard,

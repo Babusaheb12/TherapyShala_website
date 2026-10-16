@@ -49,7 +49,9 @@ export const apiClient = async (endpoint, options = {}, retries = 2) => {
   // Attach Owner or Admin Bearer Token if available and not explicitly overridden
   const token =
     localStorage.getItem(OWNER_TOKEN_KEY) ||
-    localStorage.getItem("therapyshala_admin_token");
+    localStorage.getItem("therapyshala_owner_token") ||
+    localStorage.getItem("therapyshala_admin_token") ||
+    localStorage.getItem("token");
   if (token && !headers["Authorization"] && !options.skipAuth) {
     headers["Authorization"] = `Bearer ${token.trim()}`;
   }

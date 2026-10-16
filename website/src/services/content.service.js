@@ -67,7 +67,7 @@ export const getPublicAppFeedback = async (params = {}) => {
   } catch (err) {
     try {
       return await publicFetch(`/admin/app-feedback${queryString}`);
-    } catch (err2) {
+    } catch {
       throw err;
     }
   }

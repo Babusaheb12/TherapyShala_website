@@ -56,6 +56,7 @@ import {
   Share2,
   Tag,
   Network,
+  Coins,
 } from 'lucide-react';
 import TherapyshalaLogo from '../../components/TherapyshalaLogo';
 import LanguageSelect from '../../components/LanguageSelect';
@@ -66,6 +67,7 @@ import BookingDetailInPage from '../../components/owner/BookingDetailInPage';
 import PenaltyAuditInPage from '../../components/owner/PenaltyAuditInPage';
 import PayoutAccountInPage from '../../components/owner/PayoutAccountInPage';
 import PayoutRequestInPage from '../../components/owner/PayoutRequestInPage';
+import SubOwnerDetailModal from '../../components/owner/SubOwnerDetailModal';
 import { useAuth } from '../../context/AuthContext';
 import {
   getSpaOwnerDashboard,
@@ -83,6 +85,7 @@ import {
   getSpaOwnerCancellationPolicy,
   getSpaOwnerCancellationPenaltiesReport,
   getSponsoredSpas,
+  getSubOwners,
 } from '../../services/spaOwner.service';
 
 const EMPTY_CANCELLATION_PENALTIES_REPORT = {
@@ -160,6 +163,11 @@ export default function SpaOwnerDashboardPage() {
   const [commissionsError, setCommissionsError] = useState('');
   const [commissionsPage, setCommissionsPage] = useState(1);
   const [commissionTherapistFilter, setCommissionTherapistFilter] = useState('ALL');
+  const [commissionTypeFilter, setCommissionTypeFilter] = useState('ALL'); // 'ALL' | 'DIRECT' | 'REFERRAL'
+
+  // Sub-Owner Modal State (API: GET /spa-owner/sub-owners/:identifier)
+  const [subOwnerModalOpen, setSubOwnerModalOpen] = useState(false);
+  const [selectedSubOwner, setSelectedSubOwner] = useState(null);
 
   // Booking Details Modal State (API 2: GET /spa-owner/bookings/{id})
   const [bookingDetailModalOpen, setBookingDetailModalOpen] = useState(false);
@@ -534,6 +542,8 @@ export default function SpaOwnerDashboardPage() {
       const targetPage = overrides.page !== undefined ? overrides.page : commissionsPage;
       const targetTherapist =
         overrides.therapistId !== undefined ? overrides.therapistId : commissionTherapistFilter;
+      const targetType =
+        overrides.commissionType !== undefined ? overrides.commissionType : commissionTypeFilter;
 
       try {
         const params = {
@@ -543,6 +553,10 @@ export default function SpaOwnerDashboardPage() {
 
         if (targetTherapist && targetTherapist !== 'ALL') {
           params.therapistId = targetTherapist;
+        }
+
+        if (targetType && targetType !== 'ALL') {
+          params.commissionType = targetType;
         }
 
         const res = await getSpaOwnerCommissions(params);
@@ -562,7 +576,7 @@ export default function SpaOwnerDashboardPage() {
         setCommissionsLoading(false);
       }
     },
-    [ownerToken, commissionsPage, commissionTherapistFilter]
+    [ownerToken, commissionsPage, commissionTherapistFilter, commissionTypeFilter]
   );
 
   // 5. Fetch Payout Account (API: GET /spa-owner/payout-account)
@@ -3467,9 +3481,9 @@ export default function SpaOwnerDashboardPage() {
               {/* Header Bar */}
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                 <div>
-                  <h3 className="text-lg font-bold text-[#0D0D12]">Owner Commission & Revenue Split</h3>
+                  <h3 className="text-lg font-bold text-[#0D0D12]">Spa Owner Commission Dashboard</h3>
                   <p className="text-xs text-[#757880]">
-                    Live commission earnings summary and ledger per completed therapist treatment
+                    Direct commission, referral commission, and available wallet balance
                   </p>
                 </div>
 
@@ -3524,7 +3538,7 @@ export default function SpaOwnerDashboardPage() {
                 </div>
               )}
 
-              {/* Summary Metric Cards */}
+              {/* Summary Metric Cards (Direct, Referral, Total, Available Balance) */}
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                 {/* 1. Total Commission */}
                 <div className="bg-white rounded-3xl p-5 border border-gray-200 shadow-2xs space-y-2">
@@ -3538,219 +3552,326 @@ export default function SpaOwnerDashboardPage() {
                     {commissionsLoading && !commissionsData ? (
                       <div className="h-7 w-24 bg-gray-200 rounded animate-pulse" />
                     ) : (
-                      `₹${(commissionsData?.summary?.totalCommissionRupees ?? 0).toLocaleString('en-IN', {
+                      `₹${Number(commissionsData?.summary?.totalCommissionRupees ?? 0).toLocaleString('en-IN', {
                         minimumFractionDigits: 2,
                         maximumFractionDigits: 2,
                       })}`
                     )}
                   </div>
-                  <p className="text-[11px] text-[#757880]">All-time accumulated earnings</p>
+                  <p className="text-[11px] text-[#757880]">Total accumulated commission earnings</p>
                 </div>
 
-                {/* 2. This Month */}
+                {/* 2. Direct Earnings */}
                 <div className="bg-white rounded-3xl p-5 border border-gray-200 shadow-2xs space-y-2">
                   <div className="flex items-center justify-between text-[#757880]">
-                    <span className="text-[11px] font-bold uppercase tracking-wider">This Month</span>
+                    <span className="text-[11px] font-bold uppercase tracking-wider">Direct Earnings</span>
                     <div className="w-8 h-8 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center">
-                      <TrendingUp className="w-4 h-4" />
+                      <Coins className="w-4 h-4" />
                     </div>
                   </div>
                   <div className="text-2xl font-extrabold text-emerald-600">
                     {commissionsLoading && !commissionsData ? (
                       <div className="h-7 w-24 bg-gray-200 rounded animate-pulse" />
                     ) : (
-                      `₹${(commissionsData?.summary?.thisMonthCommissionRupees ?? 0).toLocaleString('en-IN', {
+                      `₹${Number(
+                        commissionsData?.summary?.directCommissionRupees ??
+                          (commissionsData?.summary?.totalCommissionRupees ?? 0)
+                      ).toLocaleString('en-IN', {
                         minimumFractionDigits: 2,
                         maximumFractionDigits: 2,
                       })}`
                     )}
                   </div>
-                  <p className="text-[11px] text-[#757880]">Current billing cycle earnings</p>
+                  <p className="text-[11px] text-[#757880]">From own fleet therapist treatments</p>
                 </div>
 
-                {/* 3. Completed Bookings */}
+                {/* 3. Referral Earnings */}
                 <div className="bg-white rounded-3xl p-5 border border-gray-200 shadow-2xs space-y-2">
                   <div className="flex items-center justify-between text-[#757880]">
-                    <span className="text-[11px] font-bold uppercase tracking-wider">Completed Bookings</span>
+                    <span className="text-[11px] font-bold uppercase tracking-wider">Referral Earnings</span>
+                    <div className="w-8 h-8 rounded-xl bg-purple-50 text-purple-600 flex items-center justify-center">
+                      <Users className="w-4 h-4" />
+                    </div>
+                  </div>
+                  <div className="text-2xl font-extrabold text-purple-600">
+                    {commissionsLoading && !commissionsData ? (
+                      <div className="h-7 w-20 bg-gray-200 rounded animate-pulse" />
+                    ) : (
+                      `₹${Number(commissionsData?.summary?.referralCommissionRupees ?? 0).toLocaleString('en-IN', {
+                        minimumFractionDigits: 2,
+                        maximumFractionDigits: 2,
+                      })}`
+                    )}
+                  </div>
+                  <p className="text-[11px] text-[#757880]">From sponsored sub-owner network</p>
+                </div>
+
+                {/* 4. Available Wallet Balance */}
+                <div className="bg-white rounded-3xl p-5 border border-gray-200 shadow-2xs space-y-2">
+                  <div className="flex items-center justify-between text-[#757880]">
+                    <span className="text-[11px] font-bold uppercase tracking-wider">Available Balance</span>
                     <div className="w-8 h-8 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center">
-                      <CheckCircle2 className="w-4 h-4" />
+                      <Landmark className="w-4 h-4" />
                     </div>
                   </div>
-                  <div className="text-2xl font-extrabold text-[#0D0D12]">
+                  <div className="text-2xl font-extrabold text-blue-700">
                     {commissionsLoading && !commissionsData ? (
-                      <div className="h-7 w-12 bg-gray-200 rounded animate-pulse" />
+                      <div className="h-7 w-20 bg-gray-200 rounded animate-pulse" />
                     ) : (
-                      commissionsData?.summary?.totalCompletedBookings ?? 0
+                      `₹${Number(commissionsData?.summary?.availableBalanceRupees ?? 0).toLocaleString('en-IN', {
+                        minimumFractionDigits: 2,
+                        maximumFractionDigits: 2,
+                      })}`
                     )}
                   </div>
-                  <p className="text-[11px] text-[#757880]">Commission-generating bookings</p>
-                </div>
-
-                {/* 4. Active Commission Share */}
-                <div className="bg-white rounded-3xl p-5 border border-gray-200 shadow-2xs space-y-2">
-                  <div className="flex items-center justify-between text-[#757880]">
-                    <span className="text-[11px] font-bold uppercase tracking-wider">Active Split Rate</span>
-                    <div className="w-8 h-8 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center">
-                      <Percent className="w-4 h-4" />
-                    </div>
-                  </div>
-                  <div className="text-2xl font-extrabold text-[#0D0D12]">
-                    {commissionsLoading && !commissionsData ? (
-                      <div className="h-7 w-14 bg-gray-200 rounded animate-pulse" />
-                    ) : (
-                      `${commissionsData?.summary?.activeCommissionPercentage ?? 10}%`
-                    )}
-                  </div>
-                  <p className="text-[11px] text-[#757880]">Direct percentage per booking</p>
+                  <p className="text-[11px] text-[#757880]">Ready for bank payout withdrawal</p>
                 </div>
               </div>
 
-              {/* Commission Ledger Table */}
+              {/* Commission Rates & Bookings Bar */}
+              <div className="bg-white rounded-2xl p-4 border border-gray-200 flex flex-wrap items-center justify-between gap-4 text-xs">
+                <div className="flex flex-wrap items-center gap-4 sm:gap-6">
+                  <div>
+                    <span className="text-gray-500 block text-[11px]">Direct Commission:</span>
+                    <strong className="text-emerald-700 font-extrabold text-sm">
+                      {commissionsData?.summary?.activeCommissionPercentage ?? 10}%
+                    </strong>
+                  </div>
+                  <div className="h-8 w-px bg-gray-200 hidden sm:block" />
+                  <div>
+                    <span className="text-gray-500 block text-[11px]">Referral Commission:</span>
+                    <strong className="text-purple-700 font-extrabold text-sm">
+                      {commissionsData?.summary?.activeReferralPercentage ?? 2}%
+                    </strong>
+                  </div>
+                  <div className="h-8 w-px bg-gray-200 hidden sm:block" />
+                  <div>
+                    <span className="text-gray-500 block text-[11px]">Completed Bookings:</span>
+                    <strong className="text-gray-900 font-extrabold text-sm">
+                      {commissionsData?.summary?.totalCompletedBookings ?? 0}
+                    </strong>
+                  </div>
+                </div>
+
+                {/* Filter Tabs: All / Direct / Referral */}
+                <div className="flex items-center bg-gray-100 p-1 rounded-xl">
+                  {['ALL', 'DIRECT', 'REFERRAL'].map((tab) => {
+                    const isActive = commissionTypeFilter === tab;
+                    return (
+                      <button
+                        key={tab}
+                        type="button"
+                        onClick={() => {
+                          setCommissionTypeFilter(tab);
+                          setCommissionsPage(1);
+                          fetchCommissions({ commissionType: tab, page: 1 });
+                        }}
+                        className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                          isActive
+                            ? 'bg-white text-[#0D0D12] shadow-xs'
+                            : 'text-gray-600 hover:text-gray-900'
+                        }`}
+                      >
+                        {tab === 'ALL' ? 'All' : tab === 'DIRECT' ? 'Direct' : 'Referral'}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Commission History Table */}
               <div className="bg-white rounded-3xl border border-gray-200 shadow-2xs overflow-hidden">
                 <div className="p-5 border-b border-gray-100 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                   <div className="flex items-center gap-2">
                     <Receipt className="w-4 h-4 text-[#F35271]" />
-                    <h4 className="text-sm font-bold text-[#0D0D12]">Commission Earnings Ledger</h4>
+                    <h4 className="text-sm font-bold text-[#0D0D12]">Commission History</h4>
                     <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-gray-100 text-gray-700">
-                      {commissionsData?.pagination?.totalRecords ?? commissionsData?.commissions?.length ?? 0} Record
-                      {(commissionsData?.pagination?.totalRecords ?? commissionsData?.commissions?.length) === 1 ? '' : 's'}
+                      {(() => {
+                        const raw = commissionsData?.commissions || [];
+                        const filtered = raw.filter((item) => {
+                          if (commissionTypeFilter === 'ALL') return true;
+                          return (item.commissionType || 'DIRECT').toUpperCase() === commissionTypeFilter;
+                        });
+                        return `${filtered.length} Record${filtered.length === 1 ? '' : 's'}`;
+                      })()}
                     </span>
                   </div>
 
-                  {commissionsData?.summary?.activeCommissionPercentage && (
-                    <div className="text-xs text-[#757880]">
-                      Current Share: <strong className="text-[#0D0D12]">{commissionsData.summary.activeCommissionPercentage}%</strong> on gross treatment values
-                    </div>
-                  )}
+                  <div className="text-xs text-[#757880]">
+                    Showing {commissionTypeFilter === 'ALL' ? 'all commission transactions' : `${commissionTypeFilter.toLowerCase()} commissions`}
+                  </div>
                 </div>
 
-                {commissionsLoading && !commissionsData ? (
-                  <div className="p-8 text-center space-y-3">
-                    <div className="w-8 h-8 border-2 border-[#F35271] border-t-transparent rounded-full animate-spin mx-auto" />
-                    <p className="text-xs text-[#757880]">Loading live commission ledger...</p>
-                  </div>
-                ) : !commissionsData?.commissions || commissionsData.commissions.length === 0 ? (
-                  <div className="p-12 text-center space-y-3">
-                    <div className="w-14 h-14 rounded-full bg-rose-50 text-[#F35271] flex items-center justify-center mx-auto mb-2">
-                      <Percent className="w-7 h-7" />
-                    </div>
-                    <h5 className="text-sm font-bold text-[#0D0D12]">No Commission Transactions Found</h5>
-                    <p className="text-xs text-[#757880] max-w-sm mx-auto">
-                      Commission records appear automatically when therapists under your spa code complete treatment appointments.
-                    </p>
-                  </div>
-                ) : (
-                  <div className="overflow-x-auto">
-                    <table className="w-full text-left text-xs">
-                      <thead className="bg-[#FAFAFA] border-b border-gray-100 text-[11px] uppercase tracking-wider font-bold text-[#757880]">
-                        <tr>
-                          <th className="py-3.5 px-5">Booking Details</th>
-                          <th className="py-3.5 px-5">Service</th>
-                          <th className="py-3.5 px-5">Therapist</th>
-                          <th className="py-3.5 px-5 text-right">Base Price</th>
-                          <th className="py-3.5 px-5 text-center">Rate</th>
-                          <th className="py-3.5 px-5 text-right">Your Commission</th>
-                          <th className="py-3.5 px-5">Completed At</th>
-                          <th className="py-3.5 px-5 text-center">Status</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-gray-100">
-                        {commissionsData.commissions.map((item) => (
-                          <tr key={item.id} className="hover:bg-rose-50/20 transition-colors">
-                            {/* Booking */}
-                            <td className="py-4 px-5">
-                              <button
-                                type="button"
-                                onClick={() => handleViewBookingDetails(item.bookingId || item.bookingNumber)}
-                                className="font-mono font-bold text-rose-600 hover:text-rose-800 hover:underline flex items-center gap-1 cursor-pointer"
-                                title="Click to view full booking details"
-                              >
-                                <span>{item.bookingNumber || item.bookingId || 'TS-BOOKING'}</span>
-                                <ExternalLink className="w-3 h-3 shrink-0" />
-                              </button>
-                              <span className="text-[10px] text-gray-400 font-mono block">ID: {item.id}</span>
-                            </td>
+                {(() => {
+                  const raw = commissionsData?.commissions || [];
+                  const displayed = raw.filter((item) => {
+                    if (commissionTypeFilter === 'ALL') return true;
+                    return (item.commissionType || 'DIRECT').toUpperCase() === commissionTypeFilter;
+                  });
 
-                            {/* Service */}
-                            <td className="py-4 px-5">
-                              <span className="font-bold text-[#0D0D12] block">{item.serviceName || 'Full Body Massage'}</span>
-                            </td>
+                  if (commissionsLoading && !commissionsData) {
+                    return (
+                      <div className="p-8 text-center space-y-3">
+                        <div className="w-8 h-8 border-2 border-[#F35271] border-t-transparent rounded-full animate-spin mx-auto" />
+                        <p className="text-xs text-[#757880]">Loading commission records...</p>
+                      </div>
+                    );
+                  }
 
-                            {/* Therapist */}
-                            <td className="py-4 px-5">
-                              <div className="flex items-center gap-2.5">
-                                <img
-                                  src={
-                                    item.therapist?.avatarUrl ||
-                                    'https://res.cloudinary.com/therapyshala/image/upload/v1/therapists/avatar.jpg'
-                                  }
-                                  alt={item.therapist?.fullName || 'Therapist'}
-                                  className="w-7 h-7 rounded-full object-cover border border-rose-100 shrink-0"
-                                  onError={(e) => {
-                                    e.target.src = 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&w=80&q=80';
-                                  }}
-                                />
-                                <div>
-                                  <span className="font-bold text-[#0D0D12] block">
-                                    {item.therapist?.fullName || 'Therapist'}
-                                  </span>
-                                  <span className="text-[10px] text-gray-500 font-mono">
-                                    {item.therapist?.phoneE164 || item.therapist?.spaCode || ''}
-                                  </span>
-                                </div>
-                              </div>
-                            </td>
+                  if (displayed.length === 0) {
+                    return (
+                      <div className="p-12 text-center space-y-3">
+                        <div className="w-14 h-14 rounded-full bg-rose-50 text-[#F35271] flex items-center justify-center mx-auto mb-2">
+                          <Percent className="w-7 h-7" />
+                        </div>
+                        <h5 className="text-sm font-bold text-[#0D0D12]">No commissions found</h5>
+                        <p className="text-xs text-[#757880] max-w-sm mx-auto">
+                          {commissionTypeFilter === 'ALL'
+                            ? 'Commission transactions will appear once completed therapist treatments are processed.'
+                            : `No ${commissionTypeFilter.toLowerCase()} commission transactions found for the selected criteria.`}
+                        </p>
+                      </div>
+                    );
+                  }
 
-                            {/* Base Price */}
-                            <td className="py-4 px-5 text-right font-medium text-gray-700">
-                              ₹{(item.basePriceRupees ?? 0).toFixed(2)}
-                            </td>
-
-                            {/* Commission Rate */}
-                            <td className="py-4 px-5 text-center">
-                              <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-gray-100 text-gray-700">
-                                {item.commissionPercentage}%
-                              </span>
-                            </td>
-
-                            {/* Earned Commission */}
-                            <td className="py-4 px-5 text-right font-bold text-emerald-600 text-sm">
-                              + ₹{(item.commissionRupees ?? 0).toFixed(2)}
-                            </td>
-
-                            {/* Completed Date */}
-                            <td className="py-4 px-5 text-gray-600 whitespace-nowrap">
-                              {item.completedAt
-                                ? new Date(item.completedAt).toLocaleString('en-IN', {
-                                    day: 'numeric',
-                                    month: 'short',
-                                    year: 'numeric',
-                                    hour: '2-digit',
-                                    minute: '2-digit',
-                                  })
-                                : '—'}
-                            </td>
-
-                            {/* Status */}
-                            <td className="py-4 px-5 text-center">
-                              <span className="px-2.5 py-1 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
-                                {item.status || 'EARNED'}
-                              </span>
-                            </td>
+                  return (
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-left text-xs">
+                        <thead className="bg-[#FAFAFA] border-b border-gray-100 text-[10px] uppercase tracking-wider font-bold text-[#757880]">
+                          <tr>
+                            <th className="py-3.5 px-4">Booking Number</th>
+                            <th className="py-3.5 px-4">Service</th>
+                            <th className="py-3.5 px-4 text-center">Type</th>
+                            <th className="py-3.5 px-4">Spa Owner</th>
+                            <th className="py-3.5 px-4">Business Name</th>
+                            <th className="py-3.5 px-4">Source Spa Owner</th>
+                            <th className="py-3.5 px-4">Source Business</th>
+                            <th className="py-3.5 px-4">Therapist</th>
+                            <th className="py-3.5 px-4 text-right">Booking Amount</th>
+                            <th className="py-3.5 px-4 text-center">Commission %</th>
+                            <th className="py-3.5 px-4 text-right">Commission Amount</th>
                           </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                )}
+                        </thead>
+                        <tbody className="divide-y divide-gray-100">
+                          {displayed.map((item) => {
+                            const isReferral = (item.commissionType || '').toUpperCase() === 'REFERRAL';
+                            const sourceOwner = item.sourceSpaOwner?.ownerName || item.sourceOwnerName;
+                            const sourceBusiness = item.sourceSpaOwner?.businessName || item.sourceBusinessName;
+                            const sourceCode = item.sourceSpaOwner?.spaCode || item.sourceSpaCode;
 
-                {/* Pagination Bar */}
+                            return (
+                              <tr key={item.id || item._id} className="hover:bg-rose-50/20 transition-colors">
+                                {/* Booking Number */}
+                                <td className="py-4 px-4 font-mono font-bold">
+                                  <button
+                                    type="button"
+                                    onClick={() => handleViewBookingDetails(item.bookingId || item.bookingNumber)}
+                                    className="text-rose-600 hover:text-rose-800 hover:underline flex items-center gap-1 cursor-pointer text-left"
+                                    title="View booking details"
+                                  >
+                                    <span>{item.bookingNumber || item.bookingId || 'TS-BOOKING'}</span>
+                                    <ExternalLink className="w-3 h-3 shrink-0" />
+                                  </button>
+                                </td>
+
+                                {/* Service */}
+                                <td className="py-4 px-4">
+                                  <span className="font-semibold text-[#0D0D12] block">
+                                    {item.serviceName || 'Full Body Therapy'}
+                                  </span>
+                                </td>
+
+                                {/* Commission Type */}
+                                <td className="py-4 px-4 text-center">
+                                  {isReferral ? (
+                                    <span className="px-2.5 py-1 rounded-full text-[10px] font-extrabold bg-purple-100 text-purple-800 border border-purple-200">
+                                      Referral
+                                    </span>
+                                  ) : (
+                                    <span className="px-2.5 py-1 rounded-full text-[10px] font-extrabold bg-blue-100 text-blue-800 border border-blue-200">
+                                      Direct
+                                    </span>
+                                  )}
+                                </td>
+
+                                {/* Spa Owner */}
+                                <td className="py-4 px-4 text-[#0D0D12] font-medium">
+                                  {item.spaOwner?.ownerName || item.ownerName || '—'}
+                                </td>
+
+                                {/* Business Name */}
+                                <td className="py-4 px-4 text-gray-700">
+                                  {item.spaOwner?.businessName || item.businessName || '—'}
+                                </td>
+
+                                {/* Source Spa Owner */}
+                                <td className="py-4 px-4">
+                                  {isReferral ? (
+                                    <span className="font-semibold text-purple-900">
+                                      {sourceOwner || '—'}
+                                    </span>
+                                  ) : (
+                                    <span className="text-gray-400">—</span>
+                                  )}
+                                </td>
+
+                                {/* Source Business */}
+                                <td className="py-4 px-4">
+                                  {isReferral ? (
+                                    <div>
+                                      <span className="text-gray-800 font-medium block">
+                                        {sourceBusiness || '—'}
+                                      </span>
+                                      {sourceCode && (
+                                        <span className="text-[10px] text-gray-400 font-mono">
+                                          {sourceCode}
+                                        </span>
+                                      )}
+                                    </div>
+                                  ) : (
+                                    <span className="text-gray-400">—</span>
+                                  )}
+                                </td>
+
+                                {/* Therapist */}
+                                <td className="py-4 px-4">
+                                  <span className="font-semibold text-[#0D0D12]">
+                                    {item.therapist?.fullName || item.therapistName || '—'}
+                                  </span>
+                                </td>
+
+                                {/* Booking Amount */}
+                                <td className="py-4 px-4 text-right font-medium text-gray-700 whitespace-nowrap">
+                                  ₹{Number(item.basePriceRupees ?? item.bookingAmount ?? 0).toFixed(2)}
+                                </td>
+
+                                {/* Commission % */}
+                                <td className="py-4 px-4 text-center">
+                                  <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-gray-100 text-gray-700">
+                                    {item.commissionPercentage ?? (isReferral ? 2 : 10)}%
+                                  </span>
+                                </td>
+
+                                {/* Commission Amount */}
+                                <td className="py-4 px-4 text-right font-extrabold text-emerald-600 text-sm whitespace-nowrap">
+                                  ₹{Number(item.commissionRupees ?? item.amount ?? 0).toFixed(2)}
+                                </td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
+                  );
+                })()}
+
+                {/* Pagination Controls */}
                 {commissionsData?.pagination && commissionsData.pagination.totalPages > 1 && (
                   <div className="p-4 border-t border-gray-100 flex items-center justify-between text-xs bg-[#FAFAFA]">
                     <span className="text-[#757880]">
                       Page <strong>{commissionsData.pagination.page}</strong> of{' '}
                       <strong>{commissionsData.pagination.totalPages}</strong> (
-                      {commissionsData.pagination.totalRecords} total transactions)
+                      {commissionsData.pagination.totalRecords} total records)
                     </span>
 
                     <div className="flex items-center gap-2">
@@ -4903,106 +5024,203 @@ export default function SpaOwnerDashboardPage() {
                 </div>
               </div>
 
-              {/* KPI Metrics */}
+              {/* A. Sponsor Profile Card */}
+              {(() => {
+                const sponsor = sponsoredData?.sponsor || {
+                  ownerName: ownerProfile?.ownerName || dashboardData?.registeredSpa?.ownerName || '—',
+                  businessName: ownerProfile?.businessName || dashboardData?.registeredSpa?.businessName || 'My Spa Center',
+                  spaCode: activeSpaCode,
+                  email: ownerProfile?.email || dashboardData?.registeredSpa?.email || '—',
+                  phone: ownerProfile?.phone || dashboardData?.registeredSpa?.phone || '—',
+                  status: ownerProfile?.status || 'ACTIVE',
+                };
+
+                return (
+                  <div className="bg-white rounded-3xl p-6 border border-gray-200 shadow-2xs space-y-4">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-gray-100 pb-3">
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-2xl bg-purple-50 text-purple-600 flex items-center justify-center font-bold border border-purple-100">
+                          <ShieldCheck className="w-5 h-5" />
+                        </div>
+                        <div>
+                          <h4 className="text-sm font-bold text-[#0D0D12]">Sponsor Profile</h4>
+                          <p className="text-xs text-[#757880]">
+                            Your sponsor identity in the TherapyShala referral network
+                          </p>
+                        </div>
+                      </div>
+                      <span className="self-start sm:self-auto px-3 py-1 rounded-full text-[10px] font-extrabold uppercase tracking-wider bg-emerald-50 text-emerald-700 border border-emerald-200">
+                        {sponsor.status || 'ACTIVE'}
+                      </span>
+                    </div>
+
+                    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4 text-xs">
+                      <div>
+                        <span className="text-[10px] uppercase font-bold text-gray-400 block">Sponsor Name</span>
+                        <strong className="text-xs text-[#0D0D12] block truncate font-semibold">
+                          {sponsor.ownerName || '—'}
+                        </strong>
+                      </div>
+                      <div>
+                        <span className="text-[10px] uppercase font-bold text-gray-400 block">Business Name</span>
+                        <strong className="text-xs text-[#0D0D12] block truncate font-semibold">
+                          {sponsor.businessName || '—'}
+                        </strong>
+                      </div>
+                      <div>
+                        <span className="text-[10px] uppercase font-bold text-gray-400 block">Spa Code</span>
+                        <strong className="text-xs font-mono text-[#F35271] block font-extrabold">
+                          {sponsor.spaCode || activeSpaCode}
+                        </strong>
+                      </div>
+                      <div>
+                        <span className="text-[10px] uppercase font-bold text-gray-400 block">Email</span>
+                        <span className="text-gray-700 truncate block">{sponsor.email || '—'}</span>
+                      </div>
+                      <div>
+                        <span className="text-[10px] uppercase font-bold text-gray-400 block">Mobile</span>
+                        <span className="text-gray-700 font-mono block">{sponsor.phone || '—'}</span>
+                      </div>
+                      <div>
+                        <span className="text-[10px] uppercase font-bold text-gray-400 block">Account Status</span>
+                        <strong className="text-emerald-700 font-bold uppercase">{sponsor.status || 'ACTIVE'}</strong>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })()}
+
+              {/* B. Sub-Owner Summary Cards & Table */}
               {(() => {
                 const subOwnersList = sponsoredData?.subOwners || sponsoredData?.sponsoredSpas || [];
-                const totalCount = sponsoredData?.totalSubOwners ?? sponsoredData?.totalSponsoredSpas ?? subOwnersList.length;
-                const activeCount = sponsoredData?.activeSubOwners ?? sponsoredData?.activeSponsoredSpas ?? subOwnersList.filter(s => (s.status || 'ACTIVE') === 'ACTIVE').length;
-                const pendingCount = sponsoredData?.pendingInquiriesCount ?? (sponsoredData?.pendingInquiries?.length || 0);
+                const totalCount =
+                  sponsoredData?.totalSubOwners ?? sponsoredData?.totalSponsoredSpas ?? subOwnersList.length;
+                const activeCount =
+                  sponsoredData?.activeSubOwners ??
+                  sponsoredData?.activeSponsoredSpas ??
+                  subOwnersList.filter((s) => (s.status || 'ACTIVE') === 'ACTIVE').length;
+                const referralRate = sponsoredData?.activeReferralPercentage ?? 2;
+                const totalReferralEarnings = Number(sponsoredData?.totalReferralEarningsRupees ?? 0);
+                const sponsorName =
+                  sponsoredData?.sponsor?.ownerName || ownerProfile?.ownerName || 'My Spa';
 
                 return (
                   <>
-                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                      <div className="bg-white rounded-3xl p-5 border border-gray-200 shadow-xs hover:border-gray-300 transition-all">
-                        <div className="flex items-center justify-between text-[#757880] mb-2">
+                    {/* B. Sub-Owner Summary Cards (4 Cards) */}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                      {/* 1. Total Sub-Owners */}
+                      <div className="bg-white rounded-3xl p-5 border border-gray-200 shadow-2xs space-y-2">
+                        <div className="flex items-center justify-between text-[#757880]">
                           <span className="text-[11px] font-bold uppercase tracking-wider">Total Sub-Owners</span>
                           <div className="w-8 h-8 rounded-xl bg-rose-50 text-[#F35271] flex items-center justify-center">
                             <Building2 className="w-4 h-4" />
                           </div>
                         </div>
-                        <div className="text-3xl font-extrabold text-[#0D0D12]">
+                        <div className="text-2xl font-extrabold text-[#0D0D12]">
                           {sponsoredLoading ? (
-                            <div className="h-8 w-12 bg-gray-200 rounded-md animate-pulse" />
+                            <div className="h-7 w-12 bg-gray-200 rounded animate-pulse" />
                           ) : (
                             totalCount
                           )}
                         </div>
-                        <p className="text-[11px] text-[#757880] mt-1">
-                          Partner wellness centers under your code
-                        </p>
+                        <p className="text-[11px] text-[#757880]">All affiliated downline partners</p>
                       </div>
 
-                      <div className="bg-white rounded-3xl p-5 border border-gray-200 shadow-xs hover:border-gray-300 transition-all">
-                        <div className="flex items-center justify-between text-[#757880] mb-2">
-                          <span className="text-[11px] font-bold uppercase tracking-wider">Active Verified Spas</span>
+                      {/* 2. Active Sub-Owners */}
+                      <div className="bg-white rounded-3xl p-5 border border-gray-200 shadow-2xs space-y-2">
+                        <div className="flex items-center justify-between text-[#757880]">
+                          <span className="text-[11px] font-bold uppercase tracking-wider">Active Sub-Owners</span>
                           <div className="w-8 h-8 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center">
                             <ShieldCheck className="w-4 h-4" />
                           </div>
                         </div>
-                        <div className="text-3xl font-extrabold text-[#0D0D12]">
+                        <div className="text-2xl font-extrabold text-emerald-600">
                           {sponsoredLoading ? (
-                            <div className="h-8 w-12 bg-gray-200 rounded-md animate-pulse" />
+                            <div className="h-7 w-12 bg-gray-200 rounded animate-pulse" />
                           ) : (
                             activeCount
                           )}
                         </div>
-                        <p className="text-[11px] text-[#757880] mt-1">
-                          Live operational spas with verified fleet
-                        </p>
+                        <p className="text-[11px] text-[#757880]">Live verified operational spas</p>
                       </div>
 
-                      <div className="bg-white rounded-3xl p-5 border border-gray-200 shadow-xs hover:border-gray-300 transition-all">
-                        <div className="flex items-center justify-between text-[#757880] mb-2">
-                          <span className="text-[11px] font-bold uppercase tracking-wider">Pending Inquiries</span>
-                          <div className="w-8 h-8 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center">
-                            <Clock className="w-4 h-4" />
+                      {/* 3. Referral Commission Rate */}
+                      <div className="bg-white rounded-3xl p-5 border border-gray-200 shadow-2xs space-y-2">
+                        <div className="flex items-center justify-between text-[#757880]">
+                          <span className="text-[11px] font-bold uppercase tracking-wider">Referral Commission %</span>
+                          <div className="w-8 h-8 rounded-xl bg-purple-50 text-purple-600 flex items-center justify-center">
+                            <Percent className="w-4 h-4" />
                           </div>
                         </div>
-                        <div className="text-3xl font-extrabold text-[#0D0D12]">
+                        <div className="text-2xl font-extrabold text-purple-600">
                           {sponsoredLoading ? (
-                            <div className="h-8 w-12 bg-gray-200 rounded-md animate-pulse" />
+                            <div className="h-7 w-12 bg-gray-200 rounded animate-pulse" />
                           ) : (
-                            pendingCount
+                            `${referralRate}%`
                           )}
                         </div>
-                        <p className="text-[11px] text-[#757880] mt-1">
-                          Awaiting admin review & onboarding verification
-                        </p>
+                        <p className="text-[11px] text-[#757880]">Per booking revenue share</p>
+                      </div>
+
+                      {/* 4. Total Referral Earnings */}
+                      <div className="bg-white rounded-3xl p-5 border border-gray-200 shadow-2xs space-y-2">
+                        <div className="flex items-center justify-between text-[#757880]">
+                          <span className="text-[11px] font-bold uppercase tracking-wider">Total Referral Earnings</span>
+                          <div className="w-8 h-8 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center">
+                            <Coins className="w-4 h-4" />
+                          </div>
+                        </div>
+                        <div className="text-2xl font-extrabold text-[#F35271]">
+                          {sponsoredLoading ? (
+                            <div className="h-7 w-20 bg-gray-200 rounded animate-pulse" />
+                          ) : (
+                            `₹${totalReferralEarnings.toLocaleString('en-IN', {
+                              minimumFractionDigits: 2,
+                              maximumFractionDigits: 2,
+                            })}`
+                          )}
+                        </div>
+                        <p className="text-[11px] text-[#757880]">Cumulative referral commission</p>
                       </div>
                     </div>
 
-                    {/* Sponsored Spas Roster List */}
-                    <div className="bg-white rounded-3xl border border-gray-200 shadow-xs overflow-hidden">
-                      <div className="p-5 border-b border-gray-100 flex items-center justify-between">
-                        <div>
-                          <h3 className="font-bold text-sm text-[#0D0D12]">
-                            Registered Sub-Spa Partners (Downline)
-                          </h3>
-                          <p className="text-xs text-[#757880] mt-0.5">
-                            Spas currently affiliated and active under your sponsor code.
-                          </p>
+                    {/* C. Sub-Owners Table */}
+                    <div className="bg-white rounded-3xl border border-gray-200 shadow-2xs overflow-hidden">
+                      <div className="p-5 border-b border-gray-100 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                        <div className="flex items-center gap-2">
+                          <Users className="w-4 h-4 text-[#F35271]" />
+                          <h4 className="text-sm font-bold text-[#0D0D12]">Sub-Owner Details</h4>
+                          <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-gray-100 text-gray-700">
+                            {subOwnersList.length} Partner{subOwnersList.length === 1 ? '' : 's'}
+                          </span>
                         </div>
-                        <span className="px-3 py-1 rounded-full bg-rose-50 text-[#F35271] text-xs font-bold border border-rose-100">
-                          {subOwnersList.length} Spas
-                        </span>
+                        <p className="text-xs text-[#757880]">
+                          Referred Spa Owners generating commission for your account
+                        </p>
                       </div>
 
                       {sponsoredLoading ? (
                         <div className="p-12 text-center text-xs text-gray-500 space-y-2">
                           <Loader2 className="w-6 h-6 animate-spin mx-auto text-[#F35271]" />
-                          <p>Loading sponsored sub-spas...</p>
+                          <p>Loading sub-owners...</p>
                         </div>
                       ) : subOwnersList.length === 0 ? (
                         <div className="p-12 text-center space-y-3">
                           <div className="w-14 h-14 rounded-2xl bg-rose-50 text-[#F35271] flex items-center justify-center mx-auto">
                             <Share2 className="w-7 h-7" />
                           </div>
-                          <h4 className="text-sm font-bold text-[#0D0D12]">No Sub-Spas Registered Yet</h4>
+                          <h4 className="text-sm font-bold text-[#0D0D12]">No sub-owners found</h4>
                           <p className="text-xs text-[#757880] max-w-sm mx-auto">
-                            Share your sponsor code <strong>{sponsoredData?.mySponsorCode || sponsoredData?.sponsor?.spaCode || activeSpaCode}</strong> with wellness center owners to onboard them into your partner network.
+                            Share your sponsor code <strong>{sponsoredData?.mySponsorCode || sponsoredData?.sponsor?.spaCode || activeSpaCode}</strong> with wellness center owners to link them under your referral network.
                           </p>
                           <button
-                            onClick={() => handleCopySponsorCode(sponsoredData?.mySponsorCode || sponsoredData?.sponsor?.spaCode || activeSpaCode)}
+                            onClick={() =>
+                              handleCopySponsorCode(
+                                sponsoredData?.mySponsorCode ||
+                                  sponsoredData?.sponsor?.spaCode ||
+                                  activeSpaCode
+                              )
+                            }
                             className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-[#0D0D12] hover:bg-[#F35271] text-white text-xs font-bold transition-all cursor-pointer"
                           >
                             <Copy className="w-3.5 h-3.5" />
@@ -5010,25 +5228,61 @@ export default function SpaOwnerDashboardPage() {
                           </button>
                         </div>
                       ) : (
-                        <div className="divide-y divide-gray-100">
-                          {subOwnersList.map((spa) => {
-                            const isLive = (spa.status || 'ACTIVE') === 'ACTIVE';
-                            return (
-                              <div
-                                key={spa.id || spa._id || spa.spaCode}
-                                className="p-5 hover:bg-gray-50/70 transition-colors flex flex-col lg:flex-row lg:items-center justify-between gap-4"
-                              >
-                                <div className="flex items-start gap-3.5">
-                                  <div className="w-10 h-10 rounded-2xl bg-rose-50 text-[#F35271] flex items-center justify-center font-bold text-sm shrink-0 border border-rose-100">
-                                    <Building2 className="w-5 h-5" />
-                                  </div>
-                                  <div>
-                                    <div className="flex items-center gap-2">
-                                      <h4 className="font-bold text-sm text-[#0D0D12]">
-                                        {spa.businessName}
-                                      </h4>
+                        <div className="overflow-x-auto">
+                          <table className="w-full text-left text-xs">
+                            <thead className="bg-[#FAFAFA] border-b border-gray-100 text-[10px] uppercase tracking-wider font-bold text-[#757880]">
+                              <tr>
+                                <th className="py-3.5 px-4">Owner Name</th>
+                                <th className="py-3.5 px-4">Spa / Business</th>
+                                <th className="py-3.5 px-4">Spa Code</th>
+                                <th className="py-3.5 px-4">Email</th>
+                                <th className="py-3.5 px-4">Mobile</th>
+                                <th className="py-3.5 px-4 text-center">Status</th>
+                                <th className="py-3.5 px-4 text-center">Linked Therapists</th>
+                                <th className="py-3.5 px-4 text-right">Referral Earnings</th>
+                                <th className="py-3.5 px-4">Sponsor</th>
+                                <th className="py-3.5 px-4 text-center">Actions</th>
+                              </tr>
+                            </thead>
+                            <tbody className="divide-y divide-gray-100">
+                              {subOwnersList.map((spa) => {
+                                const isLive = (spa.status || 'ACTIVE').toUpperCase() === 'ACTIVE';
+                                const earnings = Number(spa.totalReferralEarningsRupees ?? 0);
+
+                                return (
+                                  <tr
+                                    key={spa.id || spa._id || spa.spaCode}
+                                    className="hover:bg-rose-50/20 transition-colors"
+                                  >
+                                    {/* Owner Name */}
+                                    <td className="py-4 px-4 font-semibold text-[#0D0D12]">
+                                      {spa.ownerName || '—'}
+                                    </td>
+
+                                    {/* Business Name */}
+                                    <td className="py-4 px-4 font-medium text-gray-800">
+                                      {spa.businessName || '—'}
+                                    </td>
+
+                                    {/* Spa Code */}
+                                    <td className="py-4 px-4 font-mono font-bold text-[#F35271]">
+                                      {spa.spaCode || '—'}
+                                    </td>
+
+                                    {/* Email */}
+                                    <td className="py-4 px-4 text-gray-600 truncate max-w-[140px]">
+                                      {spa.email || '—'}
+                                    </td>
+
+                                    {/* Mobile */}
+                                    <td className="py-4 px-4 font-mono text-gray-700 whitespace-nowrap">
+                                      {spa.phone || '—'}
+                                    </td>
+
+                                    {/* Status */}
+                                    <td className="py-4 px-4 text-center">
                                       <span
-                                        className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider ${
+                                        className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider ${
                                           isLive
                                             ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
                                             : 'bg-amber-50 text-amber-700 border border-amber-200'
@@ -5036,71 +5290,50 @@ export default function SpaOwnerDashboardPage() {
                                       >
                                         {spa.status || 'ACTIVE'}
                                       </span>
-                                    </div>
+                                    </td>
 
-                                    <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mt-1 text-xs text-[#757880]">
-                                      <span>Owner: <strong className="text-[#0D0D12]">{spa.ownerName}</strong></span>
-                                      <span>•</span>
-                                      <span>Phone: <strong className="text-[#0D0D12]">{spa.phone}</strong></span>
-                                      {spa.email && (
-                                        <>
-                                          <span>•</span>
-                                          <span>{spa.email}</span>
-                                        </>
-                                      )}
-                                    </div>
+                                    {/* Linked Therapists */}
+                                    <td className="py-4 px-4 text-center">
+                                      <span className="px-2.5 py-1 rounded-full text-xs font-extrabold bg-blue-50 text-blue-700 border border-blue-200">
+                                        {spa.linkedTherapistsCount ?? (spa.declaredTherapists || 0)}
+                                      </span>
+                                    </td>
 
-                                    {Array.isArray(spa.servicesOffered) && spa.servicesOffered.length > 0 && (
-                                      <div className="flex flex-wrap gap-1 mt-2">
-                                        {spa.servicesOffered.map((srv, idx) => (
-                                          <span
-                                            key={idx}
-                                            className="px-2 py-0.5 rounded-md bg-gray-100 text-gray-600 text-[10px] font-semibold"
-                                          >
-                                            {srv}
-                                          </span>
-                                        ))}
-                                      </div>
-                                    )}
-                                  </div>
-                                </div>
+                                    {/* Referral Earnings */}
+                                    <td className="py-4 px-4 text-right font-extrabold text-emerald-600 text-sm whitespace-nowrap">
+                                      ₹{earnings.toFixed(2)}
+                                    </td>
 
-                                <div className="flex flex-wrap items-center gap-4 text-xs border-t lg:border-t-0 pt-3 lg:pt-0">
-                                  <div className="text-left lg:text-right">
-                                    <span className="text-[10px] uppercase font-bold text-gray-400 block">Assigned Spa Code</span>
-                                    <strong className="font-mono text-xs text-[#0D0D12]">{spa.spaCode}</strong>
-                                  </div>
+                                    {/* Sponsor */}
+                                    <td className="py-4 px-4 text-gray-700">
+                                      {spa.sponsorOwnerName || sponsorName || '—'}
+                                    </td>
 
-                                  <div className="text-left lg:text-right">
-                                    <span className="text-[10px] uppercase font-bold text-gray-400 block">Therapists</span>
-                                    <strong className="text-xs text-[#0D0D12]">
-                                      {spa.linkedTherapistsCount ?? (spa.declaredTherapists || 0)} Fleet
-                                    </strong>
-                                  </div>
-
-                                  <div className="text-left lg:text-right">
-                                    <span className="text-[10px] uppercase font-bold text-gray-400 block">Joined</span>
-                                    <span className="text-xs text-gray-600">
-                                      {spa.registeredDate
-                                        ? new Date(spa.registeredDate).toLocaleDateString('en-IN', {
-                                            day: '2-digit',
-                                            month: 'short',
-                                            year: 'numeric',
-                                          })
-                                        : '—'}
-                                    </span>
-                                  </div>
-                                </div>
-                              </div>
-                            );
-                          })}
+                                    {/* Actions */}
+                                    <td className="py-4 px-4 text-center">
+                                      <button
+                                        type="button"
+                                        onClick={() => {
+                                          setSelectedSubOwner(spa);
+                                          setSubOwnerModalOpen(true);
+                                        }}
+                                        className="px-3 py-1.5 rounded-xl bg-gray-900 hover:bg-[#F35271] text-white text-xs font-bold transition-all shadow-2xs cursor-pointer flex items-center gap-1 mx-auto"
+                                      >
+                                        <Eye className="w-3.5 h-3.5" />
+                                        <span>View Details</span>
+                                      </button>
+                                    </td>
+                                  </tr>
+                                );
+                              })}
+                            </tbody>
+                          </table>
                         </div>
                       )}
                     </div>
                   </>
                 );
               })()}
-
 
               {/* Pending Inquiries Section (if any) */}
               {Array.isArray(sponsoredData?.pendingInquiries) && sponsoredData.pendingInquiries.length > 0 && (
@@ -5136,6 +5369,17 @@ export default function SpaOwnerDashboardPage() {
               )}
             </div>
           )}
+
+          {/* Sub-Owner Details Modal */}
+          <SubOwnerDetailModal
+            isOpen={subOwnerModalOpen}
+            onClose={() => {
+              setSubOwnerModalOpen(false);
+              setSelectedSubOwner(null);
+            }}
+            subOwner={selectedSubOwner}
+            sponsor={sponsoredData?.sponsor || ownerProfile}
+          />
 
         </main>
       </div>
