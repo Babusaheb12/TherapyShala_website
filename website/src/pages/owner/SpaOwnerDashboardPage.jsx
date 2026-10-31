@@ -1330,6 +1330,7 @@ export default function SpaOwnerDashboardPage() {
     govtIdFront: '',
     governmentIdBackUrl: '',
     govtIdBack: '',
+    gallery: [],
     services: [
       {
         categoryId: '01M60X6ZE8D0YDWKPT0ENNDD8B',
@@ -1392,11 +1393,64 @@ export default function SpaOwnerDashboardPage() {
     }
   };
 
+  const handleGalleryUpload = async (e) => {
+    const files = Array.from(e.target.files || []);
+    e.target.value = '';
+    if (files.length === 0) return;
+
+    const currentCount = (formData.gallery || []).length;
+    const availableSlots = 5 - currentCount;
+    if (files.length > availableSlots) {
+      setOnboardError(`You can add only ${availableSlots} more gallery image${availableSlots === 1 ? '' : 's'} (maximum 5).`);
+      return;
+    }
+
+    setUploadingField('gallery');
+    setOnboardError('');
+    const uploadedUrls = [];
+    const uploadErrors = [];
+
+    for (const file of files) {
+      if (!file.type.startsWith('image/')) {
+        uploadErrors.push(`${file.name}: select an image file.`);
+        continue;
+      }
+
+      try {
+        const res = await uploadAsset({ file, kind: 'SERVICE_IMAGE' });
+        if (res?.success === false) {
+          throw new Error(res.message || 'The image upload was rejected.');
+        }
+        const url = res?.data?.url || res?.url;
+        if (!url) throw new Error('The upload did not return an image URL.');
+        uploadedUrls.push(url);
+      } catch (err) {
+        uploadErrors.push(`${file.name}: ${err?.message || 'upload failed.'}`);
+      }
+    }
+
+    if (uploadedUrls.length > 0) {
+      setFormData((prev) => ({
+        ...prev,
+        gallery: [...(prev.gallery || []), ...uploadedUrls].slice(0, 5),
+      }));
+    }
+    if (uploadErrors.length > 0) {
+      setOnboardError(`Gallery upload issue: ${uploadErrors.join(' ')}`);
+    }
+    setUploadingField(null);
+  };
+
   // Submit Therapist Onboarding via POST /api/v1/spa-owner/therapists
   const handleOnboardSubmit = async (e) => {
     e.preventDefault();
     setOnboardError('');
     setOnboardSuccessData(null);
+
+    if (uploadingField) {
+      setOnboardError('Please wait for the selected file upload to finish.');
+      return;
+    }
 
     // Compulsory field validation: Mobile Number
     const cleanMobile = (formData.mobileNumber || '').replace(/\D/g, '');
@@ -1409,6 +1463,12 @@ export default function SpaOwnerDashboardPage() {
     const appPhoto = formData.appPhotoUrl || formData.appProfilePhoto || formData.avatarUrl;
     if (!appPhoto) {
       setOnboardError('App Profile Photo is compulsory because it will be shown to customers on the app.');
+      return;
+    }
+
+    const gallery = Array.isArray(formData.gallery) ? formData.gallery : [];
+    if (gallery.length < 3 || gallery.length > 5) {
+      setOnboardError('Add at least 3 and no more than 5 gallery images before onboarding.');
       return;
     }
 
@@ -1582,6 +1642,7 @@ export default function SpaOwnerDashboardPage() {
           formData.governmentIdFrontUrl || formData.govtIdFront || undefined,
         governmentIdBackUrl:
           formData.governmentIdBackUrl || formData.govtIdBack || undefined,
+        galleryImages: gallery,
         services: formattedServices,
       };
 
@@ -1617,6 +1678,8 @@ export default function SpaOwnerDashboardPage() {
           policeClearance: payload.policeVerificationUrl,
           govtIdFront: payload.governmentIdFrontUrl,
           govtIdBack: payload.governmentIdBackUrl,
+          galleryImages: payload.galleryImages,
+          gallery: payload.galleryImages,
           services: payload.services,
           onDuty: true,
           status: 'ACTIVE',
@@ -3048,6 +3111,7 @@ export default function SpaOwnerDashboardPage() {
                 setOnboardSuccessData={setOnboardSuccessData}
                 handleOnboardSubmit={handleOnboardSubmit}
                 handleFileUpload={handleFileUpload}
+                handleGalleryUpload={handleGalleryUpload}
                 uploadingField={uploadingField}
                 getSampleTherapistData={getSampleTherapistData}
                 onBack={() => {

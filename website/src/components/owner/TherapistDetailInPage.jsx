@@ -36,6 +36,7 @@ import {
 } from 'lucide-react';
 import { resolveMediaUrl } from '../../utils/mediaUtils';
 import GoogleLocationPicker from '../GoogleLocationPicker';
+import TherapistGalleryField from './TherapistGalleryField';
 import {
   getSpaOwnerTherapistById,
   updateSpaOwnerTherapist,
@@ -94,6 +95,17 @@ const getInitialFormData = (data) => {
   const loc = data?.workingLocation || {};
   const excludedLocations =
     data?.excludedWorkAreas || data?.excludedLocations || loc.excludedWorkAreas || [];
+  const rawGallery =
+    data?.galleryImages ||
+    data?.gallery ||
+    data?.galleryImageUrls ||
+    (data?.imageUrl ? [data.imageUrl] : []);
+  const gallery = Array.isArray(rawGallery)
+    ? rawGallery
+      .map((image) => (typeof image === 'string' ? image : image?.url || image?.imageUrl))
+      .filter(Boolean)
+      .slice(0, 5)
+    : [];
   const formattedServices =
     Array.isArray(data?.services) && data.services.length > 0
       ? data.services.map((s) => ({
@@ -128,6 +140,7 @@ const getInitialFormData = (data) => {
     policeVerificationUrl: data?.policeVerificationUrl || '',
     governmentIdFrontUrl: data?.governmentIdFrontUrl || '',
     governmentIdBackUrl: data?.governmentIdBackUrl || '',
+    gallery,
     workingLocation: {
       placeId: loc.placeId || '',
       city: loc.city || data?.city || 'Jaipur',
@@ -167,6 +180,7 @@ export default function TherapistDetailInPage({
   const [isEditPage, setIsEditPage] = useState(false);
   const [savingEdit, setSavingEdit] = useState(false);
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
+  const [uploadingGallery, setUploadingGallery] = useState(false);
   const [editError, setEditError] = useState('');
   const [editSuccessMsg, setEditSuccessMsg] = useState('');
   const [editForm, setEditForm] = useState(() => getInitialFormData(initialTherapist));
@@ -296,6 +310,53 @@ export default function TherapistDetailInPage({
     }
   };
 
+  const handleUploadGallery = async (e) => {
+    const files = Array.from(e.target.files || []);
+    e.target.value = '';
+    if (files.length === 0) return;
+
+    const availableSlots = 5 - (editForm.gallery || []).length;
+    if (files.length > availableSlots) {
+      setEditError(`You can add only ${availableSlots} more gallery image${availableSlots === 1 ? '' : 's'} (maximum 5).`);
+      return;
+    }
+
+    setUploadingGallery(true);
+    setEditError('');
+    const uploadedUrls = [];
+    const uploadErrors = [];
+
+    for (const file of files) {
+      if (!file.type.startsWith('image/')) {
+        uploadErrors.push(`${file.name}: select an image file.`);
+        continue;
+      }
+
+      try {
+        const res = await uploadAsset({ file, kind: 'SERVICE_IMAGE' });
+        if (res?.success === false) {
+          throw new Error(res.message || 'The image upload was rejected.');
+        }
+        const url = res?.data?.url || res?.data?.assetUrl || res?.url;
+        if (!url) throw new Error('The upload did not return an image URL.');
+        uploadedUrls.push(url);
+      } catch (err) {
+        uploadErrors.push(`${file.name}: ${err?.message || 'upload failed.'}`);
+      }
+    }
+
+    if (uploadedUrls.length > 0) {
+      setEditForm((prev) => ({
+        ...prev,
+        gallery: [...(prev.gallery || []), ...uploadedUrls].slice(0, 5),
+      }));
+    }
+    if (uploadErrors.length > 0) {
+      setEditError(`Gallery upload issue: ${uploadErrors.join(' ')}`);
+    }
+    setUploadingGallery(false);
+  };
+
   // Language toggle helper
   const handleToggleLanguage = (code) => {
     setEditForm((prev) => {
@@ -352,6 +413,10 @@ export default function TherapistDetailInPage({
   const handleSaveEdit = async (e) => {
     e?.preventDefault();
     if (!therapistId || savingEdit) return;
+    if (uploadingGallery) {
+      setEditError('Please wait for the gallery image upload to finish.');
+      return;
+    }
     setSavingEdit(true);
     setEditError('');
     setEditSuccessMsg('');
@@ -366,6 +431,9 @@ export default function TherapistDetailInPage({
       }
       if (!editForm.fullName?.trim()) {
         throw new Error('Full Name is required.');
+      }
+      if (!Array.isArray(editForm.gallery) || editForm.gallery.length < 3 || editForm.gallery.length > 5) {
+        throw new Error('Add at least 3 and no more than 5 gallery images before saving.');
       }
 
       const activeCategoryList = categories.length > 0 ? categories : FALLBACK_CATEGORIES;
@@ -420,6 +488,7 @@ export default function TherapistDetailInPage({
         policeVerificationUrl: editForm.policeVerificationUrl || undefined,
         governmentIdFrontUrl: editForm.governmentIdFrontUrl || undefined,
         governmentIdBackUrl: editForm.governmentIdBackUrl || undefined,
+        galleryImages: editForm.gallery,
         services: (editForm.services || []).map((s) => ({
           categoryId: s.categoryId || defaultCatId,
           durationMinutes: Number(s.durationMinutes) || 60,
@@ -451,6 +520,8 @@ export default function TherapistDetailInPage({
         workingLocation: payload.workingLocation,
         excludedWorkAreas: payload.excludedWorkAreas,
         services: payload.services,
+        galleryImages: payload.galleryImages,
+        gallery: payload.galleryImages,
         languagesSpoken: payload.languagesSpoken,
         appPhotoUrl: payload.appPhotoUrl || prev.appPhotoUrl,
         avatarUrl: payload.appPhotoUrl || prev.avatarUrl,
@@ -1387,12 +1458,22 @@ export default function TherapistDetailInPage({
                 </div>
               </div>
 
-              {/* 3. Languages Spoken */}
+              <TherapistGalleryField
+                images={editForm.gallery}
+                onUpload={handleUploadGallery}
+                onRemove={(index) => setEditForm((prev) => ({
+                  ...prev,
+                  gallery: prev.gallery.filter((_, imageIndex) => imageIndex !== index),
+                }))}
+                uploading={uploadingGallery}
+              />
+
+              {/* 5. Languages Spoken */}
               <div className="bg-white rounded-3xl p-6 sm:p-8 border border-gray-200 shadow-2xs space-y-5">
                 <div className="flex items-center justify-between pb-2 border-b border-gray-200">
                   <div className="flex items-center gap-2 text-[#0D0D12] font-bold">
                     <Globe className="w-4 h-4 text-[#F35271]" />
-                    <span>4. Languages Spoken</span>
+                    <span>5. Languages Spoken</span>
                   </div>
                   <span className="text-[10px] text-gray-500 font-mono">
                     [{editForm.languagesSpoken.join(', ')}]
@@ -1422,11 +1503,11 @@ export default function TherapistDetailInPage({
                 </div>
               </div>
 
-              {/* 4. Working Location & Coverage Area */}
+              {/* 6. Working Location & Coverage Area */}
               <div className="bg-white rounded-3xl p-6 sm:p-8 border border-gray-200 shadow-2xs space-y-5">
                 <div className="flex items-center gap-2 pb-2 border-b border-gray-200 text-[#0D0D12] font-bold">
                     <MapPin className="w-4 h-4 text-[#F35271]" />
-                    <span>5. Working Location & Coverage Area</span>
+                    <span>6. Working Location & Coverage Area</span>
                 </div>
 
                 <GoogleLocationPicker
@@ -1450,12 +1531,12 @@ export default function TherapistDetailInPage({
                 />
               </div>
 
-              {/* 5. Offered Services Array */}
+              {/* 7. Offered Services Array */}
               <div className="bg-white rounded-3xl p-6 sm:p-8 border border-gray-200 shadow-2xs space-y-5">
                 <div className="flex items-center justify-between pb-2 border-b border-gray-200">
                   <div className="flex items-center gap-2 text-[#0D0D12] font-bold">
                     <Briefcase className="w-4 h-4 text-[#F35271]" />
-                    <span>6. Offered Spa Services ({editForm.services.length})</span>
+                    <span>7. Offered Spa Services ({editForm.services.length})</span>
                   </div>
                   <button
                     type="button"
@@ -1560,7 +1641,7 @@ export default function TherapistDetailInPage({
                 </div>
               </div>
 
-              {/* 6. KYC Compliance Notice (Protected) */}
+              {/* 8. KYC Compliance Notice (Protected) */}
               <div className="p-3.5 rounded-2xl bg-amber-50/70 border border-amber-200 text-amber-900 text-xs flex items-start gap-2.5">
                 <ShieldCheck className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
                 <div>
@@ -1578,14 +1659,14 @@ export default function TherapistDetailInPage({
                 <button
                   type="button"
                   onClick={() => setIsEditPage(false)}
-                  disabled={savingEdit}
+                  disabled={savingEdit || uploadingGallery}
                   className="px-4 py-2.5 rounded-xl border border-gray-200 hover:bg-gray-50 text-gray-700 font-bold text-xs transition cursor-pointer"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  disabled={savingEdit}
+                  disabled={savingEdit || uploadingGallery}
                   className="px-6 py-2.5 rounded-xl bg-[#F35271] hover:bg-[#D93D5C] text-white font-bold text-xs transition cursor-pointer flex items-center gap-2 shadow-sm"
                 >
                   {savingEdit ? (

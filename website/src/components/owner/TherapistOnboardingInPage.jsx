@@ -31,6 +31,7 @@ import confetti from 'canvas-confetti';
 import { getCategories } from '../../services/spaOwner.service.js';
 import GoogleLocationPicker from '../GoogleLocationPicker';
 import LanguageSelect from '../LanguageSelect';
+import TherapistGalleryField from './TherapistGalleryField';
 
 // Fallback initial categories matching the exact API response provided by the user
 const FALLBACK_CATEGORIES = [
@@ -66,6 +67,7 @@ export default function TherapistOnboardingInPage({
   setOnboardSuccessData,
   handleOnboardSubmit,
   handleFileUpload,
+  handleGalleryUpload,
   uploadingField,
   getSampleTherapistData,
   onBack,
@@ -730,6 +732,18 @@ export default function TherapistOnboardingInPage({
                   </label>
                 </div>
               </div>
+            </div>
+
+            <div className="sm:col-span-2">
+              <TherapistGalleryField
+                images={formData.gallery || []}
+                onUpload={handleGalleryUpload}
+                onRemove={(index) => setFormData((prev) => ({
+                  ...prev,
+                  gallery: (prev.gallery || []).filter((_, imageIndex) => imageIndex !== index),
+                }))}
+                uploading={uploadingField === 'gallery'}
+              />
             </div>
 
             {/* Doc 1: Police Clearance (Optional) */}
