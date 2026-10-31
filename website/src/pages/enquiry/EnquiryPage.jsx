@@ -447,8 +447,8 @@ export default function EnquiryPage() {
 
                   <div className="pt-4 flex flex-col sm:flex-row gap-3 justify-center">
                     <a
-                      href={`https://wa.me/919876543210?text=${encodeURIComponent(
-                        `Hi Therapyshala, I submitted spa inquiry for ${formData.businessName} (Ref: ${inquiryId}${formData.sponsorCode ? `, Sponsor Code: ${formData.sponsorCode.toUpperCase()}` : ''}).`
+                      href={`https://wa.me/918529915523?text=${encodeURIComponent(
+                        `Hi, I want to know more about BigWon Salon software. Submitted spa inquiry for ${formData.businessName} (Ref: ${inquiryId}${formData.sponsorCode ? `, Sponsor Code: ${formData.sponsorCode.toUpperCase()}` : ''}).`
                       )}`}
                       target="_blank"
                       rel="noopener noreferrer"
@@ -483,8 +483,8 @@ export default function EnquiryPage() {
                   <Phone className="w-4 h-4 text-[#F35271] shrink-0 mt-0.5" />
                   <div>
                     <span className="font-semibold text-[#0D0D12] block">Partner Helpline</span>
-                    <a href="tel:+919876543210" className="hover:text-[#F35271] transition-colors">
-                      +91 98765 43210
+                    <a href="tel:+918529915523" className="hover:text-[#F35271] transition-colors">
+                      +91 85299 15523
                     </a>
                   </div>
                 </div>
@@ -493,8 +493,8 @@ export default function EnquiryPage() {
                   <Mail className="w-4 h-4 text-[#F35271] shrink-0 mt-0.5" />
                   <div>
                     <span className="font-semibold text-[#0D0D12] block">Partner Desk Email</span>
-                    <a href="mailto:partners@therapyshala.com" className="hover:text-[#F35271] transition-colors">
-                      partners@therapyshala.com
+                    <a href="mailto:infobigwondigital@gmail.com" className="hover:text-[#F35271] transition-colors">
+                      infobigwondigital@gmail.com
                     </a>
                   </div>
                 </div>

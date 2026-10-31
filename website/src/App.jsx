@@ -35,6 +35,7 @@ import CustomerAccountPage from './pages/account/CustomerAccountPage';
 import EnquiryPage from './pages/enquiry/EnquiryPage';
 import LoginPage from './pages/auth/LoginPage';
 import SpaOwnerDashboardPage from './pages/owner/SpaOwnerDashboardPage';
+import ChatPage from './pages/chat/ChatPage';
 
 function App() {
   return (
@@ -92,6 +93,11 @@ function App() {
           <Route path="/account/appointments" element={<CustomerAccountPage />} />
           <Route path="/account/packages" element={<CustomerAccountPage />} />
           <Route path="/account/reviews" element={<CustomerAccountPage />} />
+
+          {/* TherapyShala Concierge & Direct Chat */}
+          <Route path="/chat" element={<ChatPage />} />
+          <Route path="/messages" element={<ChatPage />} />
+          <Route path="/concierge" element={<ChatPage />} />
 
           {/* Dedicated CMS Document Routes */}
           <Route path="/cms/:slug" element={<CmsPage />} />

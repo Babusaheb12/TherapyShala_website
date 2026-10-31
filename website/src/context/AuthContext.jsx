@@ -1,7 +1,44 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { MOCK_USER_PROFILE } from '../data/spaData';
 import { OWNER_TOKEN_KEY } from '../services/apiClient';
-import { getSpaOwnerProfile } from '../services/spaOwner.service';
+import { getSpaOwnerProfile, spaOwnerLogout } from '../services/spaOwner.service';
+import { disconnectSpaOwnerSocket } from '../services/spaOwnerSocket';
+
+/**
+ * Thoroughly clears all browser cookies across domains and path variations
+ */
+export const clearAllCookies = () => {
+  if (typeof document === 'undefined') return;
+  try {
+    const rawCookies = document.cookie ? document.cookie.split(';') : [];
+    const hostname = window.location.hostname;
+    const domainList = ['', hostname, `.${hostname}`];
+    const hostParts = hostname.split('.');
+    if (hostParts.length > 1) {
+      domainList.push(`.${hostParts.slice(-2).join('.')}`);
+    }
+    const paths = ['/', '/api', '/api/v1', window.location.pathname || ''];
+
+    rawCookies.forEach((c) => {
+      const trimmed = c.trim();
+      if (!trimmed) return;
+      const eqPos = trimmed.indexOf('=');
+      const name = eqPos > -1 ? trimmed.substring(0, eqPos).trim() : trimmed;
+      if (!name) return;
+
+      domainList.forEach((domain) => {
+        paths.forEach((path) => {
+          const domStr = domain ? `domain=${domain};` : '';
+          const pathStr = path ? `path=${path};` : 'path=/;';
+          document.cookie = `${name}=;expires=Thu, 01 Jan 1970 00:00:00 GMT;${pathStr}${domStr}`;
+          document.cookie = `${name}=;max-age=0;${pathStr}${domStr}`;
+        });
+      });
+    });
+  } catch (err) {
+    console.warn('Cookie clear error:', err);
+  }
+};
 
 const AuthContext = createContext(null);
 
@@ -124,11 +161,34 @@ export function AuthProvider({ children }) {
     }
   };
 
-  const logoutOwner = () => {
+  const logoutOwner = async () => {
+    try {
+      disconnectSpaOwnerSocket();
+    } catch (e) {
+      console.warn('Socket disconnect error:', e);
+    }
+
+    try {
+      await spaOwnerLogout();
+    } catch (e) {
+      console.warn('Owner logout API error:', e?.message || e);
+    }
+
+    // Clear all browser cookies on client
+    clearAllCookies();
+
+    // Clear state and storage
     setOwnerToken(null);
     setOwnerProfile(null);
-    localStorage.removeItem(OWNER_TOKEN_KEY);
-    localStorage.removeItem(OWNER_STORAGE_KEY);
+    try {
+      localStorage.removeItem(OWNER_TOKEN_KEY);
+      localStorage.removeItem(OWNER_STORAGE_KEY);
+      localStorage.removeItem('therapyshala_owner_token');
+      localStorage.removeItem('token');
+      sessionStorage.clear();
+    } catch (e) {
+      console.warn('Failed to clear storage:', e);
+    }
   };
 
   // Customer Auth Methods
@@ -161,7 +221,9 @@ export function AuthProvider({ children }) {
 
   const logout = () => {
     setUser(null);
+    clearAllCookies();
     localStorage.removeItem(STORAGE_KEY);
+    sessionStorage.clear();
   };
 
   const updateProfile = (fields) => {
@@ -202,5 +264,5 @@ export function useAuth() {
   return context;
 }
 
-export default AuthContext;
+export default AuthProvider;
 

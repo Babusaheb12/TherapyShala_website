@@ -19,6 +19,20 @@ export const spaOwnerLogin = async ({ email, password }) => {
 };
 
 /**
+ * POST /spa-owner/logout
+ * Logs out spa owner, revoking the token and invalidating session on server
+ *
+ * @returns {Promise<Object>} { success, message }
+ */
+export const spaOwnerLogout = async () => {
+  return await apiClient('/spa-owner/logout', {
+    method: 'POST',
+    credentials: 'include',
+    skipUnauthorizedEvent: true,
+  });
+};
+
+/**
  * 2. POST /spa-owner/forgot-password
  * Triggers password reset email with temporary password
  *
@@ -62,6 +76,20 @@ export const getSpaOwnerProfile = async () => {
 };
 
 /**
+ * 3b. PATCH /spa-owner/profile
+ * Updates authenticated spa owner profile, app showcase, and banking details
+ *
+ * @param {Object} data - Complete profile payload
+ * @returns {Promise<Object>} { success, message, data }
+ */
+export const updateSpaOwnerProfile = async (data = {}) => {
+  return await apiClient('/spa-owner/profile', {
+    method: 'PATCH',
+    body: JSON.stringify(data),
+  });
+};
+
+/**
  * 4. GET /spa-owner/therapists
  * Retrieves therapists onboarded by authenticated spa owner
  *
@@ -88,6 +116,74 @@ export const onboardTherapist = async (therapistData) => {
 };
 
 /**
+ * GET /spa-owner/therapists/{id}
+ * Retrieves comprehensive details for a specific therapist
+ *
+ * @param {string} id - Therapist ID or profileId
+ * @returns {Promise<Object>} { success, message, data: Object }
+ */
+export const getSpaOwnerTherapistById = async (id) => {
+  if (!id) {
+    throw new Error('Therapist ID is required to fetch details.');
+  }
+  const cleanId = encodeURIComponent(String(id).trim());
+  return await apiClient(`/spa-owner/therapists/${cleanId}`, {
+    method: 'GET',
+  });
+};
+
+/**
+ * PATCH /spa-owner/therapists/{id}
+ * Updates specific therapist fields (e.g. dutyStatus, serviceRadiusKm, services, bio, etc.)
+ *
+ * @param {string} id - Therapist ID or profileId
+ * @param {Object} updateData - Object containing updated fields
+ * @returns {Promise<Object>} { success, message, data: Object }
+ */
+export const updateSpaOwnerTherapist = async (id, updateData) => {
+  if (!id) {
+    throw new Error('Therapist ID is required to update therapist details.');
+  }
+  const cleanId = encodeURIComponent(String(id).trim());
+  return await apiClient(`/spa-owner/therapists/${cleanId}`, {
+    method: 'PATCH',
+    body: JSON.stringify(updateData),
+  });
+};
+
+/**
+ * PATCH /spa-owner/therapists/{id}/duty-status
+ * Updates therapist duty status (ON_DUTY or OFF_DUTY)
+ *
+ * @param {string} id - Therapist public ID or MongoDB profile ID
+ * @param {string} dutyStatus - 'ON_DUTY' | 'OFF_DUTY'
+ * @returns {Promise<Object>} { success, message, data: Object }
+ */
+export const updateSpaOwnerTherapistDutyStatus = async (id, dutyStatus) => {
+  if (!id) {
+    throw new Error('Therapist ID is required to update duty status.');
+  }
+  const cleanId = encodeURIComponent(String(id).trim());
+  const normalizedDuty = dutyStatus === 'ON_DUTY' ? 'ON_DUTY' : 'OFF_DUTY';
+
+  try {
+    return await apiClient(`/spa-owner/therapists/${cleanId}/duty-status`, {
+      method: 'PATCH',
+      body: JSON.stringify({ dutyStatus: normalizedDuty }),
+    });
+  } catch (err) {
+    // If the endpoint returns 404 or fails, fallback to general PATCH /spa-owner/therapists/{id}
+    if (err?.status === 404 || String(err?.message || '').includes('404')) {
+      return await apiClient(`/spa-owner/therapists/${cleanId}`, {
+        method: 'PATCH',
+        body: JSON.stringify({ dutyStatus: normalizedDuty }),
+      });
+    }
+    throw err;
+  }
+};
+
+/**
  * 6. POST /assets/uploads
  * Uploads media assets using multipart/form-data
  *
@@ -99,8 +195,18 @@ export const uploadAsset = async ({ file, kind = 'SERVICE_IMAGE' }) => {
     throw new Error('Please select a file to upload.');
   }
 
+  const allowedKinds = [
+    'SERVICE_IMAGE',
+    'DEMO_VIDEO',
+    'SUPPORT_ATTACHMENT',
+    'AVATAR',
+    'KYC_FRONT',
+    'KYC_BACK',
+  ];
+  const safeKind = allowedKinds.includes(kind) ? kind : 'SERVICE_IMAGE';
+
   const formData = new FormData();
-  formData.append('kind', kind);
+  formData.append('kind', safeKind);
   formData.append('file', file);
 
   return await apiClient('/assets/uploads', {
@@ -314,7 +420,7 @@ export const getSpaOwnerSubOwners = async (codeOrId) => {
 
   return await apiClient(
     `/spa-owner/sub-owners/${encodeURIComponent(codeOrId.trim())}`,
-    { method: 'GET' }
+    { method: 'GET', skipUnauthorizedEvent: true }
   );
 };
 
@@ -328,23 +434,174 @@ export const getSubOwners = getSpaOwnerSubOwners;
  * Admin Referral Commission Configuration
  */
 export const getReferralCommission = async () => {
-  return await apiClient('/admin/spa-owner-referral-commission', { method: 'GET' });
+  return await apiClient('/admin/spa-owner-referral-commission', {
+    method: 'GET',
+    skipUnauthorizedEvent: true,
+  });
 };
 
 export const updateReferralCommission = async (percentage) => {
   return await apiClient('/admin/spa-owner-referral-commission', {
     method: 'PUT',
     body: JSON.stringify({ percentage: Number(percentage) }),
+    skipUnauthorizedEvent: true,
+  });
+};
+
+/**
+ * GET /spa-owner/notifications?limit=20&cursor=<NEXT_CURSOR>
+ * Retrieves notifications list, unreadCount, and nextCursor
+ *
+ * @param {Object} params - { limit: number, cursor: string }
+ * @returns {Promise<Object>} { success, data: Array, meta: { unreadCount: number, nextCursor: string } }
+ */
+export const getSpaOwnerNotifications = async ({ limit = 20, cursor = null } = {}) => {
+  const query = new URLSearchParams();
+  if (limit) query.append('limit', String(limit));
+  if (cursor) query.append('cursor', String(cursor).trim());
+
+  const queryString = query.toString();
+  const endpoint = `/spa-owner/notifications${queryString ? `?${queryString}` : ''}`;
+
+  return await apiClient(endpoint, {
+    method: 'GET',
+  });
+};
+
+/**
+ * PATCH /spa-owner/notifications/<NOTIFICATION_ID>/read
+ * Marks a specific notification as read
+ *
+ * @param {string} notificationId - Notification ID
+ * @returns {Promise<Object>} { success, message, data: Object }
+ */
+export const markSpaOwnerNotificationAsRead = async (notificationId) => {
+  if (!notificationId) {
+    throw new Error('Notification ID is required.');
+  }
+  const cleanId = encodeURIComponent(String(notificationId).trim());
+  return await apiClient(`/spa-owner/notifications/${cleanId}/read`, {
+    method: 'PATCH',
+  });
+};
+
+/**
+ * GET /categories (api/v1/categories)
+ * Retrieves available therapy categories for assigning services
+ *
+ * @returns {Promise<Object>} { success, message, data: Array<{ id, name, slug, iconUrl }> }
+ */
+export const getCategories = async () => {
+  return await apiClient('/categories', {
+    method: 'GET',
+  });
+};
+/**
+ * GET /spa-owner/support
+ * Retrieves support overview, contact details, FAQs, and support desk stats
+ *
+ * @returns {Promise<Object>} { success, message, data }
+ */
+export const getSpaOwnerSupportOverview = async () => {
+  return await apiClient('/spa-owner/support', {
+    method: 'GET',
+  });
+};
+
+/**
+ * GET /spa-owner/support/tickets
+ * Retrieves all support tickets opened by the spa owner
+ *
+ * @param {Object} [params] - optional query params (page, limit, status)
+ * @returns {Promise<Object>} { success, message, data: Array<Ticket>, count, total }
+ */
+export const getSpaOwnerSupportTickets = async (params = {}) => {
+  const query = new URLSearchParams();
+  if (params.page) query.append('page', params.page);
+  if (params.limit) query.append('limit', params.limit);
+  if (params.status && params.status !== 'ALL') query.append('status', params.status);
+  const qStr = query.toString();
+  const endpoint = `/spa-owner/support/tickets${qStr ? `?${qStr}` : ''}`;
+  return await apiClient(endpoint, {
+    method: 'GET',
+  });
+};
+
+/**
+ * POST /spa-owner/support/tickets
+ * Creates a new support ticket
+ *
+ * @param {Object} payload - { category, priority, relatedBookingId, subject, message }
+ * @returns {Promise<Object>} { success, message, data: Ticket }
+ */
+export const createSpaOwnerSupportTicket = async ({
+  category = 'GENERAL',
+  priority = 'NORMAL',
+  relatedBookingId,
+  subject,
+  message,
+}) => {
+  const body = {
+    category: category || 'GENERAL',
+    priority: priority || 'NORMAL',
+    subject: subject?.trim(),
+    message: message?.trim(),
+  };
+  if (relatedBookingId && String(relatedBookingId).trim()) {
+    body.relatedBookingId = String(relatedBookingId).trim();
+  }
+  return await apiClient('/spa-owner/support/tickets', {
+    method: 'POST',
+    body: JSON.stringify(body),
+  });
+};
+
+/**
+ * GET /spa-owner/support/tickets/<ID>
+ * Retrieves a specific support ticket and its replies / conversation thread
+ *
+ * @param {string} ticketId - ticket ID
+ * @returns {Promise<Object>} { success, message, data: Ticket }
+ */
+export const getSpaOwnerSupportTicketById = async (ticketId) => {
+  const cleanId = encodeURIComponent(String(ticketId).trim());
+  return await apiClient(`/spa-owner/support/tickets/${cleanId}`, {
+    method: 'GET',
+  });
+};
+
+/**
+ * POST /spa-owner/support/tickets/<ID>/replies
+ * Adds a reply message to an existing support ticket
+ *
+ * @param {string} ticketId - ticket ID
+ * @param {Object} payload - { message: string }
+ * @returns {Promise<Object>} { success, message, data: Reply }
+ */
+export const replySpaOwnerSupportTicket = async (ticketId, { message }) => {
+  const cleanId = encodeURIComponent(String(ticketId).trim());
+  return await apiClient(`/spa-owner/support/tickets/${cleanId}/replies`, {
+    method: 'POST',
+    body: JSON.stringify({
+      message: message?.trim(),
+    }),
   });
 };
 
 export default {
+  getSpaOwnerNotifications,
+  markSpaOwnerNotificationAsRead,
   getSpaOwnerDashboard,
   getOwnerDashboard,
   spaOwnerLogin,
+  spaOwnerLogout,
   spaOwnerForgotPassword,
   getSpaOwnerProfile,
+  updateSpaOwnerProfile,
   getSpaOwnerTherapists,
+  getSpaOwnerTherapistById,
+  updateSpaOwnerTherapist,
+  updateSpaOwnerTherapistDutyStatus,
   onboardTherapist,
   uploadAsset,
   getSpaOwnerBookings,
@@ -367,6 +624,13 @@ export default {
   getCancellationPenaltiesReport,
   getSponsoredSpas,
   getSpaOwnerSubOwners,
+  getCategories,
+  getSpaOwnerSupportOverview,
+  getSpaOwnerSupportTickets,
+  createSpaOwnerSupportTicket,
+  getSpaOwnerSupportTicketById,
+  replySpaOwnerSupportTicket,
 };
+
 
 

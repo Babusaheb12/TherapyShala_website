@@ -57,7 +57,13 @@ import {
   Tag,
   Network,
   Coins,
+  MessageSquare,
+  Volume2,
+  VolumeX,
+  LifeBuoy,
+  HelpCircle,
 } from 'lucide-react';
+import notificationSound from '../../assets/notification.wav';
 import TherapyshalaLogo from '../../components/TherapyshalaLogo';
 import LanguageSelect from '../../components/LanguageSelect';
 import GoogleLocationPicker from '../../components/GoogleLocationPicker';
@@ -68,11 +74,18 @@ import PenaltyAuditInPage from '../../components/owner/PenaltyAuditInPage';
 import PayoutAccountInPage from '../../components/owner/PayoutAccountInPage';
 import PayoutRequestInPage from '../../components/owner/PayoutRequestInPage';
 import SubOwnerDetailModal from '../../components/owner/SubOwnerDetailModal';
+import SpaOwnerChatView from '../../components/owner/SpaOwnerChatView';
+import SpaOwnerReferralCommissionCard from '../../components/owner/SpaOwnerReferralCommissionCard';
+import SpaOwnerProfileEditor from '../../components/owner/SpaOwnerProfileEditor';
+import SpaOwnerSupportView from '../../components/owner/SpaOwnerSupportView';
+import { resolveMediaUrl } from '../../utils/mediaUtils';
 import { useAuth } from '../../context/AuthContext';
 import {
   getSpaOwnerDashboard,
   getSpaOwnerProfile,
   getSpaOwnerTherapists,
+  updateSpaOwnerTherapist,
+  updateSpaOwnerTherapistDutyStatus,
   onboardTherapist,
   uploadAsset,
   getSpaOwnerBookings,
@@ -86,7 +99,50 @@ import {
   getSpaOwnerCancellationPenaltiesReport,
   getSponsoredSpas,
   getSubOwners,
+  getSpaOwnerNotifications,
+  markSpaOwnerNotificationAsRead,
 } from '../../services/spaOwner.service';
+import {
+  connectSpaOwnerSocket,
+  disconnectSpaOwnerSocket,
+  onSpaOwnerNotification,
+  onSpaOwnerSocketReady,
+  onSocketConnect,
+  onSocketConnectError,
+  onSocketDisconnect,
+} from '../../services/spaOwnerSocket';
+
+const getOwnerNotificationCategory = (type) => {
+  type = String(type || '');
+  if (type === 'OWNER_ACCOUNT_APPROVED') return 'account';
+  if (type === 'SPONSORED_SPA_APPROVED') return 'sponsored';
+  if (type.startsWith('THERAPIST_')) return 'therapists';
+  if (type === 'SUPPORT_REPLY' || type === 'SUPPORT_TICKET_STATUS_CHANGED') return 'support';
+  if (
+    type === 'COMMISSION_EARNED' ||
+    type === 'REFERRAL_COMMISSION_EARNED' ||
+    type.startsWith('PAYOUT_')
+  )
+    return 'payments';
+  if (
+    type === 'NEW_APPOINTMENT' ||
+    type.startsWith('BOOKING_') ||
+    type === 'THERAPIST_CANCELLATION_PENALTY'
+  )
+    return 'bookings';
+  return 'updates';
+};
+
+const getOwnerNotificationSection = (notification) => {
+  const category = notification?.category || getOwnerNotificationCategory(notification?.raw?.type);
+  if (category === 'bookings') return 'bookings';
+  if (category === 'therapists') return 'therapists';
+  if (category === 'support') return 'support';
+  if (category === 'sponsored') return 'sponsored';
+  if (category === 'payments')
+    return notification?.raw?.type?.includes('COMMISSION') ? 'commission' : 'payout';
+  return 'overview';
+};
 
 const EMPTY_CANCELLATION_PENALTIES_REPORT = {
   summary: {
@@ -116,8 +172,100 @@ export default function SpaOwnerDashboardPage() {
   // Sidebar Mobile Toggle
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
-  // Active Section: 'overview' | 'therapists' | 'bookings' | 'penalty' | 'commission' | 'payout' | 'settings'
-  const [activeSection, setActiveSection] = useState('overview');
+  // Active Section: 'overview' | 'therapists' | 'bookings' | 'penalty' | 'commission' | 'payout' | 'settings' | 'profile'
+  const [activeSection, setActiveSection] = useState(() => {
+    try {
+      const savedUser = localStorage.getItem('therapyshala_owner_user');
+      if (savedUser) {
+        const parsed = JSON.parse(savedUser);
+        if (parsed?.isProfileComplete === false) {
+          return 'profile';
+        }
+      }
+    } catch {
+      // fallback
+    }
+    return 'overview';
+  });
+
+  // Notification Popup State (Matching user screenshot)
+  const [notificationDropdownOpen, setNotificationDropdownOpen] = useState(false);
+  const [notificationActiveTab, setNotificationActiveTab] = useState('all');
+  const [isSoundMuted, setIsSoundMuted] = useState(false);
+  const [soundPlaybackBlocked, setSoundPlaybackBlocked] = useState(false);
+  const [dashboardNotifications, setDashboardNotifications] = useState([]);
+
+  const notificationDropdownRef = useRef(null);
+  const audioRef = useRef(null);
+
+  // Saved & Realtime Notifications State (GET /api/v1/spa-owner/notifications)
+  const [notificationsLoading, setNotificationsLoading] = useState(false);
+  const [notificationsUnreadCount, setNotificationsUnreadCount] = useState(0);
+  const [notificationsNextCursor, setNotificationsNextCursor] = useState(null);
+  const [socketStatus, setSocketStatus] = useState('disconnected');
+  const [activeAppointmentToast, setActiveAppointmentToast] = useState(null); // Realtime floating toast banner
+  const toastTimeoutRef = useRef(null);
+
+  useEffect(() => {
+    const audio = new Audio(notificationSound);
+    audio.preload = 'auto';
+    audioRef.current = audio;
+    return () => {
+      audio.pause();
+      audioRef.current = null;
+    };
+  }, []);
+
+  // Play notification sound helper. Browsers may require a user gesture first.
+  const playNotificationSound = useCallback((force = false) => {
+    if (isSoundMuted && !force) return;
+    try {
+      if (!audioRef.current) {
+        audioRef.current = new Audio(notificationSound);
+        audioRef.current.preload = 'auto';
+      }
+      audioRef.current.currentTime = 0;
+      audioRef.current.volume = 1;
+      audioRef.current.play().then(() => {
+        setSoundPlaybackBlocked(false);
+      }).catch((err) => {
+        setSoundPlaybackBlocked(true);
+        console.warn('Notification audio play deferred:', err?.message);
+      });
+    } catch (e) {
+      setSoundPlaybackBlocked(true);
+      console.warn('Audio play error:', e);
+    }
+  }, [isSoundMuted]);
+
+  const toggleNotificationSound = () => {
+    if (isSoundMuted) {
+      setIsSoundMuted(false);
+      playNotificationSound(true);
+      return;
+    }
+
+    audioRef.current?.pause();
+    if (audioRef.current) audioRef.current.currentTime = 0;
+    setIsSoundMuted(true);
+  };
+
+  const enableNotificationSound = () => {
+    setIsSoundMuted(false);
+    playNotificationSound(true);
+  };
+
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (notificationDropdownRef.current && !notificationDropdownRef.current.contains(e.target)) {
+        setNotificationDropdownOpen(false);
+      }
+    };
+    if (notificationDropdownOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [notificationDropdownOpen]);
 
   // Spa Owner Dashboard State (GET /spa-owner/dashboard)
   const [dashboardData, setDashboardData] = useState(null);
@@ -126,6 +274,22 @@ export default function SpaOwnerDashboardPage() {
   // State updates are asynchronous, so use a ref to prevent effects from
   // starting another dashboard request while the current one is unresolved.
   const dashboardRequestInFlightRef = useRef(false);
+
+  // Profile completion status check (e.g. from POST /spa-owner/login response: { isProfileComplete: false })
+  const isProfileLocked = Boolean(
+    ownerProfile?.isProfileComplete === false ||
+    dashboardData?.registeredSpa?.isProfileComplete === false ||
+    dashboardData?.isProfileComplete === false
+  );
+
+  const [lockedAttemptAlert, setLockedAttemptAlert] = useState(false);
+
+  // Enforce lock gate: keep activeSection locked to 'profile' until profile is completed
+  useEffect(() => {
+    if (isProfileLocked && activeSection !== 'profile') {
+      setActiveSection('profile');
+    }
+  }, [isProfileLocked, activeSection]);
 
   // Profile State (API 3)
   const [profileLoading, setProfileLoading] = useState(false);
@@ -483,22 +647,237 @@ export default function SpaOwnerDashboardPage() {
     fetchBookings({ page: newPage });
   };
 
-  // Toggle Therapist Duty Status (Interactive duty switch)
-  const handleToggleTherapistDuty = (thId) => {
+  // Fetch Saved Notifications from API (GET /api/v1/spa-owner/notifications?limit=20)
+  const fetchNotifications = useCallback(
+    async ({ cursor = null, append = false } = {}) => {
+      if (!ownerToken) return;
+      try {
+        setNotificationsLoading(true);
+        const res = await getSpaOwnerNotifications({ limit: 20, cursor });
+        if (res?.success && Array.isArray(res?.data)) {
+          const formatted = res.data.map((n) => ({
+            id: n.id || n._id || `notif-${Math.random()}`,
+            title: n.title || 'New Notification',
+            desc: n.message || n.desc || n.body || '',
+            category: n.category || getOwnerNotificationCategory(n.type),
+            read: Boolean(n.read || n.isRead || n.status === 'READ'),
+            time: n.createdAt
+              ? new Date(n.createdAt).toLocaleTimeString([], {
+                  hour: '2-digit',
+                  minute: '2-digit',
+                })
+              : n.time || 'Just now',
+            raw: n,
+          }));
+
+          setDashboardNotifications((prev) => {
+            if (append) {
+              const existingIds = new Set(prev.map((item) => item.id));
+              const newItems = formatted.filter((item) => !existingIds.has(item.id));
+              return [...prev, ...newItems];
+            }
+            return formatted;
+          });
+
+          if (res.meta?.unreadCount !== undefined) {
+            setNotificationsUnreadCount(Number(res.meta.unreadCount) || 0);
+          } else {
+            setNotificationsUnreadCount(
+              formatted.filter((n) => !n.read).length
+            );
+          }
+
+          if (res.meta?.nextCursor !== undefined) {
+            setNotificationsNextCursor(res.meta.nextCursor);
+          }
+        }
+      } catch (err) {
+        console.warn('Failed to fetch spa owner notifications:', err?.message || err);
+      } finally {
+        setNotificationsLoading(false);
+      }
+    },
+    [ownerToken]
+  );
+
+  // Mark single notification as read (PATCH /api/v1/spa-owner/notifications/<NOTIFICATION_ID>/read)
+  const handleMarkAsRead = async (notificationId) => {
+    if (!notificationId) return;
+    setDashboardNotifications((prev) =>
+      prev.map((n) => (n.id === notificationId ? { ...n, read: true } : n))
+    );
+    setNotificationsUnreadCount((prev) => Math.max(0, prev - 1));
+
+    try {
+      await markSpaOwnerNotificationAsRead(notificationId);
+    } catch (err) {
+      console.warn('Failed to mark notification as read:', err?.message || err);
+    }
+  };
+
+  // Mark all notifications as read
+  const handleMarkAllAsRead = async () => {
+    const unreadNotifications = dashboardNotifications.filter((n) => !n.read);
+    setDashboardNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
+    setNotificationsUnreadCount(0);
+
+    for (const n of unreadNotifications) {
+      try {
+        await markSpaOwnerNotificationAsRead(n.id);
+      } catch (e) {
+        // silent fallback
+      }
+    }
+  };
+
+  // Socket.io Realtime Notifications for Spa Owner Appointments & Bookings
+  useEffect(() => {
+    if (!ownerToken) {
+      disconnectSpaOwnerSocket();
+      setSocketStatus('disconnected');
+      return;
+    }
+
+    const unsubscribeConnect = onSocketConnect(() => {
+      console.log('[OwnerDashboard] Socket connected/reconnected: refreshing bookings & saved notifications');
+      setSocketStatus('connected');
+      fetchBookings();
+      fetchNotifications();
+    });
+
+    const unsubscribeReady = onSpaOwnerSocketReady(() => {
+      setSocketStatus('connected');
+    });
+    const unsubscribeConnectError = onSocketConnectError((error) => {
+      console.error('[OwnerDashboard] Spa owner socket connection failed:', error?.message || error);
+      setSocketStatus('error');
+    });
+    const unsubscribeDisconnect = onSocketDisconnect(() => {
+      setSocketStatus('disconnected');
+    });
+
+    const unsubscribeNotification = onSpaOwnerNotification((notification, eventName) => {
+      console.log(`[OwnerDashboard] ${eventName} received:`, notification);
+      playNotificationSound();
+
+      const bookingData =
+        notification.data ||
+        notification.appointment ||
+        notification.booking ||
+        notification;
+      const toastId =
+        notification.id || notification._id || notification.appointmentId || `toast-${Date.now()}`;
+      const isAppointment =
+        eventName === 'appointment:new' || notification.type === 'NEW_APPOINTMENT';
+      const toastObj = {
+        id: toastId,
+        category:
+          eventName === 'support:reply'
+            ? 'support'
+            : getOwnerNotificationCategory(notification.type),
+        raw: notification,
+        title:
+          notification.title ||
+          (eventName === 'support:reply'
+            ? 'New support reply'
+            : isAppointment
+              ? 'New appointment'
+              : 'New notification'),
+        desc:
+          notification.body ||
+          notification.message ||
+          notification.desc ||
+          (isAppointment ? 'A new appointment was received.' : 'You have a new update.'),
+        data: bookingData,
+      };
+
+      setActiveAppointmentToast(toastObj);
+
+      if (toastTimeoutRef.current) {
+        clearTimeout(toastTimeoutRef.current);
+      }
+      toastTimeoutRef.current = setTimeout(() => {
+        setActiveAppointmentToast(null);
+      }, 7000);
+
+      // Prepend to notifications list
+      const newNotifItem = {
+        id: toastId,
+        title: toastObj.title,
+        desc: toastObj.desc,
+        category: toastObj.category,
+        read: false,
+        time: 'Just now',
+        raw: notification,
+      };
+      setDashboardNotifications((prev) => [
+        newNotifItem,
+        ...prev.filter((item) => item.id !== toastId),
+      ]);
+      setNotificationsUnreadCount((prev) => prev + 1);
+
+      if (isAppointment) fetchBookings();
+      fetchNotifications();
+    });
+
+    // Register listeners before connecting so the first connect/ready event is not missed.
+    const socket = connectSpaOwnerSocket(ownerToken);
+    setSocketStatus(socket?.connected ? 'connected' : 'connecting');
+
+    return () => {
+      unsubscribeConnect();
+      unsubscribeReady();
+      unsubscribeConnectError();
+      unsubscribeDisconnect();
+      unsubscribeNotification();
+      if (toastTimeoutRef.current) {
+        clearTimeout(toastTimeoutRef.current);
+      }
+    };
+  }, [ownerToken, fetchBookings, fetchNotifications, playNotificationSound]);
+
+  // Toggle Therapist Duty Status (Interactive duty switch backed by PATCH /spa-owner/therapists/<ID>)
+  const handleToggleTherapistDuty = async (thId) => {
+    if (!thId) return;
+    const target = therapists.find((t) => t.id === thId || t.profileId === thId || t.therapistId === thId);
+    const nextDuty = target?.dutyStatus === 'ON_DUTY' ? 'OFF_DUTY' : 'ON_DUTY';
+
+    // Optimistic UI update
     setTherapists((prev) =>
       prev.map((t) => {
-        if (t.id === thId || t.profileId === thId) {
-          const nextDuty = t.dutyStatus === 'ON_DUTY' ? 'OFF_DUTY' : 'ON_DUTY';
+        if (t.id === thId || t.profileId === thId || t.therapistId === thId) {
           return { ...t, dutyStatus: nextDuty };
         }
         return t;
       })
     );
-    if (selectedTherapist && (selectedTherapist.id === thId || selectedTherapist.profileId === thId)) {
+    if (selectedTherapist && (selectedTherapist.id === thId || selectedTherapist.profileId === thId || selectedTherapist.therapistId === thId)) {
       setSelectedTherapist((prev) => ({
         ...prev,
-        dutyStatus: prev.dutyStatus === 'ON_DUTY' ? 'OFF_DUTY' : 'ON_DUTY',
+        dutyStatus: nextDuty,
       }));
+    }
+
+    try {
+      await updateSpaOwnerTherapistDutyStatus(thId, nextDuty);
+    } catch (err) {
+      console.error('Failed to update therapist duty status on server:', err);
+      // Revert upon error
+      const prevDuty = target?.dutyStatus || 'OFF_DUTY';
+      setTherapists((prev) =>
+        prev.map((t) => {
+          if (t.id === thId || t.profileId === thId || t.therapistId === thId) {
+            return { ...t, dutyStatus: prevDuty };
+          }
+          return t;
+        })
+      );
+      if (selectedTherapist && (selectedTherapist.id === thId || selectedTherapist.profileId === thId || selectedTherapist.therapistId === thId)) {
+        setSelectedTherapist((prev) => ({
+          ...prev,
+          dutyStatus: prevDuty,
+        }));
+      }
     }
   };
 
@@ -826,12 +1205,13 @@ export default function SpaOwnerDashboardPage() {
       fetchProfile();
       fetchTherapists();
       fetchBookings();
+      fetchNotifications();
       fetchCommissions();
       fetchPayoutAccount();
       fetchCancellationPolicy();
       fetchPenaltiesReport();
     }
-  }, [ownerToken, fetchDashboard, fetchProfile, fetchTherapists, fetchBookings, fetchCommissions, fetchPayoutAccount, fetchCancellationPolicy, fetchPenaltiesReport]);
+  }, [ownerToken, fetchDashboard, fetchProfile, fetchTherapists, fetchBookings, fetchNotifications, fetchCommissions, fetchPayoutAccount, fetchCancellationPolicy, fetchPenaltiesReport]);
 
   // Dashboard and profile data are loaded independently. Start this request
   // only once a valid spa code is available for the parameterized route.
@@ -849,87 +1229,112 @@ export default function SpaOwnerDashboardPage() {
     setTimeout(() => setCopiedSpaCode(false), 2000);
   };
 
-  // Sample Therapist Data Generator matching exact POST /spa-owner/therapists API schema
+  // Sample Therapist Data Generator matching exact requested onboarding fields
   const getSampleTherapistData = () => ({
-    fullName: 'Pooja Verma',
+    displayName: 'Pooja V.',
+    fullName: 'Pooja Devi Verma',
     mobileNumber: '9876543210',
-    email: 'pooja.verma@example.com',
-    avatarUrl: 'https://res.cloudinary.com/therapyshala/image/upload/v1/therapists/avatar.jpg',
+    email: 'pooja@example.com',
     gender: 'FEMALE',
-    dateOfBirth: '15/08/1995',
-    experienceYears: 3,
-    languagesSpoken: ['Hindi', 'English'],
-    specializations: 'Swedish Massage, Deep Tissue',
-    bio: 'Certified massage therapist with 3 years experience.',
-    spaCode: ownerProfile?.spaCode || 'SPA-784291',
-    demoVideoUrl: 'https://example.com/demo.mp4',
-    galleryImages: ['https://res.cloudinary.com/therapyshala/image/upload/v1/gallery/photo1.jpg'],
-    city: 'New Delhi',
-    area: 'Connaught Place',
-    postalCode: '110001',
-    formattedAddress: 'Connaught Place, New Delhi, 110001',
+    dateOfBirth: '1995-01-15',
+    experienceYears: 1,
+    languages: ['Hindi', 'English'],
+    languagesSpoken: ['hi', 'en'],
+    workingLocation: {
+      placeId: 'GOOGLE_PLACE_ID',
+      city: 'Jaipur',
+      area: 'C Scheme',
+      postalCode: '302001',
+      formattedAddress: 'C Scheme, Jaipur, Rajasthan',
+      latitude: 26.9124,
+      longitude: 75.7873,
+      serviceRadiusKm: 10,
+    },
+    location: 'C Scheme, Jaipur, Rajasthan',
+    formattedAddress: 'C Scheme, Jaipur, Rajasthan',
+    city: 'Jaipur',
+    area: 'C Scheme',
+    postalCode: '302001',
+    latitude: 26.9124,
+    longitude: 75.7873,
     serviceRadiusKm: 10,
-    latitude: 28.6139,
-    longitude: 77.209,
-    idType: 'AADHAAR',
-    idNumber: '987654321098',
-    frontAssetId: 'https://res.cloudinary.com/therapyshala/image/upload/v1/documents/aadhaar_front.jpg',
-    backAssetId: 'https://res.cloudinary.com/therapyshala/image/upload/v1/documents/aadhaar_back.jpg',
-    selfieVerification: 'https://res.cloudinary.com/therapyshala/image/upload/v1/documents/selfie.jpg',
-    policeVerification: 'https://res.cloudinary.com/therapyshala/raw/upload/v1/documents/police_clearance.pdf',
-    professionalCertificate: 'https://res.cloudinary.com/therapyshala/raw/upload/v1/documents/certificate.pdf',
-    accountHolderName: 'Pooja Verma',
-    accountNumber: '123456789012',
-    ifscCode: 'HDFC0001234',
-    upiId: 'pooja@okhdfcbank',
+    placeId: 'GOOGLE_PLACE_ID',
+    excludedLocations: [
+      {
+        placeId: 'EXCLUDED_GOOGLE_PLACE_ID',
+        name: 'Industrial Area',
+        latitude: 26.95,
+        longitude: 75.8,
+        radiusKm: 2,
+      },
+    ],
+    excludedWorkAreas: [
+      {
+        placeId: 'EXCLUDED_GOOGLE_PLACE_ID',
+        name: 'Industrial Area',
+        latitude: 26.95,
+        longitude: 75.8,
+        radiusKm: 2,
+      },
+    ],
+    companyPhotoUrl: 'https://example.com/company-photo.jpg',
+    internalProfilePhoto: 'https://example.com/company-photo.jpg',
+    appPhotoUrl: 'https://example.com/app-photo.jpg',
+    appProfilePhoto: 'https://example.com/app-photo.jpg',
+    policeVerificationUrl: 'https://example.com/police.pdf',
+    policeClearance: 'https://example.com/police.pdf',
+    governmentIdFrontUrl: 'https://example.com/id-front.jpg',
+    govtIdFront: 'https://example.com/id-front.jpg',
+    governmentIdBackUrl: 'https://example.com/id-back.jpg',
+    govtIdBack: 'https://example.com/id-back.jpg',
     services: [
       {
-        name: 'Full Body Massage',
-        description: '60 mins full body relaxing therapy',
-        basePrice: 1200,
-        discountPrice: 999,
+        categoryId: '01M60X6ZE8D0YDWKPT0ENNDD8B',
+        name: 'Swedish Massage',
         durationMinutes: 60,
+        discountPrice: 999,
+        basePrice: 1200,
       },
     ],
   });
 
   // Therapist Onboarding Form State
   const initialFormState = {
+    displayName: '',
     fullName: '',
     mobileNumber: '',
     email: '',
-    avatarUrl: '',
     gender: 'FEMALE',
-    dateOfBirth: '15/08/1995',
-    experienceYears: 3,
-    languagesSpoken: ['Hindi', 'English'],
-    specializations: 'Swedish Massage, Deep Tissue',
-    bio: '',
-    spaCode: ownerProfile?.spaCode || 'SPA-784291',
-    demoVideoUrl: 'https://example.com/demo.mp4',
-    galleryImages: ['https://res.cloudinary.com/therapyshala/image/upload/v1/gallery/photo1.jpg'],
-    city: 'New Delhi',
-    area: 'Connaught Place',
-    postalCode: '110001',
-    formattedAddress: 'Connaught Place, New Delhi, 110001',
+    dateOfBirth: '1998-05-15',
+    experienceYears: 1,
+    languages: ['Hindi', 'English'],
+    languagesSpoken: ['hi', 'en'],
+    location: '',
+    formattedAddress: '',
+    city: '',
+    area: '',
+    postalCode: '',
+    latitude: 26.9124,
+    longitude: 75.7873,
     serviceRadiusKm: 10,
-    latitude: 28.6139,
-    longitude: 77.209,
-    idType: 'AADHAAR',
-    idNumber: '',
-    frontAssetId: '',
-    backAssetId: '',
-    selfieVerification: '',
-    policeVerification: '',
-    professionalCertificate: '',
-    accountHolderName: '',
-    accountNumber: '',
-    ifscCode: 'HDFC0001234',
-    upiId: '',
+    placeId: '',
+    excludedLocations: [],
+    excludedWorkAreas: [],
+    companyPhotoUrl: '',
+    internalProfilePhoto: '',
+    appPhotoUrl: '',
+    appProfilePhoto: '',
+    policeVerificationUrl: '',
+    policeClearance: '',
+    governmentIdFrontUrl: '',
+    govtIdFront: '',
+    governmentIdBackUrl: '',
+    govtIdBack: '',
     services: [
       {
-        name: 'Full Body Massage',
-        description: '60 mins full body relaxing therapy',
+        categoryId: '01M60X6ZE8D0YDWKPT0ENNDD8B',
+        name: 'Swedish Massage',
+        description: '60 mins relaxing therapy',
         basePrice: 1200,
         discountPrice: 999,
         durationMinutes: 60,
@@ -939,7 +1344,7 @@ export default function SpaOwnerDashboardPage() {
 
   const [formData, setFormData] = useState(initialFormState);
 
-  // File Upload Handler (API 6)
+  // File Upload Handler with /api/v1/assets/uploads integration and local fallback
   const handleFileUpload = async (e, fieldName, kind = 'SERVICE_IMAGE') => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -948,142 +1353,310 @@ export default function SpaOwnerDashboardPage() {
     setOnboardError('');
 
     try {
+      // 1. Create instant local preview URL so the UI feels immediate
+      const localPreviewUrl = URL.createObjectURL(file);
+      setFormData((prev) => {
+        const next = { ...prev };
+        next[fieldName] = localPreviewUrl;
+        if (fieldName === 'internalProfilePhoto') next.companyPhotoUrl = localPreviewUrl;
+        if (fieldName === 'appProfilePhoto') next.appPhotoUrl = localPreviewUrl;
+        if (fieldName === 'policeClearance') next.policeVerificationUrl = localPreviewUrl;
+        if (fieldName === 'govtIdFront') next.governmentIdFrontUrl = localPreviewUrl;
+        if (fieldName === 'govtIdBack') next.governmentIdBackUrl = localPreviewUrl;
+        return next;
+      });
+
+      // 2. Upload asset via POST /api/v1/assets/uploads
       const res = await uploadAsset({ file, kind });
-      if (res?.success && (res?.data?.url || res?.data?.assetId)) {
-        const uploadedUrl = res.data.url || res.data.assetId;
+      if (res?.success && res?.data?.url) {
+        const remoteUrl = res.data.url;
         setFormData((prev) => {
-          if (fieldName === 'galleryImages') {
-            return { ...prev, galleryImages: [...prev.galleryImages, uploadedUrl] };
-          }
-          return { ...prev, [fieldName]: uploadedUrl };
+          const next = { ...prev };
+          next[fieldName] = remoteUrl;
+          if (fieldName === 'internalProfilePhoto') next.companyPhotoUrl = remoteUrl;
+          if (fieldName === 'appProfilePhoto') next.appPhotoUrl = remoteUrl;
+          if (fieldName === 'policeClearance') next.policeVerificationUrl = remoteUrl;
+          if (fieldName === 'govtIdFront') next.governmentIdFrontUrl = remoteUrl;
+          if (fieldName === 'govtIdBack') next.governmentIdBackUrl = remoteUrl;
+          return next;
         });
-      } else {
-        setOnboardError(res?.message || 'File upload failed.');
       }
     } catch (err) {
-      setOnboardError(err?.data?.message || err?.message || 'Upload error. Please try another file.');
+      console.warn('Asset upload fallback:', err?.message || err);
+      // Keep the preview URL, but note error if applicable
+      if (err?.message && !err.message.includes('network')) {
+        setOnboardError(err.message);
+      }
     } finally {
       setUploadingField(null);
     }
   };
 
-  // Submit Therapist Onboarding (API 5: POST /spa-owner/therapists)
+  // Submit Therapist Onboarding via POST /api/v1/spa-owner/therapists
   const handleOnboardSubmit = async (e) => {
     e.preventDefault();
     setOnboardError('');
     setOnboardSuccessData(null);
 
-    if (!formData.fullName.trim() || !formData.mobileNumber.trim()) {
-      setOnboardError('Please provide full name and a 10-digit mobile number.');
+    // Compulsory field validation: Mobile Number
+    const cleanMobile = (formData.mobileNumber || '').replace(/\D/g, '');
+    if (!cleanMobile || cleanMobile.length < 10) {
+      setOnboardError('Mobile number is compulsory and must contain at least 10 digits.');
       return;
     }
 
-    const cleanMobile = formData.mobileNumber.replace(/\D/g, '');
-    if (cleanMobile.length < 10) {
-      setOnboardError('Mobile number must contain at least 10 digits.');
+    // Compulsory field validation: App Profile Photo
+    const appPhoto = formData.appPhotoUrl || formData.appProfilePhoto || formData.avatarUrl;
+    if (!appPhoto) {
+      setOnboardError('App Profile Photo is compulsory because it will be shown to customers on the app.');
+      return;
+    }
+
+    // Compulsory field validation: Display Name & Full Name
+    if (!formData.displayName?.trim()) {
+      setOnboardError('Display Name is required (shown to customers on the app).');
+      return;
+    }
+
+    if (!formData.fullName?.trim()) {
+      setOnboardError('Full Legal Name is required (for TherapyShala internal security purposes).');
+      return;
+    }
+
+    // Compulsory field validation: Date of Birth (must be at least 18)
+    const dobString = formData.dateOfBirth ? String(formData.dateOfBirth).trim() : '';
+    if (!dobString) {
+      setOnboardError('Provide a valid date of birth; therapist must be at least 18.');
+      return;
+    }
+    const birthDate = new Date(dobString);
+    const today = new Date();
+    let age = today.getFullYear() - birthDate.getFullYear();
+    const monthDiff = today.getMonth() - birthDate.getMonth();
+    if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
+      age--;
+    }
+    if (isNaN(birthDate.getTime()) || isNaN(age) || age < 18) {
+      setOnboardError('Provide a valid date of birth; therapist must be at least 18.');
       return;
     }
 
     setOnboardLoading(true);
 
     try {
-      const payload = {
-        fullName: formData.fullName.trim(),
-        mobileNumber: cleanMobile,
-        email: formData.email?.trim() || `therapist.${cleanMobile}@example.com`,
-        avatarUrl:
-          formData.avatarUrl ||
-          'https://res.cloudinary.com/therapyshala/image/upload/v1/therapists/avatar.jpg',
-        gender: formData.gender || 'FEMALE',
-        dateOfBirth: formData.dateOfBirth || '15/08/1995',
-        experienceYears: Number(formData.experienceYears) || 0,
-        languagesSpoken: formData.languagesSpoken
-          ? (Array.isArray(formData.languagesSpoken)
-              ? formData.languagesSpoken
-              : formData.languagesSpoken.split(',').map((s) => s.trim()).filter(Boolean))
-          : ['Hindi', 'English'],
-        specializations: formData.specializations
-          ? (Array.isArray(formData.specializations)
-              ? formData.specializations
-              : formData.specializations.split(',').map((s) => s.trim()).filter(Boolean))
-          : ['Swedish Massage', 'Deep Tissue'],
-        bio: formData.bio || 'Certified massage therapist with 3 years experience.',
-        spaCode: ownerProfile?.spaCode || formData.spaCode || 'SPA-784291',
-        demoVideoUrl: formData.demoVideoUrl || 'https://example.com/demo.mp4',
-        galleryImages:
-          formData.galleryImages && formData.galleryImages.length > 0
-            ? formData.galleryImages
-            : ['https://res.cloudinary.com/therapyshala/image/upload/v1/gallery/photo1.jpg'],
-        city: formData.city || 'New Delhi',
-        area: formData.area || 'Connaught Place',
-        postalCode: formData.postalCode || '110001',
-        formattedAddress:
-          formData.formattedAddress ||
-          `${formData.area || 'Connaught Place'}, ${formData.city || 'New Delhi'}, ${formData.postalCode || '110001'}`,
-        serviceRadiusKm: Number(formData.serviceRadiusKm) || 10,
-        latitude: Number(formData.latitude) || 28.6139,
-        longitude: Number(formData.longitude) || 77.209,
-        governmentId: {
-          idType: formData.idType || 'AADHAAR',
-          idNumber: formData.idNumber || '987654321098',
-          frontAssetId:
-            formData.frontAssetId ||
-            'https://res.cloudinary.com/therapyshala/image/upload/v1/documents/aadhaar_front.jpg',
-          backAssetId:
-            formData.backAssetId ||
-            'https://res.cloudinary.com/therapyshala/image/upload/v1/documents/aadhaar_back.jpg',
-          status: 'VERIFIED',
-        },
-        selfieVerification:
-          formData.selfieVerification ||
-          'https://res.cloudinary.com/therapyshala/image/upload/v1/documents/selfie.jpg',
-        policeVerification:
-          formData.policeVerification ||
-          'https://res.cloudinary.com/therapyshala/raw/upload/v1/documents/police_clearance.pdf',
-        professionalCertificate:
-          formData.professionalCertificate ||
-          'https://res.cloudinary.com/therapyshala/raw/upload/v1/documents/certificate.pdf',
-        bankPayout: {
-          accountHolderName:
-            formData.accountHolderName || formData.fullName.trim() || 'Pooja Verma',
-          accountNumber: formData.accountNumber || '123456789012',
-          ifscCode: (formData.ifscCode || 'HDFC0001234').toUpperCase(),
-          upiId: formData.upiId || `${cleanMobile}@okhdfcbank`,
-        },
-        services: (formData.services?.length ? formData.services : [
-          {
-            name: 'Full Body Massage',
-            description: '60 mins full body relaxing therapy',
-            basePrice: 1200,
-            discountPrice: 999,
-            durationMinutes: 60,
-          },
-        ]).map((srv) => ({
-          name: srv.name || 'Full Body Massage',
-          description: srv.description || '60 mins full body relaxing therapy',
-          basePrice: Number(srv.basePrice) || 1200,
-          discountPrice: Number(srv.discountPrice) || 999,
-          durationMinutes: Number(srv.durationMinutes) || 60,
-        })),
+      // Map languages to 2-letter ISO codes (e.g. 'Hindi' -> 'hi', 'English' -> 'en')
+      const rawLangs = formData.languagesSpoken || formData.languages || ['Hindi', 'English'];
+      const langCodes = (Array.isArray(rawLangs) ? rawLangs : [rawLangs]).map((l) => {
+        const str = String(l).trim().toLowerCase();
+        if (str === 'hindi' || str === 'hi') return 'hi';
+        if (str === 'english' || str === 'en') return 'en';
+        if (str === 'bengali' || str === 'bn') return 'bn';
+        if (str === 'marathi' || str === 'mr') return 'mr';
+        if (str === 'telugu' || str === 'te') return 'te';
+        if (str === 'tamil' || str === 'ta') return 'ta';
+        if (str === 'gujarati' || str === 'gu') return 'gu';
+        if (str === 'urdu' || str === 'ur') return 'ur';
+        if (str === 'kannada' || str === 'kn') return 'kn';
+        if (str === 'malayalam' || str === 'ml') return 'ml';
+        if (str === 'punjabi' || str === 'pa') return 'pa';
+        return str.slice(0, 2);
+      });
+
+      // Prepare workingLocation object
+      const city = formData.city || formData.workingLocation?.city || 'Jaipur';
+      const area = formData.area || formData.workingLocation?.area || 'C Scheme';
+      const postalCode = formData.postalCode || formData.workingLocation?.postalCode || '302001';
+      const formattedAddress =
+        formData.formattedAddress ||
+        formData.location ||
+        formData.workingLocation?.formattedAddress ||
+        `${area}, ${city}, Rajasthan`;
+      const latitude = Number(
+        formData.latitude ?? formData.lat ?? formData.workingLocation?.latitude ?? 26.9124
+      );
+      const longitude = Number(
+        formData.longitude ?? formData.lng ?? formData.workingLocation?.longitude ?? 75.7873
+      );
+      // serviceRadiusKm must strictly be literal 5, 10, or 20 per backend API schema
+      const rawRadius = Number(
+        formData.serviceRadiusKm ??
+          formData.radiusKm ??
+          formData.workingLocation?.serviceRadiusKm ??
+          10
+      );
+      let serviceRadiusKm = 10;
+      if ([5, 10, 20].includes(rawRadius)) {
+        serviceRadiusKm = rawRadius;
+      } else if (rawRadius <= 7) {
+        serviceRadiusKm = 5;
+      } else if (rawRadius <= 15) {
+        serviceRadiusKm = 10;
+      } else {
+        serviceRadiusKm = 20;
+      }
+
+      const placeId =
+        formData.placeId || formData.workingLocation?.placeId || 'GOOGLE_PLACE_ID';
+
+      const workingLocation = {
+        placeId,
+        city,
+        area,
+        postalCode,
+        formattedAddress,
+        latitude,
+        longitude,
+        serviceRadiusKm,
       };
+
+      // Prepare excludedWorkAreas array
+      const rawExcluded = formData.excludedWorkAreas?.length
+        ? formData.excludedWorkAreas
+        : formData.excludedLocations || [];
+
+      const excludedWorkAreas = rawExcluded.map((item, idx) => {
+        if (typeof item === 'string') {
+          return {
+            placeId: `EXCLUDED_PLACE_${idx + 1}`,
+            name: item,
+            latitude: 26.95,
+            longitude: 75.8,
+            radiusKm: 2,
+          };
+        }
+        return {
+          placeId: item.placeId || `EXCLUDED_PLACE_${idx + 1}`,
+          name: item.name || 'Industrial Area',
+          latitude: Number(item.latitude ?? item.lat ?? 26.95),
+          longitude: Number(item.longitude ?? item.lng ?? 75.8),
+          radiusKm: Number(item.radiusKm ?? item.radius ?? 2),
+        };
+      });
+
+      // Prepare services array
+      const formattedServices = (formData.services || []).map((srv) => ({
+        categoryId: srv.categoryId || srv.id || '01M60X6ZE8D0YDWKPT0ENNDD8B',
+        durationMinutes: Number(srv.durationMinutes) || 60,
+        discountPrice: Number(srv.discountPrice) || 999,
+        basePrice: Number(srv.basePrice) || 1200,
+      }));
+
+      if (formattedServices.length === 0) {
+        formattedServices.push({
+          categoryId: '01M60X6ZE8D0YDWKPT0ENNDD8B',
+          durationMinutes: 60,
+          discountPrice: 999,
+          basePrice: 1200,
+        });
+      }
+
+      // Exact request payload as specified by user
+      const payload = {
+        displayName: formData.displayName.trim(),
+        fullName: formData.fullName.trim(),
+        mobileNumber: cleanMobile.slice(-10),
+        email: formData.email?.trim() || undefined,
+        gender: formData.gender || 'FEMALE',
+        dateOfBirth: formData.dateOfBirth || '1995-01-15',
+        experienceYears: Number(formData.experienceYears) || 1,
+        languagesSpoken: langCodes.length > 0 ? langCodes : ['hi', 'en'],
+        workingLocation,
+        excludedWorkAreas:
+          excludedWorkAreas.length > 0
+            ? excludedWorkAreas
+            : [
+                {
+                  placeId: 'EXCLUDED_GOOGLE_PLACE_ID',
+                  name: 'Industrial Area',
+                  latitude: 26.95,
+                  longitude: 75.8,
+                  radiusKm: 2,
+                },
+              ],
+        companyPhotoUrl:
+          formData.companyPhotoUrl || formData.internalProfilePhoto || undefined,
+        appPhotoUrl: appPhoto,
+        policeVerificationUrl:
+          formData.policeVerificationUrl || formData.policeClearance || undefined,
+        governmentIdFrontUrl:
+          formData.governmentIdFrontUrl || formData.govtIdFront || undefined,
+        governmentIdBackUrl:
+          formData.governmentIdBackUrl || formData.govtIdBack || undefined,
+        services: formattedServices,
+      };
+
+      console.log('Dispatching POST /api/v1/spa-owner/therapists payload:', payload);
 
       const res = await onboardTherapist(payload);
 
-      if (res?.success && res?.data) {
-        setOnboardSuccessData(res.data);
-        fetchDashboard();
-        fetchTherapists();
-        fetchProfile();
+      if (res?.success) {
+        const createdData = res.data || {};
+        const newTherapist = {
+          _id: createdData.id || createdData._id || `THP-${Date.now().toString().slice(-6)}`,
+          id: createdData.id || createdData._id || `THP-${Date.now().toString().slice(-6)}`,
+          displayName: payload.displayName,
+          fullName: payload.fullName,
+          name: payload.displayName || payload.fullName,
+          mobileNumber: payload.mobileNumber,
+          phone: payload.mobileNumber,
+          email: payload.email || '',
+          gender: payload.gender,
+          dateOfBirth: payload.dateOfBirth,
+          experienceYears: payload.experienceYears,
+          experience: `${payload.experienceYears} years`,
+          languages: formData.languages || ['Hindi', 'English'],
+          languagesSpoken: payload.languagesSpoken,
+          location: workingLocation.formattedAddress,
+          address: workingLocation.formattedAddress,
+          workingLocation,
+          excludedWorkAreas: payload.excludedWorkAreas,
+          profilePhoto: payload.companyPhotoUrl || payload.appPhotoUrl,
+          internalProfilePhoto: payload.companyPhotoUrl,
+          appProfilePhoto: payload.appPhotoUrl,
+          avatarUrl: payload.appPhotoUrl,
+          policeClearance: payload.policeVerificationUrl,
+          govtIdFront: payload.governmentIdFrontUrl,
+          govtIdBack: payload.governmentIdBackUrl,
+          services: payload.services,
+          onDuty: true,
+          status: 'ACTIVE',
+          rating: 5.0,
+          completedBookings: 0,
+          createdAt: new Date().toISOString(),
+          ...createdData,
+        };
+
+        setTherapists((prev) => [newTherapist, ...prev]);
+        setTherapistsCount((prev) => prev + 1);
+
+        setOnboardSuccessData({
+          ...newTherapist,
+          loginInstructions: {
+            mobileNumber: cleanMobile,
+            spaCode: ownerProfile?.spaCode || 'SPA-SANCTUARY',
+            accessNote:
+              'Therapist can log into the TherapyShala Partner Mobile App using this mobile number and OTP.',
+          },
+        });
       } else {
-        setOnboardError(res?.message || 'Unable to onboard therapist.');
+        setOnboardError(
+          res?.message ||
+            'Failed to complete therapist onboarding. Please review the details and try again.'
+        );
       }
     } catch (err) {
-      const msg =
-        err?.data?.message ||
-        err?.data?.error?.message ||
-        err?.message ||
-        'Failed to onboard therapist.';
-      setOnboardError(msg);
+      console.error('Onboard therapist API error:', err);
+      if (err?.data?.errors && Array.isArray(err.data.errors)) {
+        const errorDetails = err.data.errors
+          .map((e) => `${e.path?.join('.') || e.field || ''}: ${e.message}`)
+          .join(', ');
+        setOnboardError(`Validation error: ${errorDetails}`);
+      } else {
+        setOnboardError(
+          err?.message ||
+            'Failed to connect to therapist onboarding service. Please verify your details.'
+        );
+      }
     } finally {
       setOnboardLoading(false);
     }
@@ -1105,6 +1678,12 @@ export default function SpaOwnerDashboardPage() {
     dashboardData?.registeredSpa?.email ||
     ownerProfile?.email ||
     'partner@therapyshala.com';
+  const activeOwnerPhone =
+    dashboardData?.registeredSpa?.phone ||
+    dashboardData?.registeredSpa?.mobileNumber ||
+    ownerProfile?.phone ||
+    ownerProfile?.mobileNumber ||
+    '+91 85299 15523';
 
   // Nav menu items list
   const navItems = [
@@ -1122,6 +1701,12 @@ export default function SpaOwnerDashboardPage() {
       badge: sidebarBadges.appointmentsBooking ?? (dashboardData?.bookingsSummary?.total ?? bookingsTotal),
     },
     {
+      id: 'messages',
+      label: 'Client Messages & Chat',
+      icon: MessageSquare,
+      badge: 2,
+    },
+    {
       id: 'penalty-report',
       label: 'Penalties & Audit Ledger',
       icon: Receipt,
@@ -1136,7 +1721,19 @@ export default function SpaOwnerDashboardPage() {
       icon: Share2,
       badge: sponsoredData?.totalSponsoredSpas,
     },
+    {
+      id: 'profile',
+      label: 'Spa Profile & App Showcase',
+      icon: User,
+      badge: isProfileLocked ? 'Required' : '5 Img',
+    },
     { id: 'settings', label: 'Spa Settings', icon: Settings, badge: sidebarBadges.spaSettings },
+    {
+      id: 'support',
+      label: 'Help & Partner Support',
+      icon: LifeBuoy,
+      badge: '24/7',
+    },
   ];
 
   return (
@@ -1148,31 +1745,32 @@ export default function SpaOwnerDashboardPage() {
           sidebarOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'
         }`}
       >
-        <div>
-          {/* Brand Header */}
-          <div className="p-5 border-b border-gray-100 flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <TherapyshalaLogo className="h-9 w-auto object-contain" />
-              <div>
-                <span className="text-[10px] uppercase font-bold tracking-wider text-[#F35271] block">
-                  Spa Owner Portal
-                </span>
-                <span className="text-xs font-bold text-[#0D0D12] truncate max-w-[150px] block">
-                  {activeBusinessName}
-                </span>
-              </div>
+        {/* Brand Header (Fixed at top) */}
+        <div className="p-4 sm:p-5 border-b border-gray-100 flex items-center justify-between shrink-0">
+          <div className="flex items-center gap-2">
+            <TherapyshalaLogo className="h-9 w-auto object-contain" />
+            <div>
+              <span className="text-[10px] uppercase font-bold tracking-wider text-[#F35271] block">
+                Spa Owner Portal
+              </span>
+              <span className="text-xs font-bold text-[#0D0D12] truncate max-w-[150px] block">
+                {activeBusinessName}
+              </span>
             </div>
-
-            <button
-              onClick={() => setSidebarOpen(false)}
-              className="md:hidden p-1.5 rounded-lg hover:bg-gray-100 text-gray-500"
-            >
-              <X className="w-4 h-4" />
-            </button>
           </div>
 
+          <button
+            onClick={() => setSidebarOpen(false)}
+            className="md:hidden p-1.5 rounded-lg hover:bg-gray-100 text-gray-500 cursor-pointer"
+          >
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+
+        {/* Scrollable Navigation Middle Section */}
+        <div className="flex-1 overflow-y-auto overscroll-contain min-h-0 py-2">
           {/* Spa Code Chip */}
-          <div className="mx-4 my-3 p-3 rounded-2xl bg-rose-50/70 border border-rose-100 flex items-center justify-between">
+          <div className="mx-4 my-2 p-3 rounded-2xl bg-rose-50/70 border border-rose-100 flex items-center justify-between">
             <div>
               <span className="text-[10px] text-rose-600 font-bold uppercase tracking-wider block">Assigned Code</span>
               <span className="font-mono font-bold text-xs text-[#0D0D12]">
@@ -1188,29 +1786,64 @@ export default function SpaOwnerDashboardPage() {
             </button>
           </div>
 
+          {/* Locked Notice inside sidebar if profile is incomplete */}
+          {isProfileLocked && (
+            <div className="mx-3.5 mb-2.5 p-3 rounded-2xl bg-gradient-to-br from-amber-50 to-rose-50 border border-amber-200/90 text-amber-900 shadow-2xs">
+              <div className="flex items-center gap-2 mb-1">
+                <div className="w-5 h-5 rounded-lg bg-amber-500 text-white flex items-center justify-center shrink-0">
+                  <Lock className="w-3 h-3" />
+                </div>
+                <span className="text-[11px] font-bold">Portal Features Locked</span>
+              </div>
+              <p className="text-[10px] text-amber-800 leading-tight">
+                Complete and save your <strong>Spa Profile & App Showcase</strong> to unlock all sections.
+              </p>
+            </div>
+          )}
+
           {/* Navigation Items */}
-          <nav className="px-3 py-2 space-y-1">
+          <nav className="px-3 py-1 space-y-1">
             {navItems.map((item) => {
               const Icon = item.icon;
               const isActive = activeSection === item.id;
+              const isLocked = isProfileLocked && item.id !== 'profile';
+
               return (
                 <button
                   key={item.id}
+                  type="button"
                   onClick={() => {
+                    if (isLocked) {
+                      setLockedAttemptAlert(true);
+                      setTimeout(() => setLockedAttemptAlert(false), 4500);
+                      return;
+                    }
                     setActiveSection(item.id);
                     setSidebarOpen(false);
                   }}
-                  className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-2xl text-xs font-bold transition-all cursor-pointer ${
-                    isActive
-                      ? 'bg-[#0D0D12] text-white shadow-xs'
-                      : 'text-[#757880] hover:text-[#0D0D12] hover:bg-gray-100/70'
+                  className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-2xl text-xs font-bold transition-all ${
+                    isLocked
+                      ? 'opacity-40 cursor-not-allowed text-gray-400 bg-transparent hover:bg-transparent select-none'
+                      : isActive
+                      ? 'bg-[#0D0D12] text-white shadow-xs cursor-pointer'
+                      : 'text-[#757880] hover:text-[#0D0D12] hover:bg-gray-100/70 cursor-pointer'
                   }`}
+                  title={isLocked ? 'Locked until Spa Profile & App Showcase is completed' : item.label}
                 >
                   <div className="flex items-center gap-3">
-                    <Icon className={`w-4 h-4 ${isActive ? 'text-[#F35271]' : 'text-gray-400'}`} />
-                    <span>{item.label}</span>
+                    <Icon className={`w-4 h-4 ${isLocked ? 'text-gray-300' : isActive ? 'text-[#F35271]' : 'text-gray-400'}`} />
+                    <span className={isLocked ? 'text-gray-400' : ''}>{item.label}</span>
                   </div>
-                  {item.badge !== undefined && item.badge > 0 && (
+
+                  {isLocked ? (
+                    <span className="p-1 rounded-md bg-gray-100 text-gray-400 flex items-center justify-center shrink-0" title="Locked">
+                      <Lock className="w-3 h-3 text-gray-400" />
+                    </span>
+                  ) : isProfileLocked && item.id === 'profile' ? (
+                    <span className="px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-rose-500 text-white animate-pulse">
+                      Required
+                    </span>
+                  ) : item.badge !== undefined && item.badge > 0 ? (
                     <span
                       className={`px-2 py-0.5 rounded-full text-[10px] font-extrabold ${
                         isActive ? 'bg-[#F35271] text-white' : 'bg-gray-100 text-gray-600'
@@ -1218,15 +1851,15 @@ export default function SpaOwnerDashboardPage() {
                     >
                       {item.badge}
                     </span>
-                  )}
+                  ) : null}
                 </button>
               );
             })}
           </nav>
         </div>
 
-        {/* Sidebar Footer */}
-        <div className="p-4 border-t border-gray-100 bg-[#FAFAFA]">
+        {/* Sidebar Footer (Fixed at bottom) */}
+        <div className="p-4 border-t border-gray-100 bg-[#FAFAFA] shrink-0">
           <div className="flex items-center justify-between">
             <div className="min-w-0">
               <p className="text-xs font-bold text-[#0D0D12] truncate">
@@ -1237,8 +1870,8 @@ export default function SpaOwnerDashboardPage() {
               </p>
             </div>
             <button
-              onClick={() => {
-                logoutOwner();
+              onClick={async () => {
+                await logoutOwner();
                 navigate('/login');
               }}
               className="p-2 rounded-xl text-red-500 hover:bg-red-50 transition-colors cursor-pointer"
@@ -1280,7 +1913,330 @@ export default function SpaOwnerDashboardPage() {
             </div>
           </div>
 
-          <div className="flex items-center gap-2.5">
+          <div className="flex items-center gap-2 sm:gap-3">
+            {/* Quick Search matching user screenshot */}
+            <div className="hidden lg:flex items-center relative">
+              <input
+                type="text"
+                placeholder="Customer Mobile/Name/ID"
+                className="w-56 xl:w-64 pl-3.5 pr-8 py-2 bg-white border border-gray-200 rounded-xl text-xs text-[#0D0D12] placeholder-gray-400 focus:outline-none focus:border-[#F35271]"
+              />
+              <Search className="w-4 h-4 text-gray-400 absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+            </div>
+
+            {/* Quick Add Button matching screenshot (+) */}
+            <button
+              onClick={() => {
+                if (isProfileLocked) {
+                  setLockedAttemptAlert(true);
+                  setTimeout(() => setLockedAttemptAlert(false), 4500);
+                  return;
+                }
+                setFormData(initialFormState);
+                setOnboardError('');
+                setOnboardSuccessData(null);
+                setActiveSection('therapists');
+                setTherapistSubView('onboard');
+              }}
+              disabled={isProfileLocked}
+              className={`w-9 h-9 rounded-full border flex items-center justify-center transition-colors shadow-2xs ${
+                isProfileLocked
+                  ? 'border-gray-200 bg-gray-100 text-gray-400 cursor-not-allowed opacity-50'
+                  : 'border-gray-200/90 hover:bg-gray-50 text-gray-700 cursor-pointer'
+              }`}
+              title={isProfileLocked ? 'Locked: Complete Spa Profile & App Showcase first' : 'Quick Add Therapist'}
+            >
+              {isProfileLocked ? <Lock className="w-3.5 h-3.5 text-gray-400" /> : <UserPlus className="w-4 h-4" />}
+            </button>
+
+            {/* Quick Support Desk Button */}
+            <button
+              onClick={() => {
+                if (isProfileLocked) {
+                  setLockedAttemptAlert(true);
+                  setTimeout(() => setLockedAttemptAlert(false), 4500);
+                  return;
+                }
+                setActiveSection('support');
+              }}
+              disabled={isProfileLocked}
+              className={`w-9 h-9 rounded-full border flex items-center justify-center transition-colors shadow-2xs ${
+                isProfileLocked
+                  ? 'border-gray-200 bg-gray-100 text-gray-400 cursor-not-allowed opacity-50'
+                  : activeSection === 'support'
+                  ? 'border-[#F35271] bg-rose-50 text-[#F35271] cursor-pointer'
+                  : 'border-gray-200/90 hover:bg-gray-50 text-gray-700 cursor-pointer'
+              }`}
+              title={isProfileLocked ? 'Locked: Complete Spa Profile & App Showcase first' : 'Help & Priority Support Desk'}
+            >
+              <LifeBuoy className="w-4 h-4" />
+            </button>
+
+            {/* Bell Icon & Dropdown Popup (Matching screenshot exactly) */}
+            <div className="relative" ref={notificationDropdownRef}>
+              <button
+                onClick={() => {
+                  setNotificationDropdownOpen((prev) => !prev);
+                }}
+                className={`relative w-10 h-10 rounded-2xl border transition-all flex items-center justify-center cursor-pointer shadow-xs ${
+                  notificationDropdownOpen
+                    ? 'border-[#DE4B73] bg-[#FFEEF1] text-[#DE4B73]'
+                    : 'border-rose-200/70 bg-[#FFF5F7] hover:bg-[#FFEEF1] text-[#DE4B73]'
+                }`}
+                title="Notifications"
+              >
+                <Bell className="w-5 h-5" />
+                {/* Green Live/Unread Indicator dot */}
+                {(notificationsUnreadCount > 0 || dashboardNotifications.some((n) => !n.read)) && (
+                  <span className="absolute top-2 right-2 w-2 h-2 rounded-full bg-emerald-500 ring-2 ring-white" />
+                )}
+              </button>
+
+              {/* Popup Dropdown Card matching screenshot */}
+              <AnimatePresence>
+                {notificationDropdownOpen && (
+                  <motion.div
+                    initial={{ opacity: 0, y: 10, scale: 0.95 }}
+                    animate={{ opacity: 1, y: 0, scale: 1 }}
+                    exit={{ opacity: 0, y: 10, scale: 0.95 }}
+                    transition={{ duration: 0.15 }}
+                    className="absolute right-0 mt-2.5 w-[330px] sm:w-[380px] bg-white rounded-3xl shadow-2xl border border-gray-200/90 overflow-hidden z-50 text-left font-sans-modern"
+                  >
+                    {/* Header Row */}
+                    <div className="p-4 sm:p-5 pb-3 flex items-center justify-between border-b border-gray-100">
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-2xl bg-[#FFF0F3] text-[#DE4B73] flex items-center justify-center shadow-2xs">
+                          <Bell className="w-5 h-5" />
+                        </div>
+                        <div>
+                          <div className="flex items-center gap-2">
+                            <h3 className="text-base font-bold text-[#0D0D12]">
+                              Notifications
+                            </h3>
+                            <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full border text-[10px] font-bold ${
+                              socketStatus === 'connected'
+                                ? 'bg-emerald-50 border-emerald-200/80 text-emerald-700'
+                                : socketStatus === 'connecting'
+                                  ? 'bg-amber-50 border-amber-200 text-amber-700'
+                                  : 'bg-gray-50 border-gray-200 text-gray-600'
+                            }`}>
+                              <span className={`w-1.5 h-1.5 rounded-full ${
+                                socketStatus === 'connected'
+                                  ? 'bg-emerald-500 animate-pulse'
+                                  : socketStatus === 'connecting'
+                                    ? 'bg-amber-500 animate-pulse'
+                                    : 'bg-gray-400'
+                              }`} />
+                              {socketStatus === 'connected'
+                                ? 'Live'
+                                : socketStatus === 'connecting'
+                                  ? 'Connecting'
+                                  : socketStatus === 'error'
+                                    ? 'Offline'
+                                    : 'Disconnected'}
+                            </span>
+                          </div>
+                          <p className="text-xs text-[#757880]">
+                            {(notificationsUnreadCount > 0
+                              ? notificationsUnreadCount
+                              : dashboardNotifications.filter((n) => !n.read).length) === 0
+                              ? 'All caught up!'
+                              : `${notificationsUnreadCount || dashboardNotifications.filter((n) => !n.read).length} unread updates`}
+                          </p>
+                        </div>
+                      </div>
+
+                      {socketStatus === 'error' && (
+                        <div className="mx-4 sm:mx-5 mb-3 rounded-xl border border-amber-200 bg-amber-50 p-3 text-[11px] leading-relaxed text-amber-900">
+                          Live notifications are disconnected. Saved notifications remain available; retry by refreshing the dashboard.
+                        </div>
+                      )}
+
+                      {soundPlaybackBlocked && (
+                        <div className="mx-4 sm:mx-5 mb-3 rounded-xl border border-amber-200 bg-amber-50 p-3 flex items-center justify-between gap-3">
+                          <p className="text-[11px] leading-relaxed text-amber-900">
+                            Browser blocked notification audio. Enable sound to hear the alert.
+                          </p>
+                          <button
+                            type="button"
+                            onClick={enableNotificationSound}
+                            className="shrink-0 rounded-lg bg-amber-600 px-2.5 py-1.5 text-[11px] font-bold text-white hover:bg-amber-700"
+                          >
+                            Enable sound
+                          </button>
+                        </div>
+                      )}
+
+                      {/* Top Right Controls (Volume & Refresh) */}
+                      <div className="flex items-center gap-1 text-gray-500">
+                        <button
+                          onClick={toggleNotificationSound}
+                          className={`p-1.5 rounded-xl hover:bg-gray-100 transition-colors cursor-pointer ${
+                            isSoundMuted ? 'text-red-500' : 'text-emerald-600'
+                          }`}
+                          title={isSoundMuted ? 'Sound Muted (Click to Enable)' : 'Sound Enabled (Click to Mute)'}
+                        >
+                          {isSoundMuted ? <VolumeX className="w-4 h-4" /> : <Volume2 className="w-4 h-4" />}
+                        </button>
+                        <button
+                          onClick={() => {
+                            fetchDashboard();
+                            fetchBookings();
+                            fetchNotifications();
+                          }}
+                          className="p-1.5 rounded-xl hover:bg-gray-100 text-gray-500 transition-colors cursor-pointer"
+                          title="Refresh Notifications & Bookings"
+                        >
+                          <RefreshCw
+                            className={`w-4 h-4 ${
+                              dashboardLoading || bookingsLoading || notificationsLoading
+                                ? 'animate-spin text-[#DE4B73]'
+                                : ''
+                            }`}
+                          />
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Filter Segmented Bar */}
+                    <div className="p-3 bg-[#F8F9FA]/80 border-b border-gray-150/70">
+                      <div className="bg-[#E9ECEF]/70 p-1 rounded-2xl flex items-center gap-1 text-xs overflow-x-auto">
+                        {[
+                          { id: 'all', label: 'All' },
+                          { id: 'unread', label: 'Unread' },
+                          { id: 'bookings', label: 'Bookings' },
+                          { id: 'therapists', label: 'Therapists' },
+                          { id: 'payments', label: 'Payments' },
+                          { id: 'support', label: 'Support' },
+                          { id: 'account', label: 'Account' },
+                          { id: 'sponsored', label: 'Sponsored' },
+                        ].map((tab) => (
+                          <button
+                            key={tab.id}
+                            onClick={() => setNotificationActiveTab(tab.id)}
+                            className={`shrink-0 px-3 py-1.5 rounded-xl font-bold transition-all text-center cursor-pointer ${
+                              notificationActiveTab === tab.id
+                                ? 'bg-white text-[#0D0D12] shadow-xs'
+                                : 'text-gray-500 hover:text-gray-800'
+                            }`}
+                          >
+                            {tab.label}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Notification Body List or Empty State */}
+                    <div className="max-h-[300px] overflow-y-auto divide-y divide-gray-100 p-2">
+                      {(() => {
+                        const filtered = dashboardNotifications.filter((n) => {
+                          if (notificationActiveTab === 'unread') return !n.read;
+                          if (notificationActiveTab !== 'all')
+                            return n.category === notificationActiveTab;
+                          return true;
+                        });
+
+                        if (filtered.length === 0) {
+                          return (
+                            <div className="py-10 px-4 text-center space-y-2">
+                              <div className="w-10 h-10 mx-auto text-gray-400 flex items-center justify-center">
+                                <Sparkles className="w-8 h-8 stroke-[1.5]" />
+                              </div>
+                              <h4 className="text-sm font-bold text-[#0D0D12]">
+                                No notifications
+                              </h4>
+                              <p className="text-xs text-gray-500 max-w-[240px] mx-auto leading-relaxed">
+                                Booking, therapist, payout, support, and account updates will appear here.
+                              </p>
+                            </div>
+                          );
+                        }
+
+                        return (
+                          <>
+                            {filtered.map((n) => (
+                              <div
+                                key={n.id}
+                                onClick={() => {
+                                  if (!n.read) {
+                                    handleMarkAsRead(n.id);
+                                  }
+                                  setActiveSection(getOwnerNotificationSection(n));
+                                  setNotificationDropdownOpen(false);
+                                }}
+                                className={`p-3 rounded-2xl cursor-pointer transition-all flex items-start gap-3 ${
+                                  !n.read ? 'bg-[#FFF0F3]/40 hover:bg-[#FFF0F3]/70' : 'hover:bg-gray-50'
+                                }`}
+                              >
+                                <span
+                                  className={`w-2 h-2 rounded-full mt-1.5 shrink-0 ${
+                                    !n.read ? 'bg-[#DE4B73]' : 'bg-transparent'
+                                  }`}
+                                />
+                                <div className="flex-1 min-w-0">
+                                  <div className="flex items-center justify-between gap-1">
+                                    <h5
+                                      className={`text-xs truncate ${
+                                        !n.read ? 'font-bold text-[#0D0D12]' : 'font-medium text-gray-700'
+                                      }`}
+                                    >
+                                      {n.title}
+                                    </h5>
+                                    <span className="text-[10px] text-gray-400 shrink-0">{n.time}</span>
+                                  </div>
+                                  <p className="text-xs text-gray-500 leading-relaxed mt-0.5 line-clamp-2">
+                                    {n.desc}
+                                  </p>
+                                </div>
+                              </div>
+                            ))}
+
+                            {notificationsNextCursor && (
+                              <div className="p-2 text-center">
+                                <button
+                                  type="button"
+                                  onClick={() =>
+                                    fetchNotifications({
+                                      cursor: notificationsNextCursor,
+                                      append: true,
+                                    })
+                                  }
+                                  disabled={notificationsLoading}
+                                  className="text-xs text-[#DE4B73] hover:underline font-bold cursor-pointer py-1"
+                                >
+                                  {notificationsLoading ? 'Loading more...' : 'Load previous notifications'}
+                                </button>
+                              </div>
+                            )}
+                          </>
+                        );
+                      })()}
+                    </div>
+
+                    {/* Bottom Footer Actions */}
+                    <div className="p-3 bg-gray-50/80 border-t border-gray-150 flex items-center justify-between text-xs">
+                      <button
+                        onClick={() => handleMarkAllAsRead()}
+                        className="text-xs font-semibold text-[#DE4B73] hover:underline cursor-pointer"
+                      >
+                        Mark all as read
+                      </button>
+                      <button
+                        onClick={() => {
+                          setActiveSection('bookings');
+                          setNotificationDropdownOpen(false);
+                        }}
+                        className="text-xs font-bold text-gray-700 hover:text-black flex items-center gap-1 cursor-pointer"
+                      >
+                        <span>View Appointments</span>
+                        <ChevronRight className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </div>
+
             <button
               onClick={() => {
                 fetchDashboard();
@@ -1301,15 +2257,25 @@ export default function SpaOwnerDashboardPage() {
 
             <button
               onClick={() => {
+                if (isProfileLocked) {
+                  setLockedAttemptAlert(true);
+                  setTimeout(() => setLockedAttemptAlert(false), 4500);
+                  return;
+                }
                 setFormData(initialFormState);
                 setOnboardError('');
                 setOnboardSuccessData(null);
                 setActiveSection('therapists');
                 setTherapistSubView('onboard');
               }}
-              className="px-3.5 py-2 rounded-xl bg-[#F35271] hover:bg-[#E04362] text-white text-xs font-bold transition-all shadow-xs flex items-center gap-1.5 cursor-pointer"
+              className={`px-3.5 py-2 rounded-xl text-white text-xs font-bold transition-all shadow-xs flex items-center gap-1.5 cursor-pointer ${
+                isProfileLocked
+                  ? 'bg-gray-400 opacity-60 cursor-not-allowed'
+                  : 'bg-[#F35271] hover:bg-[#E04362]'
+              }`}
+              title={isProfileLocked ? 'Locked: Complete Spa Profile & App Showcase first' : 'Onboard Therapist'}
             >
-              <UserPlus className="w-3.5 h-3.5" />
+              {isProfileLocked ? <Lock className="w-3.5 h-3.5" /> : <UserPlus className="w-3.5 h-3.5" />}
               <span className="hidden sm:inline">Onboard Therapist</span>
             </button>
           </div>
@@ -1317,6 +2283,56 @@ export default function SpaOwnerDashboardPage() {
 
         {/* DYNAMIC CONTENT CONTAINER */}
         <main className="p-4 sm:p-8 space-y-6 max-w-7xl w-full">
+
+          {/* Locked Navigation Attempt Alert */}
+          {lockedAttemptAlert && (
+            <div className="p-4 rounded-2xl bg-amber-50 border border-amber-300 text-amber-900 text-xs sm:text-sm font-semibold flex items-center justify-between shadow-xs">
+              <div className="flex items-center gap-2.5">
+                <Lock className="w-5 h-5 text-amber-600 shrink-0" />
+                <span>
+                  Portal Access Restricted: All sidebar sections are locked. Please complete and save your <strong>Spa Profile & App Showcase</strong> below to unlock full portal access.
+                </span>
+              </div>
+              <button
+                type="button"
+                onClick={() => setLockedAttemptAlert(false)}
+                className="text-amber-700 hover:text-amber-900 cursor-pointer font-bold ml-2"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+          )}
+
+          {/* Persistent Profile Setup Gate Banner */}
+          {isProfileLocked && (
+            <div className="p-4 sm:p-5 rounded-3xl bg-gradient-to-r from-amber-50 via-rose-50 to-amber-50 border-2 border-amber-300/80 shadow-xs flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+              <div className="flex items-center gap-3.5">
+                <div className="w-11 h-11 rounded-2xl bg-amber-500 text-white flex items-center justify-center shrink-0 shadow-xs">
+                  <Lock className="w-5 h-5 animate-pulse" />
+                </div>
+                <div>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <h3 className="text-sm sm:text-base font-bold text-[#0D0D12]">
+                      Action Compulsory: Complete Spa Profile & App Showcase
+                    </h3>
+                    <span className="text-[10px] px-2.5 py-0.5 rounded-full bg-amber-200/90 text-amber-900 font-extrabold uppercase tracking-wider">
+                      Sidebar Sections Locked
+                    </span>
+                  </div>
+                  <p className="text-xs text-[#757880] mt-0.5">
+                    All other portal modules (Therapists, Appointments, Commissions, Payouts, Settings) are locked. Please provide your business profile, sanctuary showcase media, KYC documents, and settlement account below to unlock your dashboard.
+                  </p>
+                </div>
+              </div>
+
+              <div className="shrink-0 flex items-center gap-2">
+                <span className="text-xs font-bold text-amber-900 bg-white px-3.5 py-2 rounded-2xl border border-amber-200 shadow-2xs flex items-center gap-1.5">
+                  <span className="w-2 h-2 rounded-full bg-amber-500 animate-ping" />
+                  <span>Mandatory Step</span>
+                </span>
+              </div>
+            </div>
+          )}
 
           {/* 1. OVERVIEW & PROFILE (API 3) */}
           {activeSection === 'overview' && (
@@ -1381,6 +2397,7 @@ export default function SpaOwnerDashboardPage() {
                     <span>{copiedSponsorCode ? 'Copied' : 'Copy Code'}</span>
                   </button>
                   <button
+                    type="button"
                     onClick={() => {
                       setActiveSection('sponsored');
                       fetchSponsoredSpas();
@@ -1905,13 +2922,22 @@ export default function SpaOwnerDashboardPage() {
                         </span>
                       </h3>
 
-                      <button
-                        onClick={() => setActiveSection('settings')}
-                        className="text-xs font-bold text-[#757880] hover:text-[#0D0D12] flex items-center gap-1 cursor-pointer"
-                      >
-                        <Settings className="w-3.5 h-3.5" />
-                        <span>Settings</span>
-                      </button>
+                      <div className="flex items-center gap-2">
+                        <button
+                          onClick={() => setActiveSection('profile')}
+                          className="text-xs font-bold text-[#F35271] hover:text-[#E04362] bg-[#FFEEF1] hover:bg-[#F35271] hover:text-white px-3 py-1.5 rounded-xl flex items-center gap-1.5 cursor-pointer shadow-2xs transition-all"
+                        >
+                          <User className="w-3.5 h-3.5" />
+                          <span>Edit App Profile & Media</span>
+                        </button>
+                        <button
+                          onClick={() => setActiveSection('settings')}
+                          className="text-xs font-bold text-[#757880] hover:text-[#0D0D12] flex items-center gap-1 cursor-pointer px-2 py-1.5"
+                        >
+                          <Settings className="w-3.5 h-3.5" />
+                          <span>Settings</span>
+                        </button>
+                      </div>
                     </div>
 
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 text-xs">
@@ -2292,14 +3318,23 @@ export default function SpaOwnerDashboardPage() {
                                 <div className="relative shrink-0 w-16 h-16 rounded-2xl overflow-hidden bg-gray-100 ring-2 ring-gray-100 shadow-xs">
                                   <img
                                     src={
-                                      therapist.avatarUrl ||
-                                      'https://res.cloudinary.com/therapyshala/image/upload/v1/therapists/avatar.jpg'
+                                      resolveMediaUrl(
+                                        therapist.avatarUrl ||
+                                        therapist.companyPhotoUrl ||
+                                        therapist.appPhotoUrl ||
+                                        therapist.profilePhoto
+                                      ) || `https://ui-avatars.com/api/?name=${encodeURIComponent(therapist.fullName || therapist.displayName || 'Therapist')}&background=F35271&color=fff&size=160`
                                     }
-                                    alt={therapist.fullName}
+                                    alt={therapist.fullName || therapist.displayName}
                                     className="w-full h-full object-cover shrink-0"
                                     onError={(e) => {
-                                      e.target.src =
-                                        'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&w=160&q=80';
+                                      const altSrc = resolveMediaUrl(therapist.companyPhotoUrl);
+                                      if (altSrc && e.target.src !== altSrc) {
+                                        e.target.src = altSrc;
+                                      } else {
+                                        e.target.onerror = null;
+                                        e.target.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(therapist.fullName || therapist.displayName || 'Therapist')}&background=F35271&color=fff&size=160`;
+                                      }
                                     }}
                                   />
                                   <span
@@ -2467,9 +3502,15 @@ export default function SpaOwnerDashboardPage() {
               {/* Header & Stats Bar */}
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                 <div>
-                  <h3 className="text-lg font-bold text-[#0D0D12]">Appointments & Bookings</h3>
+                  <div className="flex items-center gap-2.5">
+                    <h3 className="text-lg font-bold text-[#0D0D12]">Appointments & Bookings</h3>
+                    <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-emerald-50 border border-emerald-200 text-[10px] font-extrabold text-emerald-700 shadow-2xs">
+                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                      Realtime Active
+                    </span>
+                  </div>
                   <p className="text-xs text-[#757880]">
-                    Real-time bookings linked to your spa therapists ({bookingsTotal} total appointments)
+                    Live real-time bookings linked to your spa therapists ({bookingsTotal} total appointments)
                   </p>
                 </div>
 
@@ -2870,6 +3911,55 @@ export default function SpaOwnerDashboardPage() {
               )}
               </div>
             )
+          )}
+
+          {/* SPA OWNER PROFILE & APP SHOWCASE MEDIA (GALLERY 5 IMAGES & VIDEO) */}
+          {activeSection === 'profile' && (
+            <SpaOwnerProfileEditor
+              initialProfile={{
+                ...(dashboardData?.registeredSpa || ownerProfile || {}),
+                ...(payoutAccount || {})
+              }}
+              activeSpaCode={activeSpaCode}
+              isLockedMode={isProfileLocked}
+              onNavigateToOverview={() => setActiveSection('overview')}
+              onSaveSuccess={(updated) => {
+                const completeData = { ...updated, isProfileComplete: true };
+                if (typeof setOwnerProfile === 'function') {
+                  setOwnerProfile((prev) => ({ ...prev, ...completeData }));
+                }
+                if (typeof setDashboardData === 'function') {
+                  setDashboardData((prev) => (prev ? {
+                    ...prev,
+                    isProfileComplete: true,
+                    registeredSpa: { ...(prev.registeredSpa || {}), ...completeData }
+                  } : prev));
+                }
+                try {
+                  const saved = localStorage.getItem('therapyshala_owner_user');
+                  if (saved) {
+                    const parsed = JSON.parse(saved);
+                    localStorage.setItem('therapyshala_owner_user', JSON.stringify({ ...parsed, ...completeData }));
+                  }
+                } catch (e) {
+                  console.warn('Storage sync error', e);
+                }
+              }}
+            />
+          )}
+
+          {/* CLIENT MESSAGES & GUEST INQUIRIES CHAT */}
+          {activeSection === 'messages' && (
+            <SpaOwnerChatView
+              activeSpaName={activeBusinessName}
+              spaLogo={
+                ownerProfile?.spaLogo ||
+                dashboardData?.registeredSpa?.spaLogo ||
+                ownerProfile?.profilePhoto ||
+                dashboardData?.registeredSpa?.profilePhoto ||
+                '/logo.png'
+              }
+            />
           )}
 
           {/* 4. CANCELLATION PENALTIES REPORT & AUDIT LEDGER (API: GET /spa-owner/cancellation-penalties/report) */}
@@ -4123,118 +5213,6 @@ export default function SpaOwnerDashboardPage() {
                 </div>
               </div>
 
-              {/* Linked Settlement Account Card (GET /spa-owner/payout-account) */}
-              <div className="bg-white rounded-3xl p-6 border border-gray-200 shadow-2xs">
-                <div className="flex items-center justify-between mb-4 pb-3 border-b border-gray-100">
-                  <div className="flex items-center gap-2">
-                    <div className="w-8 h-8 rounded-xl bg-rose-50 text-[#F35271] flex items-center justify-center">
-                      <Landmark className="w-4 h-4" />
-                    </div>
-                    <div>
-                      <h4 className="text-sm font-bold text-[#0D0D12]">Verified Settlement Account</h4>
-                      <p className="text-[11px] text-[#757880]">Direct bank deposit & UPI destination for commission payouts</p>
-                    </div>
-                  </div>
-
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setPayoutAccountError('');
-                      setPayoutSubView('account');
-                    }}
-                    className="px-3 py-1.5 rounded-xl border border-gray-200 hover:bg-gray-50 text-xs font-semibold text-gray-700 flex items-center gap-1.5 cursor-pointer transition-colors"
-                  >
-                    <Edit2 className="w-3.5 h-3.5 text-[#F35271]" />
-                    <span>{payoutAccount?.isConfigured ? 'Edit Details' : 'Configure Account'}</span>
-                  </button>
-                </div>
-
-                {payoutAccountLoading && !payoutAccount ? (
-                  <div className="py-6 text-center space-y-2">
-                    <div className="w-6 h-6 border-2 border-[#F35271] border-t-transparent rounded-full animate-spin mx-auto" />
-                    <p className="text-xs text-[#757880]">Loading payout account settings...</p>
-                  </div>
-                ) : payoutAccount?.isConfigured ? (
-                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 text-xs">
-                    <div className="p-3.5 rounded-2xl bg-gray-50/70 border border-gray-100">
-                      <span className="text-[#757880] block mb-1 text-[11px]">Beneficiary Name</span>
-                      <strong className="text-[#0D0D12] text-sm block">
-                        {payoutAccount.accountHolderName || ownerProfile?.ownerName || '—'}
-                      </strong>
-                    </div>
-
-                    <div className="p-3.5 rounded-2xl bg-gray-50/70 border border-gray-100">
-                      <span className="text-[#757880] block mb-1 text-[11px]">Bank Account</span>
-                      <strong className="text-[#0D0D12] text-sm block">
-                        {payoutAccount.bankName ? (
-                          <>
-                            {payoutAccount.bankName}
-                            {payoutAccount.accountNumber && (
-                              <span className="text-gray-500 font-mono text-xs block">
-                                •••• {payoutAccount.accountNumber.slice(-4)}
-                              </span>
-                            )}
-                          </>
-                        ) : (
-                          '—'
-                        )}
-                      </strong>
-                      {payoutAccount.ifscCode && (
-                        <span className="text-[10px] text-gray-400 font-mono">IFSC: {payoutAccount.ifscCode}</span>
-                      )}
-                    </div>
-
-                    <div className="p-3.5 rounded-2xl bg-gray-50/70 border border-gray-100">
-                      <span className="text-[#757880] block mb-1 text-[11px]">UPI ID</span>
-                      <strong className="text-[#0D0D12] font-mono text-sm block">
-                        {payoutAccount.upiId || '—'}
-                      </strong>
-                      <span className="text-[10px] text-gray-400">Instant UPI transfer</span>
-                    </div>
-
-                    <div className="p-3.5 rounded-2xl bg-gray-50/70 border border-gray-100 flex flex-col justify-between">
-                      <div>
-                        <span className="text-[#757880] block mb-1 text-[11px]">Preferred Method & Status</span>
-                        <div className="flex items-center gap-1.5 flex-wrap">
-                          <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-blue-50 text-blue-700 border border-blue-200">
-                            {payoutAccount.preferredMethod === 'UPI' ? 'UPI' : 'Bank Transfer'}
-                          </span>
-                          <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
-                            CONFIGURED
-                          </span>
-                        </div>
-                      </div>
-                      {payoutAccount.updatedAt && (
-                        <span className="text-[10px] text-gray-400 mt-1 block">
-                          Updated: {new Date(payoutAccount.updatedAt).toLocaleDateString('en-IN')}
-                        </span>
-                      )}
-                    </div>
-                  </div>
-                ) : (
-                  <div className="p-6 rounded-2xl bg-amber-50/60 border border-amber-200 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                    <div className="flex items-start gap-3">
-                      <AlertTriangle className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
-                      <div>
-                        <h5 className="text-xs font-bold text-amber-900">No Settlement Account Configured</h5>
-                        <p className="text-[11px] text-amber-800 mt-0.5">
-                          Please configure your bank account or UPI ID to enable commission withdrawals and automated settlements.
-                        </p>
-                      </div>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setPayoutAccountError('');
-                        setPayoutSubView('account');
-                      }}
-                      className="px-4 py-2 rounded-xl bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold transition-colors cursor-pointer shrink-0"
-                    >
-                      Configure Now
-                    </button>
-                  </div>
-                )}
-              </div>
 
               {/* Payout History Ledger Table (GET /spa-owner/payouts) */}
               <div className="bg-white rounded-3xl border border-gray-200 shadow-2xs overflow-hidden">
@@ -4462,7 +5440,7 @@ export default function SpaOwnerDashboardPage() {
           )
         )}
 
-          {/* 7. SETTINGS (Spa & Partner Settings + PATCH /spa-owner/payout-account) */}
+          {/* 7. SETTINGS (Spa & Partner Business Settings) */}
           {activeSection === 'settings' && (
             <div className="space-y-6">
               {/* Header Bar */}
@@ -4470,375 +5448,12 @@ export default function SpaOwnerDashboardPage() {
                 <div>
                   <h3 className="text-lg font-bold text-[#0D0D12]">Spa & Partner Settings</h3>
                   <p className="text-xs text-[#757880]">
-                    Configure settlement payout accounts, auto-upsert banking details, operating hours, and credentials
+                    Configure operating hours, contact credentials, and notification preferences
                   </p>
                 </div>
-
-                <div className="flex items-center gap-2">
-                  <button
-                    type="button"
-                    onClick={() => fetchPayoutAccount()}
-                    disabled={payoutAccountLoading}
-                    className="p-2.5 rounded-xl border border-gray-200 hover:bg-gray-50 text-gray-600 transition-colors cursor-pointer flex items-center gap-1.5 text-xs font-semibold"
-                    title="Refresh Payout Account"
-                  >
-                    <RefreshCw className={`w-3.5 h-3.5 ${payoutAccountLoading ? 'animate-spin text-[#F35271]' : ''}`} />
-                    <span className="hidden sm:inline">Refresh Account</span>
-                  </button>
-                </div>
               </div>
 
-              {/* Alert Feedback Messages */}
-              {payoutAccountSuccessMsg && (
-                <div className="p-4 rounded-2xl bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs flex items-center justify-between">
-                  <div className="flex items-center gap-2.5">
-                    <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
-                    <span className="font-semibold">{payoutAccountSuccessMsg}</span>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => setPayoutAccountSuccessMsg('')}
-                    className="text-emerald-700 hover:text-emerald-900 font-bold ml-2 cursor-pointer"
-                  >
-                    <X className="w-3.5 h-3.5" />
-                  </button>
-                </div>
-              )}
-
-              {payoutAccountError && (
-                <div className="p-4 rounded-2xl bg-red-50 border border-red-200 text-red-700 text-xs flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <AlertCircle className="w-4 h-4 shrink-0" />
-                    <span>{payoutAccountError}</span>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => fetchPayoutAccount()}
-                    className="px-3 py-1 bg-white border border-red-200 rounded-lg font-semibold hover:bg-red-100 cursor-pointer"
-                  >
-                    Retry
-                  </button>
-                </div>
-              )}
-
-              {/* Card 1: Payout Account & Settlement Banking (Auto-Upsert via PATCH /spa-owner/payout-account) */}
-              <div className="bg-white rounded-3xl p-6 sm:p-7 border border-gray-200 shadow-2xs space-y-6 text-xs">
-                {/* Header */}
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-gray-100">
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-2xl bg-rose-50 text-[#F35271] flex items-center justify-center">
-                      <Landmark className="w-5 h-5" />
-                    </div>
-                    <div>
-                      <div className="flex items-center gap-2">
-                        <h4 className="text-sm font-bold text-[#0D0D12]">
-                          Settlement Account & UPI Payouts
-                        </h4>
-                        <span className="text-[10px] px-2 py-0.5 rounded-md bg-gray-100 text-gray-600 font-mono font-semibold">
-                          PATCH /spa-owner/payout-account
-                        </span>
-                      </div>
-                      <p className="text-[11px] text-[#757880]">
-                        Auto-upsert bank account or UPI ID for automated commission payouts and withdrawals
-                      </p>
-                    </div>
-                  </div>
-
-                  <div className="flex items-center gap-2">
-                    {payoutAccount?.isConfigured ? (
-                      <span className="px-2.5 py-1 rounded-full text-[11px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200 flex items-center gap-1.5">
-                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                        <span>Configured & Active</span>
-                      </span>
-                    ) : (
-                      <span className="px-2.5 py-1 rounded-full text-[11px] font-bold bg-amber-50 text-amber-700 border border-amber-200 flex items-center gap-1.5">
-                        <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />
-                        <span>Action Required: Not Configured</span>
-                      </span>
-                    )}
-                  </div>
-                </div>
-
-                {/* Readout Banner: Currently Verified Configuration */}
-                <div className="p-4 rounded-2xl bg-[#0D0D12]/[0.02] border border-gray-200/80 space-y-3">
-                  <div className="flex items-center justify-between">
-                    <span className="text-[10px] uppercase font-bold tracking-wider text-[#757880]">
-                      Active Payout Configuration on Record
-                    </span>
-                    {payoutAccount?.updatedAt && (
-                      <span className="text-[10px] text-[#757880]">
-                        Last updated:{' '}
-                        <strong className="text-[#0D0D12]">
-                          {new Date(payoutAccount.updatedAt).toLocaleString('en-IN', {
-                            day: 'numeric',
-                            month: 'short',
-                            year: 'numeric',
-                            hour: '2-digit',
-                            minute: '2-digit',
-                          })}
-                        </strong>
-                      </span>
-                    )}
-                  </div>
-
-                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
-                    <div className="bg-white p-3 rounded-xl border border-gray-100">
-                      <span className="text-[10px] text-[#757880] block font-semibold">Beneficiary</span>
-                      <span className="font-bold text-[#0D0D12] truncate block">
-                        {payoutAccount?.accountHolderName || '—'}
-                      </span>
-                    </div>
-
-                    <div className="bg-white p-3 rounded-xl border border-gray-100">
-                      <span className="text-[10px] text-[#757880] block font-semibold">Bank Name</span>
-                      <span className="font-bold text-[#0D0D12] truncate block">
-                        {payoutAccount?.bankName || '—'}
-                      </span>
-                    </div>
-
-                    <div className="bg-white p-3 rounded-xl border border-gray-100">
-                      <span className="text-[10px] text-[#757880] block font-semibold">A/C or UPI</span>
-                      <span className="font-mono font-bold text-[#0D0D12] truncate block">
-                        {payoutAccount?.accountNumber
-                          ? `•••• ${payoutAccount.accountNumber.slice(-4)}`
-                          : payoutAccount?.upiId || '—'}
-                      </span>
-                    </div>
-
-                    <div className="bg-white p-3 rounded-xl border border-gray-100">
-                      <span className="text-[10px] text-[#757880] block font-semibold">Preferred Method</span>
-                      <span className="font-bold text-[#F35271] uppercase tracking-wider text-[11px] block">
-                        {payoutAccount?.preferredMethod || '—'}
-                      </span>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Form to Auto-Upsert Account */}
-                <form onSubmit={handleSavePayoutAccount} className="space-y-4">
-                  {/* Preferred Settlement Method Selector */}
-                  <div>
-                    <label className="block font-semibold text-[#0D0D12] mb-1.5">
-                      Preferred Settlement Method <span className="text-rose-500">*</span>
-                    </label>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                      <button
-                        type="button"
-                        onClick={() =>
-                          setPayoutAccountForm((prev) => ({ ...prev, preferredMethod: 'UPI' }))
-                        }
-                        className={`p-3 rounded-2xl border text-left font-bold flex items-center gap-3 transition-all cursor-pointer ${
-                          payoutAccountForm.preferredMethod === 'UPI'
-                            ? 'border-[#F35271] bg-rose-50/60 text-[#F35271] shadow-2xs'
-                            : 'border-gray-200 bg-white text-gray-700 hover:bg-gray-50'
-                        }`}
-                      >
-                        <div className={`w-8 h-8 rounded-xl flex items-center justify-center ${
-                          payoutAccountForm.preferredMethod === 'UPI' ? 'bg-[#F35271] text-white' : 'bg-gray-100 text-gray-500'
-                        }`}>
-                          <Smartphone className="w-4 h-4" />
-                        </div>
-                        <div>
-                          <div className="text-xs font-bold">UPI Instant Transfer</div>
-                          <div className="text-[10px] font-normal text-gray-500">Google Pay, PhonePe, Paytm, BHIM</div>
-                        </div>
-                      </button>
-
-                      <button
-                        type="button"
-                        onClick={() =>
-                          setPayoutAccountForm((prev) => ({ ...prev, preferredMethod: 'BANK_TRANSFER' }))
-                        }
-                        className={`p-3 rounded-2xl border text-left font-bold flex items-center gap-3 transition-all cursor-pointer ${
-                          payoutAccountForm.preferredMethod === 'BANK_TRANSFER' || payoutAccountForm.preferredMethod === 'BANK'
-                            ? 'border-[#F35271] bg-rose-50/60 text-[#F35271] shadow-2xs'
-                            : 'border-gray-200 bg-white text-gray-700 hover:bg-gray-50'
-                        }`}
-                      >
-                        <div className={`w-8 h-8 rounded-xl flex items-center justify-center ${
-                          payoutAccountForm.preferredMethod === 'BANK_TRANSFER' || payoutAccountForm.preferredMethod === 'BANK'
-                            ? 'bg-[#F35271] text-white'
-                            : 'bg-gray-100 text-gray-500'
-                        }`}>
-                          <Landmark className="w-4 h-4" />
-                        </div>
-                        <div>
-                          <div className="text-xs font-bold">Direct Bank Account Transfer</div>
-                          <div className="text-[10px] font-normal text-gray-500">IMPS / NEFT / RTGS Wire</div>
-                        </div>
-                      </button>
-                    </div>
-                  </div>
-
-                  {/* Form Grid */}
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    {/* Account Holder Name */}
-                    <div>
-                      <label className="block font-semibold text-[#0D0D12] mb-1">
-                        Beneficiary Account Holder Name <span className="text-rose-500">*</span>
-                      </label>
-                      <div className="relative">
-                        <User className="w-4 h-4 text-gray-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
-                        <input
-                          type="text"
-                          required
-                          placeholder="e.g. Vikramaditya Roy"
-                          value={payoutAccountForm.accountHolderName}
-                          onChange={(e) =>
-                            setPayoutAccountForm((prev) => ({ ...prev, accountHolderName: e.target.value }))
-                          }
-                          className="w-full pl-10 pr-3.5 py-2.5 rounded-xl border border-gray-200 outline-none focus:border-[#F35271] text-xs font-semibold"
-                        />
-                      </div>
-                      <span className="text-[10px] text-gray-400 mt-1 block">Full legal name on bank record</span>
-                    </div>
-
-                    {/* Bank Name */}
-                    <div>
-                      <label className="block font-semibold text-[#0D0D12] mb-1">
-                        Bank Name
-                      </label>
-                      <div className="relative">
-                        <Building2 className="w-4 h-4 text-gray-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
-                        <input
-                          type="text"
-                          placeholder="e.g. HDFC Bank, ICICI Bank, SBI"
-                          value={payoutAccountForm.bankName}
-                          onChange={(e) =>
-                            setPayoutAccountForm((prev) => ({ ...prev, bankName: e.target.value }))
-                          }
-                          className="w-full pl-10 pr-3.5 py-2.5 rounded-xl border border-gray-200 outline-none focus:border-[#F35271] text-xs font-semibold"
-                        />
-                      </div>
-                      <span className="text-[10px] text-gray-400 mt-1 block">Scheduled commercial bank name</span>
-                    </div>
-
-                    {/* Account Number */}
-                    <div>
-                      <label className="block font-semibold text-[#0D0D12] mb-1">
-                        Bank Account Number
-                      </label>
-                      <div className="relative">
-                        <CreditCard className="w-4 h-4 text-gray-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
-                        <input
-                          type="text"
-                          placeholder="e.g. 50100234567890"
-                          value={payoutAccountForm.accountNumber}
-                          onChange={(e) =>
-                            setPayoutAccountForm((prev) => ({ ...prev, accountNumber: e.target.value }))
-                          }
-                          className="w-full pl-10 pr-3.5 py-2.5 rounded-xl border border-gray-200 outline-none focus:border-[#F35271] text-xs font-semibold font-mono"
-                        />
-                      </div>
-                      <span className="text-[10px] text-gray-400 mt-1 block">Savings or Current account number</span>
-                    </div>
-
-                    {/* IFSC Code */}
-                    <div>
-                      <label className="block font-semibold text-[#0D0D12] mb-1">
-                        Bank IFSC Code
-                      </label>
-                      <div className="relative">
-                        <Hash className="w-4 h-4 text-gray-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
-                        <input
-                          type="text"
-                          placeholder="e.g. HDFC0001234"
-                          value={payoutAccountForm.ifscCode}
-                          onChange={(e) =>
-                            setPayoutAccountForm((prev) => ({ ...prev, ifscCode: e.target.value.toUpperCase() }))
-                          }
-                          className="w-full pl-10 pr-3.5 py-2.5 rounded-xl border border-gray-200 outline-none focus:border-[#F35271] text-xs font-semibold font-mono"
-                        />
-                      </div>
-                      <span className="text-[10px] text-gray-400 mt-1 block">11-character Indian Financial System Code</span>
-                    </div>
-
-                    {/* UPI ID / VPA */}
-                    <div className="sm:col-span-2">
-                      <label className="block font-semibold text-[#0D0D12] mb-1">
-                        UPI ID / Virtual Payment Address (VPA)
-                      </label>
-                      <div className="relative">
-                        <Smartphone className="w-4 h-4 text-gray-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
-                        <input
-                          type="text"
-                          placeholder="e.g. vikram@okaxis or business@okhdfcbank"
-                          value={payoutAccountForm.upiId}
-                          onChange={(e) =>
-                            setPayoutAccountForm((prev) => ({ ...prev, upiId: e.target.value }))
-                          }
-                          className="w-full pl-10 pr-3.5 py-2.5 rounded-xl border border-gray-200 outline-none focus:border-[#F35271] text-xs font-semibold"
-                        />
-                      </div>
-                      <span className="text-[10px] text-gray-400 mt-1 block">
-                        Used for instant real-time settlement directly to your UPI handle
-                      </span>
-                    </div>
-                  </div>
-
-                  {/* Actions & Auto-fill Sample */}
-                  <div className="pt-4 border-t border-gray-100 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                    <button
-                      type="button"
-                      onClick={() =>
-                        setPayoutAccountForm({
-                          accountHolderName: 'Vikramaditya Roy',
-                          bankName: 'HDFC Bank',
-                          accountNumber: '50100234567890',
-                          ifscCode: 'HDFC0001234',
-                          upiId: 'vikram@okaxis',
-                          preferredMethod: 'UPI',
-                        })
-                      }
-                      className="text-gray-500 hover:text-gray-800 text-xs font-semibold flex items-center gap-1.5 cursor-pointer underline-offset-2 hover:underline"
-                    >
-                      <Sparkles className="w-3.5 h-3.5 text-[#F35271]" />
-                      <span>Fill Sample API Values (Vikramaditya Roy / HDFC / UPI)</span>
-                    </button>
-
-                    <div className="flex items-center gap-2">
-                      {payoutAccount && (
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setPayoutAccountForm({
-                              accountHolderName: payoutAccount.accountHolderName || '',
-                              bankName: payoutAccount.bankName || '',
-                              accountNumber: payoutAccount.accountNumber || '',
-                              ifscCode: payoutAccount.ifscCode || '',
-                              upiId: payoutAccount.upiId || '',
-                              preferredMethod: payoutAccount.preferredMethod || 'BANK_TRANSFER',
-                            });
-                          }}
-                          className="px-4 py-2.5 rounded-xl border border-gray-200 text-gray-600 font-semibold hover:bg-gray-50 cursor-pointer"
-                        >
-                          Reset
-                        </button>
-                      )}
-
-                      <button
-                        type="submit"
-                        disabled={payoutAccountSaving}
-                        className="px-6 py-2.5 rounded-xl bg-[#0D0D12] text-white text-xs font-bold hover:bg-gray-800 transition-colors disabled:opacity-50 cursor-pointer flex items-center gap-2 shadow-xs"
-                      >
-                        {payoutAccountSaving ? (
-                          <>
-                            <RefreshCw className="w-3.5 h-3.5 animate-spin text-[#F35271]" />
-                            <span>Saving Payout Account...</span>
-                          </>
-                        ) : (
-                          <>
-                            <Check className="w-3.5 h-3.5 text-[#F35271]" />
-                            <span>Save & Auto-Upsert Payout Account</span>
-                          </>
-                        )}
-                      </button>
-                    </div>
-                  </div>
-                </form>
-              </div>
-
-              {/* Card 2: General Spa Settings */}
+              {/* General Spa Settings */}
               <div className="bg-white rounded-3xl p-6 sm:p-7 border border-gray-200 shadow-2xs space-y-6 text-xs">
                 <div>
                   <h4 className="font-bold text-[#0D0D12] uppercase tracking-wider text-[11px] mb-3 text-rose-600">
@@ -4971,30 +5586,50 @@ export default function SpaOwnerDashboardPage() {
                 </div>
               )}
 
-              {/* Hero Sponsor Code & Invite Banner */}
-              <div className="bg-gradient-to-br from-[#0D0D12] via-[#1a1a24] to-[#0D0D12] rounded-3xl p-6 sm:p-8 text-white relative overflow-hidden shadow-lg border border-gray-800">
-                <div className="absolute -right-8 -bottom-8 w-64 h-64 bg-[#F35271]/10 rounded-full blur-3xl pointer-events-none" />
-                
-                <div className="relative z-10 max-w-3xl space-y-4">
-                  <div className="flex items-center gap-2">
-                    <div className="w-8 h-8 rounded-xl bg-[#F35271]/20 border border-[#F35271]/40 flex items-center justify-center text-[#F35271]">
-                      <Share2 className="w-4 h-4" />
+              {/* 1. Hero Sponsor Code & Quick Share Hub */}
+              <div className="bg-gradient-to-br from-[#121019] via-[#1B1627] to-[#0F0D16] rounded-3xl p-6 sm:p-8 text-white relative overflow-hidden shadow-xl border border-purple-900/30">
+                <div className="absolute -right-12 -bottom-12 w-80 h-80 bg-rose-500/10 rounded-full blur-3xl pointer-events-none" />
+                <div className="absolute right-1/3 -top-12 w-64 h-64 bg-purple-600/15 rounded-full blur-3xl pointer-events-none" />
+
+                <div className="relative z-10 max-w-4xl space-y-5">
+                  <div className="flex flex-wrap items-center justify-between gap-3">
+                    <div className="flex items-center gap-2">
+                      <div className="w-8 h-8 rounded-xl bg-rose-500/20 border border-rose-500/40 flex items-center justify-center text-[#F35271]">
+                        <Share2 className="w-4 h-4" />
+                      </div>
+                      <span className="text-xs font-bold uppercase tracking-wider text-[#F35271]">
+                        Official Sponsor Program
+                      </span>
                     </div>
-                    <span className="text-xs font-bold uppercase tracking-wider text-[#F35271]">
-                      Your Official Sponsor Code
+
+                    <span className="text-[11px] font-semibold text-purple-300/90 bg-purple-950/60 px-3 py-1 rounded-full border border-purple-700/40">
+                      Earn 2% Lifetime Booking Commission
                     </span>
                   </div>
 
-                  <div className="flex flex-col sm:flex-row sm:items-center gap-3">
-                    <div className="px-5 py-3 rounded-2xl bg-white/10 border border-white/15 backdrop-blur-sm flex items-center justify-between sm:justify-start gap-4">
-                      <span className="text-[11px] text-gray-400 font-semibold uppercase">Code:</span>
-                      <strong className="text-xl sm:text-2xl font-mono font-black text-white tracking-widest">
-                        {sponsoredData?.mySponsorCode || sponsoredData?.sponsor?.spaCode || activeSpaCode}
-                      </strong>
+                  <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 pt-1">
+                    <div>
+                      <span className="text-[10px] text-gray-400 uppercase font-bold tracking-wider block mb-1">
+                        Your Unique Sponsor Referral Code
+                      </span>
+                      <div className="inline-flex items-center gap-3 px-4 py-2.5 rounded-2xl bg-white/10 border border-white/15 backdrop-blur-md">
+                        <strong className="text-2xl sm:text-3xl font-mono font-black text-white tracking-widest">
+                          {sponsoredData?.mySponsorCode || sponsoredData?.sponsor?.spaCode || activeSpaCode}
+                        </strong>
+                        <button
+                          type="button"
+                          onClick={() => handleCopySponsorCode(sponsoredData?.mySponsorCode || sponsoredData?.sponsor?.spaCode || activeSpaCode)}
+                          className="p-1.5 rounded-xl bg-white/10 hover:bg-white/20 text-white transition cursor-pointer"
+                          title="Copy Code"
+                        >
+                          {copiedSponsorCode ? <Check className="w-4 h-4 text-emerald-400" /> : <Copy className="w-4 h-4" />}
+                        </button>
+                      </div>
                     </div>
 
-                    <div className="flex items-center gap-2">
+                    <div className="flex flex-wrap items-center gap-2.5">
                       <button
+                        type="button"
                         onClick={() => handleCopySponsorCode(sponsoredData?.mySponsorCode || sponsoredData?.sponsor?.spaCode || activeSpaCode)}
                         className="px-4 py-3 rounded-xl bg-[#F35271] hover:bg-[#E04362] text-white text-xs font-bold transition-all shadow-md flex items-center gap-2 cursor-pointer"
                       >
@@ -5003,6 +5638,7 @@ export default function SpaOwnerDashboardPage() {
                       </button>
 
                       <button
+                        type="button"
                         onClick={() => {
                           const code = sponsoredData?.mySponsorCode || sponsoredData?.sponsor?.spaCode || activeSpaCode;
                           const url = `https://wa.me/?text=${encodeURIComponent(
@@ -5013,84 +5649,135 @@ export default function SpaOwnerDashboardPage() {
                         className="px-4 py-3 rounded-xl bg-[#25D366] hover:bg-[#20ba59] text-white text-xs font-bold transition-all shadow-md flex items-center gap-2 cursor-pointer"
                       >
                         <Send className="w-4 h-4" />
-                        <span>Invite on WhatsApp</span>
+                        <span>Share on WhatsApp</span>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const code = sponsoredData?.mySponsorCode || sponsoredData?.sponsor?.spaCode || activeSpaCode;
+                          const inviteUrl = `${window.location.origin}/enquiry?sponsor=${encodeURIComponent(code)}`;
+                          navigator.clipboard.writeText(inviteUrl);
+                          setCopiedSponsorCode(true);
+                          setTimeout(() => setCopiedSponsorCode(false), 2000);
+                        }}
+                        className="px-3.5 py-3 rounded-xl bg-white/10 hover:bg-white/20 border border-white/20 text-white text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5"
+                        title="Copy direct invite link"
+                      >
+                        <Share2 className="w-4 h-4 text-gray-300" />
+                        <span>Copy Link</span>
                       </button>
                     </div>
                   </div>
 
-                  <p className="text-xs text-gray-300 leading-relaxed pt-1">
-                    Provide your Sponsor Code to partner spa owners. When they submit an inquiry and receive admin approval, they will automatically be linked under your network.
-                  </p>
+                  {/* 3-Step Process Flow Mini Banner */}
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 pt-3 border-t border-white/10 text-xs">
+                    <div className="flex items-center gap-2 bg-white/5 p-2.5 rounded-xl border border-white/5">
+                      <span className="w-5 h-5 rounded-full bg-rose-500/30 text-rose-300 text-[10px] font-bold flex items-center justify-center shrink-0">1</span>
+                      <span className="text-gray-300 text-[11px]">Share your code with partner wellness spas</span>
+                    </div>
+                    <div className="flex items-center gap-2 bg-white/5 p-2.5 rounded-xl border border-white/5">
+                      <span className="w-5 h-5 rounded-full bg-purple-500/30 text-purple-300 text-[10px] font-bold flex items-center justify-center shrink-0">2</span>
+                      <span className="text-gray-300 text-[11px]">Sub-owners register & verify their center</span>
+                    </div>
+                    <div className="flex items-center gap-2 bg-white/5 p-2.5 rounded-xl border border-white/5">
+                      <span className="w-5 h-5 rounded-full bg-emerald-500/30 text-emerald-300 text-[10px] font-bold flex items-center justify-center shrink-0">3</span>
+                      <span className="text-gray-300 text-[11px]">Earn real-time cash commission on their bookings</span>
+                    </div>
+                  </div>
                 </div>
               </div>
 
-              {/* A. Sponsor Profile Card */}
-              {(() => {
-                const sponsor = sponsoredData?.sponsor || {
-                  ownerName: ownerProfile?.ownerName || dashboardData?.registeredSpa?.ownerName || '—',
-                  businessName: ownerProfile?.businessName || dashboardData?.registeredSpa?.businessName || 'My Spa Center',
-                  spaCode: activeSpaCode,
-                  email: ownerProfile?.email || dashboardData?.registeredSpa?.email || '—',
-                  phone: ownerProfile?.phone || dashboardData?.registeredSpa?.phone || '—',
-                  status: ownerProfile?.status || 'ACTIVE',
-                };
+              {/* 2. Settings & Sponsor Profile 2-Column Responsive Layout */}
+              {/* 2. Settings & Sponsor Profile */}
+              <div className="space-y-6">
+                {/* Commission Settings Card */}
+                <div>
+                  <SpaOwnerReferralCommissionCard
+                    initialPercentage={sponsoredData?.activeReferralPercentage ?? 2}
+                    onCommissionUpdated={(newRate) => {
+                      setSponsoredData((prev) => (prev ? { ...prev, activeReferralPercentage: newRate } : prev));
+                    }}
+                  />
+                </div>
 
-                return (
-                  <div className="bg-white rounded-3xl p-6 border border-gray-200 shadow-2xs space-y-4">
-                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-gray-100 pb-3">
-                      <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-2xl bg-purple-50 text-purple-600 flex items-center justify-center font-bold border border-purple-100">
-                          <ShieldCheck className="w-5 h-5" />
+                {/* Sponsor Profile Summary (Horizontal full-width card matching original) */}
+                <div>
+                  {(() => {
+                    const sponsor = sponsoredData?.sponsor || {
+                      ownerName: ownerProfile?.ownerName || dashboardData?.registeredSpa?.ownerName || 'akash',
+                      businessName: ownerProfile?.businessName || dashboardData?.registeredSpa?.businessName || 'akash',
+                      spaCode: activeSpaCode,
+                      email: ownerProfile?.email || dashboardData?.registeredSpa?.email || '—',
+                      phone: ownerProfile?.phone || dashboardData?.registeredSpa?.phone || '—',
+                      status: ownerProfile?.status || 'ACTIVE',
+                    };
+
+                    return (
+                      <div className="bg-white rounded-3xl p-6 sm:p-7 border border-gray-200/80 shadow-2xs space-y-4">
+                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-gray-100 pb-3">
+                          <div className="flex items-center gap-3">
+                            <div className="w-10 h-10 rounded-2xl bg-purple-50 text-purple-600 flex items-center justify-center font-bold border border-purple-100 shadow-2xs">
+                              <ShieldCheck className="w-5 h-5" />
+                            </div>
+                            <div>
+                              <h4 className="text-sm font-bold text-[#0D0D12]">Sponsor Profile</h4>
+                              <p className="text-xs text-[#757880]">
+                                Your sponsor identity in the TherapyShala referral network
+                              </p>
+                            </div>
+                          </div>
+                          <span className="self-start sm:self-auto px-3 py-1 rounded-full text-[10px] font-extrabold uppercase tracking-wider bg-emerald-50 text-emerald-700 border border-emerald-200 shadow-2xs flex items-center gap-1.5">
+                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-600 animate-pulse" />
+                            <span>{sponsor.status || 'ACTIVE'}</span>
+                          </span>
                         </div>
-                        <div>
-                          <h4 className="text-sm font-bold text-[#0D0D12]">Sponsor Profile</h4>
-                          <p className="text-xs text-[#757880]">
-                            Your sponsor identity in the TherapyShala referral network
-                          </p>
+
+                        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4 text-xs pt-1">
+                          <div className="min-w-0">
+                            <span className="text-[10px] uppercase font-bold text-gray-400 block tracking-wider">Sponsor Name</span>
+                            <strong className="text-xs text-[#0D0D12] block truncate font-bold mt-0.5">
+                              {sponsor.ownerName || '—'}
+                            </strong>
+                          </div>
+                          <div className="min-w-0">
+                            <span className="text-[10px] uppercase font-bold text-gray-400 block tracking-wider">Business Name</span>
+                            <strong className="text-xs text-[#0D0D12] block truncate font-bold mt-0.5">
+                              {sponsor.businessName || '—'}
+                            </strong>
+                          </div>
+                          <div className="min-w-0">
+                            <span className="text-[10px] uppercase font-bold text-gray-400 block tracking-wider">Spa Code</span>
+                            <span className="font-mono text-xs font-bold text-[#F35271] block mt-0.5">
+                              {sponsor.spaCode || activeSpaCode}
+                            </span>
+                          </div>
+                          <div className="min-w-0 sm:col-span-2 lg:col-span-1">
+                            <span className="text-[10px] uppercase font-bold text-gray-400 block tracking-wider">Email</span>
+                            <span className="text-xs text-gray-700 font-medium block truncate mt-0.5" title={sponsor.email}>
+                              {sponsor.email || '—'}
+                            </span>
+                          </div>
+                          <div className="min-w-0">
+                            <span className="text-[10px] uppercase font-bold text-gray-400 block tracking-wider">Mobile</span>
+                            <span className="font-mono text-xs text-gray-800 font-medium block truncate mt-0.5">
+                              {sponsor.phone || '—'}
+                            </span>
+                          </div>
+                          <div className="min-w-0">
+                            <span className="text-[10px] uppercase font-bold text-gray-400 block tracking-wider">Account Status</span>
+                            <span className="text-xs font-bold text-emerald-700 block mt-0.5">
+                              {sponsor.status || 'ACTIVE'}
+                            </span>
+                          </div>
                         </div>
                       </div>
-                      <span className="self-start sm:self-auto px-3 py-1 rounded-full text-[10px] font-extrabold uppercase tracking-wider bg-emerald-50 text-emerald-700 border border-emerald-200">
-                        {sponsor.status || 'ACTIVE'}
-                      </span>
-                    </div>
+                    );
+                  })()}
+                </div>
+              </div>
 
-                    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4 text-xs">
-                      <div>
-                        <span className="text-[10px] uppercase font-bold text-gray-400 block">Sponsor Name</span>
-                        <strong className="text-xs text-[#0D0D12] block truncate font-semibold">
-                          {sponsor.ownerName || '—'}
-                        </strong>
-                      </div>
-                      <div>
-                        <span className="text-[10px] uppercase font-bold text-gray-400 block">Business Name</span>
-                        <strong className="text-xs text-[#0D0D12] block truncate font-semibold">
-                          {sponsor.businessName || '—'}
-                        </strong>
-                      </div>
-                      <div>
-                        <span className="text-[10px] uppercase font-bold text-gray-400 block">Spa Code</span>
-                        <strong className="text-xs font-mono text-[#F35271] block font-extrabold">
-                          {sponsor.spaCode || activeSpaCode}
-                        </strong>
-                      </div>
-                      <div>
-                        <span className="text-[10px] uppercase font-bold text-gray-400 block">Email</span>
-                        <span className="text-gray-700 truncate block">{sponsor.email || '—'}</span>
-                      </div>
-                      <div>
-                        <span className="text-[10px] uppercase font-bold text-gray-400 block">Mobile</span>
-                        <span className="text-gray-700 font-mono block">{sponsor.phone || '—'}</span>
-                      </div>
-                      <div>
-                        <span className="text-[10px] uppercase font-bold text-gray-400 block">Account Status</span>
-                        <strong className="text-emerald-700 font-bold uppercase">{sponsor.status || 'ACTIVE'}</strong>
-                      </div>
-                    </div>
-                  </div>
-                );
-              })()}
-
-              {/* B. Sub-Owner Summary Cards & Table */}
+              {/* 3. Sub-Owner Summary KPI Cards & Downline Roster */}
               {(() => {
                 const subOwnersList = sponsoredData?.subOwners || sponsoredData?.sponsoredSpas || [];
                 const totalCount =
@@ -5106,13 +5793,13 @@ export default function SpaOwnerDashboardPage() {
 
                 return (
                   <>
-                    {/* B. Sub-Owner Summary Cards (4 Cards) */}
+                    {/* 4 KPI Metric Cards */}
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                       {/* 1. Total Sub-Owners */}
-                      <div className="bg-white rounded-3xl p-5 border border-gray-200 shadow-2xs space-y-2">
+                      <div className="bg-white rounded-3xl p-5 border border-gray-200 shadow-2xs space-y-2 hover:border-gray-300 transition-all">
                         <div className="flex items-center justify-between text-[#757880]">
                           <span className="text-[11px] font-bold uppercase tracking-wider">Total Sub-Owners</span>
-                          <div className="w-8 h-8 rounded-xl bg-rose-50 text-[#F35271] flex items-center justify-center">
+                          <div className="w-8 h-8 rounded-xl bg-rose-50 text-[#F35271] flex items-center justify-center shadow-2xs">
                             <Building2 className="w-4 h-4" />
                           </div>
                         </div>
@@ -5127,10 +5814,10 @@ export default function SpaOwnerDashboardPage() {
                       </div>
 
                       {/* 2. Active Sub-Owners */}
-                      <div className="bg-white rounded-3xl p-5 border border-gray-200 shadow-2xs space-y-2">
+                      <div className="bg-white rounded-3xl p-5 border border-gray-200 shadow-2xs space-y-2 hover:border-gray-300 transition-all">
                         <div className="flex items-center justify-between text-[#757880]">
                           <span className="text-[11px] font-bold uppercase tracking-wider">Active Sub-Owners</span>
-                          <div className="w-8 h-8 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center">
+                          <div className="w-8 h-8 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center shadow-2xs">
                             <ShieldCheck className="w-4 h-4" />
                           </div>
                         </div>
@@ -5145,10 +5832,10 @@ export default function SpaOwnerDashboardPage() {
                       </div>
 
                       {/* 3. Referral Commission Rate */}
-                      <div className="bg-white rounded-3xl p-5 border border-gray-200 shadow-2xs space-y-2">
+                      <div className="bg-white rounded-3xl p-5 border border-gray-200 shadow-2xs space-y-2 hover:border-gray-300 transition-all">
                         <div className="flex items-center justify-between text-[#757880]">
-                          <span className="text-[11px] font-bold uppercase tracking-wider">Referral Commission %</span>
-                          <div className="w-8 h-8 rounded-xl bg-purple-50 text-purple-600 flex items-center justify-center">
+                          <span className="text-[11px] font-bold uppercase tracking-wider">Referral Rate</span>
+                          <div className="w-8 h-8 rounded-xl bg-purple-50 text-purple-600 flex items-center justify-center shadow-2xs">
                             <Percent className="w-4 h-4" />
                           </div>
                         </div>
@@ -5163,10 +5850,10 @@ export default function SpaOwnerDashboardPage() {
                       </div>
 
                       {/* 4. Total Referral Earnings */}
-                      <div className="bg-white rounded-3xl p-5 border border-gray-200 shadow-2xs space-y-2">
+                      <div className="bg-white rounded-3xl p-5 border border-gray-200 shadow-2xs space-y-2 hover:border-gray-300 transition-all">
                         <div className="flex items-center justify-between text-[#757880]">
                           <span className="text-[11px] font-bold uppercase tracking-wider">Total Referral Earnings</span>
-                          <div className="w-8 h-8 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center">
+                          <div className="w-8 h-8 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center shadow-2xs">
                             <Coins className="w-4 h-4" />
                           </div>
                         </div>
@@ -5184,13 +5871,13 @@ export default function SpaOwnerDashboardPage() {
                       </div>
                     </div>
 
-                    {/* C. Sub-Owners Table */}
+                    {/* 4. Sub-Owners Table & Rich Empty State */}
                     <div className="bg-white rounded-3xl border border-gray-200 shadow-2xs overflow-hidden">
                       <div className="p-5 border-b border-gray-100 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                         <div className="flex items-center gap-2">
                           <Users className="w-4 h-4 text-[#F35271]" />
                           <h4 className="text-sm font-bold text-[#0D0D12]">Sub-Owner Details</h4>
-                          <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-gray-100 text-gray-700">
+                          <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-gray-100 text-gray-700">
                             {subOwnersList.length} Partner{subOwnersList.length === 1 ? '' : 's'}
                           </span>
                         </div>
@@ -5200,32 +5887,75 @@ export default function SpaOwnerDashboardPage() {
                       </div>
 
                       {sponsoredLoading ? (
-                        <div className="p-12 text-center text-xs text-gray-500 space-y-2">
-                          <Loader2 className="w-6 h-6 animate-spin mx-auto text-[#F35271]" />
-                          <p>Loading sub-owners...</p>
+                        <div className="p-14 text-center text-xs text-gray-500 space-y-2">
+                          <Loader2 className="w-7 h-7 animate-spin mx-auto text-[#F35271]" />
+                          <p className="font-semibold">Loading referral network data...</p>
                         </div>
                       ) : subOwnersList.length === 0 ? (
-                        <div className="p-12 text-center space-y-3">
-                          <div className="w-14 h-14 rounded-2xl bg-rose-50 text-[#F35271] flex items-center justify-center mx-auto">
-                            <Share2 className="w-7 h-7" />
+                        <div className="p-8 sm:p-12 text-center max-w-xl mx-auto space-y-5">
+                          <div className="w-16 h-16 rounded-3xl bg-rose-50 text-[#F35271] flex items-center justify-center mx-auto shadow-inner border border-rose-100">
+                            <Share2 className="w-8 h-8" />
                           </div>
-                          <h4 className="text-sm font-bold text-[#0D0D12]">No sub-owners found</h4>
-                          <p className="text-xs text-[#757880] max-w-sm mx-auto">
-                            Share your sponsor code <strong>{sponsoredData?.mySponsorCode || sponsoredData?.sponsor?.spaCode || activeSpaCode}</strong> with wellness center owners to link them under your referral network.
-                          </p>
-                          <button
-                            onClick={() =>
-                              handleCopySponsorCode(
-                                sponsoredData?.mySponsorCode ||
-                                  sponsoredData?.sponsor?.spaCode ||
-                                  activeSpaCode
-                              )
-                            }
-                            className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-[#0D0D12] hover:bg-[#F35271] text-white text-xs font-bold transition-all cursor-pointer"
-                          >
-                            <Copy className="w-3.5 h-3.5" />
-                            <span>Copy Code & Share</span>
-                          </button>
+
+                          <div className="space-y-1.5">
+                            <h4 className="text-base sm:text-lg font-extrabold text-[#0D0D12]">
+                              Build Your Wellness Partner Downline
+                            </h4>
+                            <p className="text-xs text-[#757880] leading-relaxed">
+                              You haven't referred any partner spas yet. Invite wellness center and salon owners using your sponsor code <strong>{sponsoredData?.mySponsorCode || sponsoredData?.sponsor?.spaCode || activeSpaCode}</strong> to start earning 2% commission on their booking revenue.
+                            </p>
+                          </div>
+
+                          {/* 3 Step Interactive Card */}
+                          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-left pt-2">
+                            <div className="p-3.5 rounded-2xl bg-gray-50 border border-gray-200/70 space-y-1">
+                              <span className="text-[10px] font-extrabold text-rose-500 uppercase tracking-wider">Step 1</span>
+                              <div className="font-bold text-xs text-gray-900">Share Code</div>
+                              <p className="text-[11px] text-gray-500 leading-tight">Send your sponsor code to spa & salon owners.</p>
+                            </div>
+                            <div className="p-3.5 rounded-2xl bg-gray-50 border border-gray-200/70 space-y-1">
+                              <span className="text-[10px] font-extrabold text-purple-600 uppercase tracking-wider">Step 2</span>
+                              <div className="font-bold text-xs text-gray-900">Sub-Owner Signs Up</div>
+                              <p className="text-[11px] text-gray-500 leading-tight">They enter your sponsor code when registering.</p>
+                            </div>
+                            <div className="p-3.5 rounded-2xl bg-gray-50 border border-gray-200/70 space-y-1">
+                              <span className="text-[10px] font-extrabold text-emerald-600 uppercase tracking-wider">Step 3</span>
+                              <div className="font-bold text-xs text-gray-900">Earn Cash</div>
+                              <p className="text-[11px] text-gray-500 leading-tight">Receive 2% cash on every booking they fulfill.</p>
+                            </div>
+                          </div>
+
+                          <div className="pt-2 flex flex-wrap justify-center gap-3">
+                            <button
+                              type="button"
+                              onClick={() =>
+                                handleCopySponsorCode(
+                                  sponsoredData?.mySponsorCode ||
+                                    sponsoredData?.sponsor?.spaCode ||
+                                    activeSpaCode
+                                )
+                              }
+                              className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-[#0D0D12] hover:bg-[#F35271] text-white text-xs font-bold transition-all cursor-pointer shadow-md"
+                            >
+                              <Copy className="w-3.5 h-3.5" />
+                              <span>Copy Sponsor Code</span>
+                            </button>
+
+                            <button
+                              type="button"
+                              onClick={() => {
+                                const code = sponsoredData?.mySponsorCode || sponsoredData?.sponsor?.spaCode || activeSpaCode;
+                                const url = `https://wa.me/?text=${encodeURIComponent(
+                                  `Hi! Register your Spa & Salon on Therapyshala using my Sponsor Code: ${code}. Submit your onboarding enquiry here: ${window.location.origin}/enquiry`
+                                )}`;
+                                window.open(url, '_blank');
+                              }}
+                              className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-[#25D366] hover:bg-[#20ba59] text-white text-xs font-bold transition-all cursor-pointer shadow-md"
+                            >
+                              <Send className="w-3.5 h-3.5" />
+                              <span>Invite on WhatsApp</span>
+                            </button>
+                          </div>
                         </div>
                       ) : (
                         <div className="overflow-x-auto">
@@ -5370,6 +6100,18 @@ export default function SpaOwnerDashboardPage() {
             </div>
           )}
 
+          {/* HELP & PARTNER SUPPORT DESK */}
+          {activeSection === 'support' && (
+            <SpaOwnerSupportView
+              ownerName={activeOwnerName}
+              spaName={activeBusinessName}
+              spaCode={activeSpaCode}
+              ownerEmail={activeOwnerEmail}
+              ownerPhone={activeOwnerPhone}
+              onNavigateToChatDesk={() => setActiveSection('messages')}
+            />
+          )}
+
           {/* Sub-Owner Details Modal */}
           <SubOwnerDetailModal
             isOpen={subOwnerModalOpen}
@@ -5380,6 +6122,84 @@ export default function SpaOwnerDashboardPage() {
             subOwner={selectedSubOwner}
             sponsor={sponsoredData?.sponsor || ownerProfile}
           />
+
+          {/* Realtime Floating Toast Banner for New Appointments (appointment:new) */}
+          <AnimatePresence>
+            {activeAppointmentToast && (
+              <motion.div
+                initial={{ opacity: 0, y: -25, scale: 0.95 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                exit={{ opacity: 0, y: -25, scale: 0.95 }}
+                transition={{ duration: 0.2 }}
+                className="fixed top-6 right-6 z-50 max-w-sm sm:max-w-md w-full bg-white rounded-3xl shadow-2xl border-2 border-[#F35271] p-4 flex items-start gap-3.5 backdrop-blur-md bg-white/95"
+              >
+                <div className="w-10 h-10 rounded-2xl bg-rose-50 text-[#F35271] flex items-center justify-center shrink-0 shadow-inner">
+                  <CalendarCheck className="w-5 h-5 animate-pulse" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="inline-flex items-center gap-1 text-[10px] font-extrabold uppercase tracking-wider px-2 py-0.5 rounded-full bg-rose-100 text-[#F35271]">
+                      <span className="w-1.5 h-1.5 rounded-full bg-[#F35271] animate-ping" />
+                      New Booking Received
+                    </span>
+                    <button
+                      onClick={() => setActiveAppointmentToast(null)}
+                      className="text-gray-400 hover:text-gray-600 cursor-pointer p-0.5"
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
+                  </div>
+                  <h5 className="font-extrabold text-[#0D0D12] text-sm mt-1">
+                    {activeAppointmentToast.title}
+                  </h5>
+                  <p className="text-xs text-gray-600 mt-0.5 line-clamp-2">
+                    {activeAppointmentToast.desc}
+                  </p>
+                  {soundPlaybackBlocked && !isSoundMuted && (
+                    <button
+                      type="button"
+                      onClick={enableNotificationSound}
+                      className="mt-2 text-xs font-bold text-amber-700 underline underline-offset-2"
+                    >
+                      Enable notification sound
+                    </button>
+                  )}
+                  <div className="mt-3 flex items-center gap-2">
+                    <button
+                      onClick={() => {
+                        setActiveSection(
+                          getOwnerNotificationSection(activeAppointmentToast)
+                        );
+                        setActiveAppointmentToast(null);
+                      }}
+                      className="px-3.5 py-1.5 rounded-xl bg-[#F35271] hover:bg-[#E04362] text-white text-xs font-bold transition shadow-xs cursor-pointer flex items-center gap-1"
+                    >
+                      <span>
+                        {`Open ${
+                          {
+                            bookings: 'Bookings',
+                            therapists: 'Therapists',
+                            payments: 'Payments',
+                            support: 'Support',
+                            sponsored: 'Sponsored Spas',
+                            account: 'Account',
+                            updates: 'Dashboard',
+                          }[activeAppointmentToast.category] || 'Dashboard'
+                        }`}
+                      </span>
+                      <ChevronRight className="w-3.5 h-3.5" />
+                    </button>
+                    <button
+                      onClick={() => setActiveAppointmentToast(null)}
+                      className="px-3 py-1.5 rounded-xl border border-gray-200 text-gray-600 hover:bg-gray-50 text-xs font-semibold cursor-pointer"
+                    >
+                      Dismiss
+                    </button>
+                  </div>
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
 
         </main>
       </div>

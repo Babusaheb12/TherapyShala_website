@@ -331,8 +331,8 @@ export default function EnquiryModal({ isOpen, onClose }) {
               )}
               <div className="pt-3 flex gap-2">
                 <a
-                  href={`https://wa.me/919876543210?text=${encodeURIComponent(
-                    `Hello, I submitted an enquiry for ${formData.businessName || formData.ownerName} (Reference: ${inquiryId}${formData.sponsorCode ? `, Sponsor Code: ${formData.sponsorCode.toUpperCase()}` : ''})`
+                  href={`https://wa.me/918529915523?text=${encodeURIComponent(
+                    `Hi, I want to know more about BigWon Salon software. Submitted inquiry for ${formData.businessName || formData.ownerName} (Reference: ${inquiryId}${formData.sponsorCode ? `, Sponsor Code: ${formData.sponsorCode.toUpperCase()}` : ''})`
                   )}`}
                   target="_blank"
                   rel="noopener noreferrer"

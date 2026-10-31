@@ -100,6 +100,17 @@ export default function Navbar({ onOpenBooking }) {
 
             {/* Action CTAs */}
             <div className="hidden lg:flex items-center gap-3">
+              {/* Chat & Concierge Button */}
+              <Link
+                to="/chat"
+                className="inline-flex items-center gap-1.5 px-3.5 py-2.5 rounded-full bg-[#FFF0F3] hover:bg-[#FCE4EC] text-[#DE4B73] border border-[#FA7B9B]/40 hover:border-[#DE4B73] text-xs font-bold tracking-wider transition-all shadow-xs cursor-pointer transform active:scale-95"
+                title="Live Concierge & Chat"
+              >
+                <MessageSquareText className="w-3.5 h-3.5" />
+                <span className="hidden xl:inline">CHAT</span>
+                <span className="w-2 h-2 rounded-full bg-[#DE4B73] animate-pulse" />
+              </Link>
+
               {/* Enquiry Form Button */}
               <Link
                 to="/enquiry"
@@ -140,8 +151,8 @@ export default function Navbar({ onOpenBooking }) {
                         Owner Dashboard
                       </Link>
                       <button
-                        onClick={() => {
-                          logoutOwner();
+                        onClick={async () => {
+                          await logoutOwner();
                           setUserDropdownOpen(false);
                           navigate('/login');
                         }}
@@ -181,6 +192,14 @@ export default function Navbar({ onOpenBooking }) {
                         className="block px-4 py-2.5 text-[#0D0D12] hover:bg-[#FFEEF1] hover:text-[#F35271] font-medium"
                       >
                         My Sanctuary Dashboard
+                      </Link>
+                      <Link
+                        to="/chat"
+                        onClick={() => setUserDropdownOpen(false)}
+                        className="block px-4 py-2.5 text-[#0D0D12] hover:bg-[#FFEEF1] hover:text-[#DE4B73] font-medium flex items-center justify-between"
+                      >
+                        <span>Messages & Concierge</span>
+                        <span className="w-2 h-2 rounded-full bg-[#DE4B73]" />
                       </Link>
                       <Link
                         to="/account/appointments"
@@ -279,6 +298,16 @@ export default function Navbar({ onOpenBooking }) {
                   <span>LOGIN / SIGN UP</span>
                 </Link>
               )}
+
+              <Link
+                to="/chat"
+                onClick={() => setMobileMenuOpen(false)}
+                className="w-full flex items-center justify-center gap-2 py-3 rounded-full bg-[#FFF0F3] text-[#DE4B73] border border-[#FA7B9B]/40 text-xs font-bold uppercase tracking-wider transition-colors shadow-xs"
+              >
+                <MessageSquareText className="w-4 h-4" />
+                <span>MESSAGES & CONCIERGE</span>
+                <span className="w-2 h-2 rounded-full bg-[#DE4B73] animate-pulse" />
+              </Link>
 
               <Link
                 to="/enquiry"

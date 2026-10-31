@@ -1,7 +1,10 @@
 // Vite embeds this value at build time. Keep the production URL as a fallback so
 // a deployment without an injected environment variable never points at ngrok.
 export const API_BASE_URL =
-  import.meta.env.VITE_API_BASE_URL || "https://api.therapyshala.com/api/v1";
+  import.meta.env.VITE_API_BASE_URL ||
+  (import.meta.env.PROD
+    ? "https://api.therapyshala.com/api/v1"
+    : "https://yiddish-darkened-absolute.ngrok-free.dev/api/v1");
 
 export const getApiBaseUrl = () => {
   // In browser on localhost / DEV, route via Vite proxy (/api/v1) to prevent backend CORS origin denials
@@ -38,6 +41,7 @@ export const apiClient = async (endpoint, options = {}, retries = 2) => {
 
   const headers = {
     Accept: "application/json",
+    "ngrok-skip-browser-warning": "1",
     ...options.headers,
   };
 
@@ -97,9 +101,14 @@ export const apiClient = async (endpoint, options = {}, retries = 2) => {
     if (
       response.status === 401 &&
       !options.skipAuth &&
-      !endpoint.includes("/login")
+      !options.skipUnauthorizedEvent &&
+      !endpoint.includes("/login") &&
+      !cleanEndpoint.startsWith("/admin") &&
+      (cleanEndpoint === "/spa-owner/profile" ||
+        cleanEndpoint === "/spa-owner/dashboard" ||
+        cleanEndpoint === "/auth/me")
     ) {
-      // Trigger session expiry event
+      // Trigger session expiry event only when primary owner session check fails
       window.dispatchEvent(new CustomEvent("owner:unauthorized"));
     }
 

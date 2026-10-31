@@ -25,13 +25,32 @@ export default defineConfig(({ mode }) => {
           secure: false,
           timeout: 60000,
           proxyTimeout: 60000,
-          headers: { Origin: "http://localhost:5173" },
+          headers: {
+            Origin: "http://localhost:5173",
+            "ngrok-skip-browser-warning": "true",
+          },
           configure: (proxy) => {
             proxy.on("proxyReq", (proxyReq) => {
               proxyReq.setHeader("Origin", "http://localhost:5173");
+              proxyReq.setHeader("ngrok-skip-browser-warning", "true");
             });
             proxy.on("error", (err, req, res) => {
               console.warn("[Vite Proxy Warning]:", err?.message);
+            });
+          },
+        },
+        "/media": {
+          target: targetHost,
+          changeOrigin: true,
+          secure: false,
+          timeout: 60000,
+          proxyTimeout: 60000,
+          headers: {
+            "ngrok-skip-browser-warning": "true",
+          },
+          configure: (proxy) => {
+            proxy.on("proxyReq", (proxyReq) => {
+              proxyReq.setHeader("ngrok-skip-browser-warning", "true");
             });
           },
         },
