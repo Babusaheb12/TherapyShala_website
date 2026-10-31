@@ -1701,10 +1701,18 @@ export default function SpaOwnerDashboardPage() {
       badge: sidebarBadges.appointmentsBooking ?? (dashboardData?.bookingsSummary?.total ?? bookingsTotal),
     },
     {
-      id: 'messages',
-      label: 'Client Messages & Chat',
-      icon: MessageSquare,
-      badge: 2,
+      id: 'therapist-commission',
+      label: 'Therapist Commission',
+      icon: Percent,
+      badge: null,
+    },
+    { id: 'commission', label: 'Commission Ledger', icon: Percent, badge: sidebarBadges.ownerCommission },
+    { id: 'payout', label: 'Commission Payout', icon: Wallet, badge: sidebarBadges.commissionPayout },
+    {
+      id: 'sponsored',
+      label: 'Spa Owner Referral Network',
+      icon: Share2,
+      badge: sponsoredData?.totalSponsoredSpas,
     },
     {
       id: 'penalty-report',
@@ -1713,13 +1721,12 @@ export default function SpaOwnerDashboardPage() {
       badge: sidebarBadges.penaltiesAuditLedger ?? (dashboardData?.penaltiesSummary?.totalPenaltiesCount ?? (penaltiesReport?.records?.length || 0)),
     },
     { id: 'penalty', label: 'Cancellation Policy Matrix', icon: AlertTriangle, badge: sidebarBadges.cancellationPolicyMatrix },
-    { id: 'commission', label: 'Owner Commission', icon: Percent, badge: sidebarBadges.ownerCommission },
-    { id: 'payout', label: 'Commission Payout', icon: Wallet, badge: sidebarBadges.commissionPayout },
+    { id: 'settings', label: 'Spa Settings', icon: Settings, badge: sidebarBadges.spaSettings },
     {
-      id: 'sponsored',
-      label: 'Sponsored Sub-Spas',
-      icon: Share2,
-      badge: sponsoredData?.totalSponsoredSpas,
+      id: 'messages',
+      label: 'Client Messages & Chat',
+      icon: MessageSquare,
+      badge: 2,
     },
     {
       id: 'profile',
@@ -1727,7 +1734,6 @@ export default function SpaOwnerDashboardPage() {
       icon: User,
       badge: isProfileLocked ? 'Required' : '5 Img',
     },
-    { id: 'settings', label: 'Spa Settings', icon: Settings, badge: sidebarBadges.spaSettings },
     {
       id: 'support',
       label: 'Help & Partner Support',
@@ -4560,6 +4566,32 @@ export default function SpaOwnerDashboardPage() {
                       Any disputed deduction can be contested within 7 days by submitting booking logs or chat evidence to platform support.
                     </p>
                   </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* 4. THERAPIST COMMISSION */}
+          {activeSection === 'therapist-commission' && (
+            <div className="space-y-6">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <div>
+                  <h3 className="text-lg font-bold text-[#0D0D12]">Therapist Commission</h3>
+                  <p className="text-xs text-[#757880] mt-0.5">
+                    View commission rates, splits, and earnings for therapists registered under your spa sanctuary.
+                  </p>
+                </div>
+              </div>
+
+              <div className="bg-white rounded-3xl p-8 border border-gray-100 shadow-xs text-center space-y-4">
+                <div className="w-14 h-14 rounded-2xl bg-rose-50 text-[#F35271] flex items-center justify-center mx-auto">
+                  <Percent className="w-7 h-7" />
+                </div>
+                <div className="max-w-md mx-auto space-y-2">
+                  <h4 className="text-base font-bold text-[#0D0D12]">Therapist Commission Management</h4>
+                  <p className="text-xs text-[#757880]">
+                    Therapist commission rates and service splits are configured at the platform level. Detailed per-therapist breakdowns and custom split overrides will appear here once configured by the platform administrator.
+                  </p>
                 </div>
               </div>
             </div>
