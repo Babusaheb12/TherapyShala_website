@@ -253,12 +253,19 @@ const makeClientMessageId = () => {
 const sendChatMessageOverSocket = (socket, payload) =>
   new Promise((resolve, reject) => {
     const timeout = setTimeout(() => {
+      console.warn('[SpaOwnerChat] chat:send acknowledgement timed out');
       reject(new Error('Chat did not acknowledge the message. Retry to resend safely.'));
     }, 10000);
     socket.emit('chat:send', payload, (ack = {}) => {
       clearTimeout(timeout);
+      console.info('[SpaOwnerChat] chat:send acknowledgement', {
+        success: ack.success, code: ack.error?.code,
+      });
       if (ack.success === false || ack.error) {
-        reject(new Error(ack.message || ack.error || 'Chat rejected the message.'));
+        const message = ack.message || ack.error?.message ||
+          (typeof ack.error === 'string' ? ack.error : null) ||
+          ack.error?.code || 'Chat rejected the message.';
+        reject(new Error(message));
         return;
       }
       resolve(ack);
@@ -574,9 +581,12 @@ export default function SpaOwnerChatInbox({
     }
 
     const configuredUrl = getChatSocketUrl();
+    console.info('[SpaOwnerChat] Connecting', {
+      url: configuredUrl, origin: window.location.origin, namespace: '/chat',
+    });
     const socket = io(configuredUrl, {
       path: '/socket.io',
-      transports: ['websocket'],
+      transports: ['polling', 'websocket'],
       auth: { token: ownerToken, role: 'SPA_OWNER' },
       reconnection: true,
       reconnectionAttempts: Infinity,
@@ -587,6 +597,11 @@ export default function SpaOwnerChatInbox({
     setConnectionState('connecting');
 
     const onConnect = () => {
+      console.info('[SpaOwnerChat] Connected', {
+        socketId: socket.id, namespace: socket.nsp,
+        transport: socket.io.engine?.transport?.name,
+      });
+      setError('');
       setConnectionState('connected');
       const conversationId = activeConversationRef.current;
       if (conversationId) {
@@ -594,12 +609,21 @@ export default function SpaOwnerChatInbox({
         loadMessages(conversationId);
       }
     };
-    const onDisconnect = () => setConnectionState('disconnected');
+    const onDisconnect = (reason) => {
+      console.warn('[SpaOwnerChat] Disconnected:', reason);
+      setConnectionState('disconnected');
+    };
     const onConnectError = (socketError) => {
+      console.error('[SpaOwnerChat] connect_error', {
+        message: socketError?.message, code: socketError?.data?.code,
+        namespace: socket.nsp, origin: window.location.origin,
+        data: { code: socketError?.data?.code, message: socketError?.data?.message, namespace: socketError?.data?.namespace },
+      });
       setConnectionState('error');
       setError(socketError?.message || 'Chat connection failed. Retrying…');
     };
     const onMessage = (payload = {}) => {
+      console.info('[SpaOwnerChat] chat:message received');
       const message = normalizeMessage(payload.message || payload.data?.message || payload);
       const conversationId =
         payload.conversationId ||
@@ -756,29 +780,48 @@ export default function SpaOwnerChatInbox({
   }, []);
 
   useEffect(() => {
-    if (!activeConversationId || !messages.length || messagesLoading || !openConversationId) return;
-    const lastId = getMessageId(messages[messages.length - 1]);
-    const signature = `${activeConversationId}:${lastId}`;
+    if (!enabled || !isVisible || !visiblePage || !activeConversationId ||
+        !messages.length || messagesLoading || openConversationId !== activeConversationId) return;
+    const socket = socketRef.current;
+    if (!socket?.connected) return;
+    // Optimistic/unsaved messages have no server sequence and must not advance the read cursor.
+    const throughSequence = messages.reduce((latest, message) =>
+      Number.isSafeInteger(message.sequence) && message.sequence >= 0
+        ? Math.max(latest, message.sequence) : latest, -1);
+    if (throughSequence < 0) return;
+    const signature = `${activeConversationId}:${throughSequence}`;
     if (readSignatureRef.current === signature) return;
 
     let active = true;
     const frame = requestAnimationFrame(() => {
-      if (!active || !messageListRef.current) return;
+      if (!active || !messageListRef.current || !socket.connected) return;
       readSignatureRef.current = signature;
-      socketRef.current?.emit('chat:read', { conversationId: activeConversationId });
-      setConversations((previous) =>
-        previous.map((conversation) =>
-          conversation.id === activeConversationId
-            ? { ...conversation, unreadCount: 0 }
-            : conversation
-        )
-      );
+      socket.timeout(5000).emit('chat:read', {
+        conversationId: activeConversationId, throughSequence,
+      }, (error, ack) => {
+        if (error || !ack || ack.success === false || ack.error) {
+          if (readSignatureRef.current === signature) readSignatureRef.current = '';
+          console.warn('[SpaOwnerChat] chat:read failed', {
+            timeout: Boolean(error), code: ack?.error?.code,
+            message: ack?.message || ack?.error?.message,
+          });
+          return;
+        }
+        if (!active) return;
+        setConversations((previous) =>
+          previous.map((conversation) =>
+            conversation.id === activeConversationId
+              ? { ...conversation, unreadCount: 0 }
+              : conversation
+          )
+        );
+      });
     });
     return () => {
       active = false;
       cancelAnimationFrame(frame);
     };
-  }, [activeConversationId, messages, messagesLoading, openConversationId]);
+  }, [enabled, isVisible, visiblePage, activeConversationId, messages, messagesLoading, openConversationId, connectionState]);
 
   useEffect(() => {
     if (messages.length) messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -865,7 +908,9 @@ export default function SpaOwnerChatInbox({
     sendTyping(false);
     try {
       const payload = { text, clientMessageId };
-      const response = socketRef.current?.connected
+      const useSocket = Boolean(socketRef.current?.connected);
+      console.info('[SpaOwnerChat] Sending message', { via: useSocket ? 'socket chat:send' : 'REST' });
+      const response = useSocket
         ? await sendChatMessageOverSocket(socketRef.current, {
             conversationId: activeConversationId,
             ...payload,
@@ -901,6 +946,10 @@ export default function SpaOwnerChatInbox({
       pendingSendRef.current = null;
       setDraft('');
     } catch (sendError) {
+      console.error('[SpaOwnerChat] Send failed', {
+        message: sendError?.message, status: sendError?.status,
+        code: sendError?.data?.error?.code || sendError?.data?.code,
+      });
       setMessages((previous) =>
         previous.map((message) =>
           message.clientMessageId === clientMessageId
