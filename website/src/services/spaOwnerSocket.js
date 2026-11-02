@@ -104,7 +104,7 @@ export const connectSpaOwnerSocket = (token) => {
 
   socketInstance = io(socketUrl, {
     path: '/socket.io',
-    transports: ['websocket'],
+    transports: ['polling', 'websocket'],
     auth: {
       token: token,
     },
@@ -117,9 +117,18 @@ export const connectSpaOwnerSocket = (token) => {
     reconnectionDelayMax: 5000,
   });
 
+  const socket = socketInstance;
+  const origin = typeof window !== 'undefined' ? window.location.origin : undefined;
+  socket.io.on('reconnect_attempt', (attempt) => {
+    console.info('[SpaOwnerSocket] Reconnect attempt:', attempt);
+  });
+  socket.io.on('reconnect_failed', () => {
+    console.error('[SpaOwnerSocket] Reconnect failed');
+  });
+
   // Log event names only, so production delivery can be checked without exposing message data.
   socketInstance.onAny((eventName) => {
-    const handledEvents = ['appointment:new', 'support:reply', 'owner:notification', 'socket:ready'];
+    const handledEvents = ['appointment:new', 'support:reply', 'owner:notification', 'socket:ready', 'socket:diagnostic'];
     console.info('[SpaOwnerSocket] Incoming event:', eventName);
     if (!handledEvents.includes(eventName)) {
       console.warn('[SpaOwnerSocket] No owner notification handler for event:', eventName);
@@ -128,7 +137,24 @@ export const connectSpaOwnerSocket = (token) => {
 
   // 1. Initial connection & reconnect listener (Separate from event handlers)
   socketInstance.on('connect', () => {
-    console.log('[SpaOwnerSocket] Connected successfully (socket id):', socketInstance.id);
+    const engine = socket.io.engine;
+    console.info('[SpaOwnerSocket] Connected', {
+      socketId: socket.id, origin, namespace: socket.nsp, transport: engine?.transport?.name,
+    });
+    engine?.once('upgrade', (transport) => {
+      console.info('[SpaOwnerSocket] Transport upgraded:', transport.name);
+    });
+    socket.timeout(5000).emit('socket:diagnostic', (error, response) => {
+      // Ignore acknowledgements belonging to a disconnected/replaced session.
+      if (socketInstance !== socket || !socket.connected) return;
+      const data = response?.data;
+      console.info('[SpaOwnerSocket] Diagnostic', {
+        timeout: Boolean(error), success: response?.success, code: response?.error?.code,
+        connected: data?.connected, ownerRoomJoined: data?.ownerRoomJoined,
+        namespace: data?.namespace, transport: data?.transport,
+        socketId: data?.socketId, processId: data?.processId, serverTime: data?.serverTime,
+      });
+    });
     eventListeners.connect.forEach((fn) => {
       try {
         fn();
@@ -140,22 +166,22 @@ export const connectSpaOwnerSocket = (token) => {
 
   // 2. Realtime Appointment Booking Notification (Registered strictly outside connect)
   socketInstance.on('appointment:new', (notification) => {
-    console.log('[SpaOwnerSocket] Realtime appointment:new event received:', notification);
+    console.info('[SpaOwnerSocket] appointment:new received:', { id: notification?.id, type: notification?.type });
     dispatchNotification(notification, 'appointment:new');
   });
 
   socketInstance.on('support:reply', (notification) => {
-    console.log('[SpaOwnerSocket] Realtime support:reply event received:', notification);
+    console.info('[SpaOwnerSocket] support:reply received:', { id: notification?.id, type: notification?.type });
     dispatchNotification(notification, 'support:reply');
   });
 
   socketInstance.on('owner:notification', (notification) => {
-    console.log('[SpaOwnerSocket] Realtime owner:notification event received:', notification);
+    console.info('[SpaOwnerSocket] owner:notification received:', { id: notification?.id, type: notification?.type });
     dispatchNotification(notification, 'owner:notification');
   });
 
   socketInstance.on('socket:ready', (details) => {
-    console.log('[SpaOwnerSocket] Namespace ready:', details);
+    console.info('[SpaOwnerSocket] Namespace ready:', { namespace: details?.namespace, role: details?.role, socketId: details?.socketId });
     eventListeners.ready.forEach((fn) => {
       try {
         fn(details);
@@ -167,7 +193,10 @@ export const connectSpaOwnerSocket = (token) => {
 
   // 3. Connect error listener
   socketInstance.on('connect_error', (error) => {
-    console.error('Owner socket error:', error?.message || error);
+    console.error('[SpaOwnerSocket] connect_error', {
+      message: error?.message, code: error?.data?.code,
+      namespace: error?.data?.namespace || socket.nsp, origin,
+    });
     eventListeners.connectError.forEach((fn) => {
       try {
         fn(error);
