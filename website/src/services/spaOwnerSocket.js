@@ -35,9 +35,7 @@ const dispatchNotification = (notification, eventName) => {
     notification?.id ||
     notification?.notificationId ||
     notification?.data?.notificationId ||
-    notification?._id ||
-    notification?.appointmentId ||
-    notification?.bookingId;
+    notification?._id;
 
   if (notifId && seenNotificationIds.has(String(notifId))) {
     console.warn('[SpaOwnerSocket] Skipped duplicate notification:', notifId);
@@ -98,6 +96,7 @@ export const connectSpaOwnerSocket = (token) => {
     socketInstance = null;
   }
 
+  seenNotificationIds.clear();
   currentToken = token;
   const socketUrl = getSpaOwnerSocketUrl();
 
@@ -116,6 +115,15 @@ export const connectSpaOwnerSocket = (token) => {
     reconnectionAttempts: Infinity,
     reconnectionDelay: 1000,
     reconnectionDelayMax: 5000,
+  });
+
+  // Log event names only, so production delivery can be checked without exposing message data.
+  socketInstance.onAny((eventName) => {
+    const handledEvents = ['appointment:new', 'support:reply', 'owner:notification', 'socket:ready'];
+    console.info('[SpaOwnerSocket] Incoming event:', eventName);
+    if (!handledEvents.includes(eventName)) {
+      console.warn('[SpaOwnerSocket] No owner notification handler for event:', eventName);
+    }
   });
 
   // 1. Initial connection & reconnect listener (Separate from event handlers)
