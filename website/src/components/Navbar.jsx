@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Menu, X, Smartphone, User, LogIn, LogOut, MessageSquareText } from 'lucide-react';
+import { Menu, X, Smartphone, User, LogIn, LogOut, MessageSquareText, Building2 } from 'lucide-react';
 import TherapyshalaLogo from './TherapyshalaLogo';
 import { useAuth } from '../context/AuthContext';
 
@@ -226,8 +226,8 @@ export default function Navbar({ onOpenBooking }) {
                   to="/login"
                   className="inline-flex items-center gap-1.5 px-4.5 py-2.5 rounded-full bg-[#F35271] text-white hover:bg-[#E04362] text-xs font-bold uppercase tracking-wider transition-all duration-300 shadow-xs hover:shadow-[0_6px_16px_rgba(243,82,113,0.35)] cursor-pointer transform active:scale-95"
                 >
-                  <User className="w-3.5 h-3.5" />
-                  <span>LOGIN</span>
+                  <Building2 className="w-3.5 h-3.5" />
+                  <span>SPA OWNER LOGIN</span>
                 </Link>
               )}
           </div>
@@ -294,8 +294,8 @@ export default function Navbar({ onOpenBooking }) {
                   onClick={() => setMobileMenuOpen(false)}
                   className="w-full flex items-center justify-center gap-2 py-3.5 rounded-full bg-[#F35271] text-white text-xs font-bold uppercase tracking-wider shadow-sm"
                 >
-                  <LogIn className="w-4 h-4" />
-                  <span>LOGIN / SIGN UP</span>
+                  <Building2 className="w-4 h-4" />
+                  <span>SPA OWNER LOGIN</span>
                 </Link>
               )}
 

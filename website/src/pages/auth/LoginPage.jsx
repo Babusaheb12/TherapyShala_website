@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Mail, Lock, Eye, EyeOff, ArrowLeft, CheckCircle2, AlertCircle, ArrowRight, Building2, User, Sparkles, Loader2 } from 'lucide-react';
+import { Mail, Lock, Eye, EyeOff, ArrowLeft, CheckCircle2, AlertCircle, ArrowRight, Building2, Sparkles, Loader2 } from 'lucide-react';
 import Navbar from '../../components/Navbar';
 import Footer from '../../components/Footer';
 import TherapyshalaLogo from '../../components/TherapyshalaLogo';
@@ -11,16 +11,9 @@ import { spaOwnerLogin, spaOwnerForgotPassword } from '../../services/spaOwner.s
 export default function LoginPage() {
   const navigate = useNavigate();
   const location = useLocation();
-  const { login, loginWithDemo, loginOwner } = useAuth();
-
-  // Role tab: 'owner' | 'customer'
-  const [roleTab, setRoleTab] = useState('owner');
-
-  // Mode for customer: 'signin' | 'signup'
-  const [isSignUp, setIsSignUp] = useState(false);
+  const { loginOwner } = useAuth();
 
   // Form Fields
-  const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -48,64 +41,34 @@ export default function LoginPage() {
       return;
     }
 
-    // SPA OWNER LOGIN (API 1)
-    if (roleTab === 'owner') {
-      setLoading(true);
-      try {
-        const response = await spaOwnerLogin({
-          email: email.trim(),
-          password: password.trim(),
-        });
-
-        if (response?.success && response?.token) {
-          loginOwner(response.token, response.data);
-          setSuccessMsg(response.message || 'Login successful! Welcome to the Spa Owner Portal.');
-
-          const targetRoute = location.state?.from || '/owner/dashboard';
-          setTimeout(() => {
-            navigate(targetRoute);
-          }, 800);
-        } else {
-          setErrorMsg(response?.message || 'Authentication failed. Please verify credentials.');
-        }
-      } catch (err) {
-        const msg =
-          err?.data?.message ||
-          err?.data?.error?.message ||
-          err?.message ||
-          'Invalid email or password.';
-        setErrorMsg(msg);
-      } finally {
-        setLoading(false);
-      }
-      return;
-    }
-
-    // CUSTOMER LOGIN
-    if (isSignUp && !name.trim()) {
-      setErrorMsg('Please enter your full name.');
-      return;
-    }
-
     setLoading(true);
-    setTimeout(() => {
-      setLoading(false);
-      const displayName = isSignUp && name.trim()
-        ? name.trim()
-        : email.split('@')[0].replace(/[._]/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
-
-      login({
-        name: displayName,
+    try {
+      const response = await spaOwnerLogin({
         email: email.trim(),
-        role: 'customer',
-        tier: 'Sanctuary Member'
+        password: password.trim(),
       });
 
-      setSuccessMsg(isSignUp ? 'Account created! Welcome to Therapyshala.' : 'Logged in successfully!');
-      setTimeout(() => {
-        navigate(location.state?.from || '/account');
-      }, 900);
-    }, 600);
+      if (response?.success && response?.token) {
+        loginOwner(response.token, response.data);
+        setSuccessMsg(response.message || 'Login successful! Welcome to the Spa Owner Portal.');
+
+        const targetRoute = location.state?.from || '/owner/dashboard';
+        setTimeout(() => {
+          navigate(targetRoute);
+        }, 800);
+      } else {
+        setErrorMsg(response?.message || 'Authentication failed. Please verify credentials.');
+      }
+    } catch (err) {
+      const msg =
+        err?.data?.message ||
+        err?.data?.error?.message ||
+        err?.message ||
+        'Invalid email or password.';
+      setErrorMsg(msg);
+    } finally {
+      setLoading(false);
+    }
   };
 
   // FORGOT PASSWORD (API 2)
@@ -115,7 +78,7 @@ export default function LoginPage() {
     setForgotSuccessMsg('');
 
     if (!forgotEmail.trim()) {
-      setForgotErrorMsg('Please provide your registered email address.');
+      setForgotErrorMsg('Please provide your registered spa owner email address.');
       return;
     }
 
@@ -162,7 +125,7 @@ export default function LoginPage() {
               <span>Back to Home</span>
             </Link>
             <span className="text-[11px] font-medium text-[#757880] bg-white px-2.5 py-1 rounded-full border border-gray-200">
-              TherapyShala Secure Auth
+              Spa Owner Portal
             </span>
           </div>
 
@@ -170,55 +133,20 @@ export default function LoginPage() {
           <div className="bg-white rounded-3xl p-7 sm:p-9 border border-gray-200 shadow-sm">
             
             {/* Logo & Title */}
-            <div className="text-center mb-6">
+            <div className="text-center mb-7">
               <Link to="/" className="inline-block mb-3">
                 <TherapyshalaLogo className="h-11 w-auto mx-auto object-contain" />
               </Link>
-              <h1 className="text-2xl font-bold text-[#0D0D12] tracking-tight">
-                {roleTab === 'owner' ? 'Spa Owner Portal' : (isSignUp ? 'Create an Account' : 'Welcome Back')}
-              </h1>
-              <p className="text-xs text-[#757880] mt-1">
-                {roleTab === 'owner'
-                  ? 'Sign in to manage your spa, therapists, and appointments'
-                  : (isSignUp ? 'Sign up with your email to book sanctuary wellness' : 'Sign in to access your bookings and membership')}
-              </p>
-            </div>
-
-            {/* Portal Role Selector Tabs */}
-            <div className="grid grid-cols-2 gap-1.5 p-1 bg-gray-100/80 rounded-2xl mb-6">
-              <button
-                type="button"
-                onClick={() => {
-                  setRoleTab('owner');
-                  setErrorMsg('');
-                  setSuccessMsg('');
-                }}
-                className={`flex items-center justify-center gap-2 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
-                  roleTab === 'owner'
-                    ? 'bg-white text-[#F35271] shadow-xs'
-                    : 'text-[#757880] hover:text-[#0D0D12]'
-                }`}
-              >
+              <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-rose-50 border border-rose-100 text-[#F35271] text-xs font-semibold mb-2">
                 <Building2 className="w-3.5 h-3.5" />
-                <span>Spa Owner</span>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => {
-                  setRoleTab('customer');
-                  setErrorMsg('');
-                  setSuccessMsg('');
-                }}
-                className={`flex items-center justify-center gap-2 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
-                  roleTab === 'customer'
-                    ? 'bg-white text-[#F35271] shadow-xs'
-                    : 'text-[#757880] hover:text-[#0D0D12]'
-                }`}
-              >
-                <User className="w-3.5 h-3.5" />
-                <span>Customer</span>
-              </button>
+                <span>Spa Owner Portal</span>
+              </div>
+              <h1 className="text-2xl font-bold text-[#0D0D12] tracking-tight">
+                Spa Owner Login
+              </h1>
+              <p className="text-xs text-[#757880] mt-1.5">
+                Sign in to manage your spa branch, therapists, schedules, and appointments
+              </p>
             </div>
 
             {/* Error / Success Notifications */}
@@ -238,25 +166,9 @@ export default function LoginPage() {
 
             {/* Form */}
             <form onSubmit={handleSubmit} className="space-y-4">
-              {roleTab === 'customer' && isSignUp && (
-                <div>
-                  <label className="block text-xs font-semibold text-[#0D0D12] mb-1.5">
-                    Full Name *
-                  </label>
-                  <input
-                    type="text"
-                    required
-                    value={name}
-                    onChange={(e) => setName(e.target.value)}
-                    placeholder="John Doe"
-                    className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:border-[#F35271] focus:ring-1 focus:ring-[#F35271] outline-none text-sm bg-white"
-                  />
-                </div>
-              )}
-
               <div>
                 <label className="block text-xs font-semibold text-[#0D0D12] mb-1.5">
-                  Email Address *
+                  Registered Email Address *
                 </label>
                 <div className="relative">
                   <Mail className="w-4 h-4 text-gray-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
@@ -265,7 +177,7 @@ export default function LoginPage() {
                     required
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
-                    placeholder={roleTab === 'owner' ? 'owner@oasisspa.com' : 'name@example.com'}
+                    placeholder="owner@oasisspa.com"
                     className="w-full pl-10 pr-4 py-3 rounded-xl border border-gray-200 focus:border-[#F35271] focus:ring-1 focus:ring-[#F35271] outline-none text-sm bg-white transition-all"
                   />
                 </div>
@@ -302,7 +214,8 @@ export default function LoginPage() {
                   <button
                     type="button"
                     onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-3.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                    className="absolute right-3.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 cursor-pointer"
+                    aria-label={showPassword ? "Hide password" : "Show password"}
                   >
                     {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                   </button>
@@ -333,7 +246,7 @@ export default function LoginPage() {
                   </>
                 ) : (
                   <>
-                    <span>{roleTab === 'owner' ? 'Sign In to Owner Portal' : (isSignUp ? 'Create Account' : 'Sign In')}</span>
+                    <span>Sign In to Spa Owner Portal</span>
                     <ArrowRight className="w-4 h-4" />
                   </>
                 )}
@@ -341,75 +254,25 @@ export default function LoginPage() {
             </form>
 
             {/* Quick Demo Helper */}
-            {roleTab === 'owner' ? (
-              <div className="mt-5 pt-4 border-t border-gray-100">
-                <button
-                  type="button"
-                  onClick={fillOwnerDemo}
-                  className="w-full py-2.5 rounded-xl border border-dashed border-rose-200 bg-rose-50/50 hover:bg-rose-50 text-xs font-semibold text-[#F35271] transition-colors flex items-center justify-center gap-2 cursor-pointer"
-                >
-                  <Sparkles className="w-3.5 h-3.5" />
-                  <span>Fill Demo Spa Owner Credentials</span>
-                </button>
-              </div>
-            ) : (
-              <div className="mt-5 pt-4 border-t border-gray-100">
-                <button
-                  type="button"
-                  onClick={() => {
-                    loginWithDemo();
-                    setSuccessMsg('Logged in with Demo Account!');
-                    setTimeout(() => {
-                      navigate(location.state?.from || '/account');
-                    }, 800);
-                  }}
-                  className="w-full py-2.5 rounded-xl border border-gray-200 hover:bg-gray-50 text-xs font-semibold text-[#757880] hover:text-[#0D0D12] transition-colors cursor-pointer"
-                >
-                  Quick Customer Demo (1-Click)
-                </button>
-              </div>
-            )}
+            <div className="mt-5 pt-4 border-t border-gray-100">
+              <button
+                type="button"
+                onClick={fillOwnerDemo}
+                className="w-full py-2.5 rounded-xl border border-dashed border-rose-200 bg-rose-50/50 hover:bg-rose-50 text-xs font-semibold text-[#F35271] transition-colors flex items-center justify-center gap-2 cursor-pointer"
+              >
+                <Sparkles className="w-3.5 h-3.5" />
+                <span>Fill Demo Spa Owner Credentials</span>
+              </button>
+            </div>
 
-            {/* Switch Sign In / Sign Up for customer or inquiry link for spa */}
+            {/* Inquiry Link */}
             <div className="mt-5 text-center text-xs text-[#757880]">
-              {roleTab === 'owner' ? (
-                <span>
-                  Don't have a spa code yet?{' '}
-                  <Link to="/enquiry" className="text-[#F35271] font-semibold hover:underline">
-                    Submit Onboarding Inquiry
-                  </Link>
-                </span>
-              ) : (
-                isSignUp ? (
-                  <span>
-                    Already have an account?{' '}
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setIsSignUp(false);
-                        setErrorMsg('');
-                      }}
-                      className="text-[#F35271] font-semibold hover:underline cursor-pointer"
-                    >
-                      Sign In
-                    </button>
-                  </span>
-                ) : (
-                  <span>
-                    Don't have an account?{' '}
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setIsSignUp(true);
-                        setErrorMsg('');
-                      }}
-                      className="text-[#F35271] font-semibold hover:underline cursor-pointer"
-                    >
-                      Sign Up
-                    </button>
-                  </span>
-                )
-              )}
+              <span>
+                Don't have a spa partner account yet?{' '}
+                <Link to="/enquiry" className="text-[#F35271] font-semibold hover:underline">
+                  Submit Onboarding Inquiry
+                </Link>
+              </span>
             </div>
 
           </div>
@@ -503,4 +366,3 @@ export default function LoginPage() {
     </div>
   );
 }
-
