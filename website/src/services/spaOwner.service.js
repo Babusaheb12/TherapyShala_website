@@ -1,4 +1,4 @@
-import { apiClient } from './apiClient.js';
+import { apiClient } from "./apiClient.js";
 
 /**
  * 1. POST /spa-owner/login
@@ -8,8 +8,8 @@ import { apiClient } from './apiClient.js';
  * @returns {Promise<Object>} { success, message, token, data: { id, businessName, ownerName, email, phone, spaCode, therapistCount, servicesOffered, branchCount, status, role, lastLoginAt } }
  */
 export const spaOwnerLogin = async ({ email, password }) => {
-  return await apiClient('/spa-owner/login', {
-    method: 'POST',
+  return await apiClient("/spa-owner/login", {
+    method: "POST",
     skipAuth: true,
     body: JSON.stringify({
       email: email?.trim(),
@@ -25,9 +25,9 @@ export const spaOwnerLogin = async ({ email, password }) => {
  * @returns {Promise<Object>} { success, message }
  */
 export const spaOwnerLogout = async () => {
-  return await apiClient('/spa-owner/logout', {
-    method: 'POST',
-    credentials: 'include',
+  return await apiClient("/spa-owner/logout", {
+    method: "POST",
+    credentials: "include",
     skipUnauthorizedEvent: true,
   });
 };
@@ -40,8 +40,8 @@ export const spaOwnerLogout = async () => {
  * @returns {Promise<Object>} { success, message }
  */
 export const spaOwnerForgotPassword = async ({ email }) => {
-  return await apiClient('/spa-owner/forgot-password', {
-    method: 'POST',
+  return await apiClient("/spa-owner/forgot-password", {
+    method: "POST",
     skipAuth: true,
     body: JSON.stringify({
       email: email?.trim(),
@@ -57,8 +57,8 @@ export const spaOwnerForgotPassword = async ({ email }) => {
  * @returns {Promise<Object>} { success, message, data: { assignedCode, metrics, registeredSpa, sidebarBadges, financials, bookingsSummary, therapistsSummary, penaltiesSummary, recentBookings } }
  */
 export const getSpaOwnerDashboard = async () => {
-  return await apiClient('/spa-owner/dashboard', {
-    method: 'GET',
+  return await apiClient("/spa-owner/dashboard", {
+    method: "GET",
   });
 };
 export const getOwnerDashboard = getSpaOwnerDashboard;
@@ -70,8 +70,8 @@ export const getOwnerDashboard = getSpaOwnerDashboard;
  * @returns {Promise<Object>} { success, message, data: { id, businessName, ownerName, email, phone, spaCode, therapistCount, servicesOffered, branchCount, status, role, createdAt } }
  */
 export const getSpaOwnerProfile = async () => {
-  return await apiClient('/spa-owner/profile', {
-    method: 'GET',
+  return await apiClient("/spa-owner/profile", {
+    method: "GET",
   });
 };
 
@@ -83,8 +83,8 @@ export const getSpaOwnerProfile = async () => {
  * @returns {Promise<Object>} { success, message, data }
  */
 export const updateSpaOwnerProfile = async (data = {}) => {
-  return await apiClient('/spa-owner/profile', {
-    method: 'PATCH',
+  return await apiClient("/spa-owner/profile", {
+    method: "PATCH",
     body: JSON.stringify(data),
   });
 };
@@ -96,8 +96,8 @@ export const updateSpaOwnerProfile = async (data = {}) => {
  * @returns {Promise<Object>} { success, message, count, data: Array }
  */
 export const getSpaOwnerTherapists = async () => {
-  return await apiClient('/spa-owner/therapists', {
-    method: 'GET',
+  return await apiClient("/spa-owner/therapists", {
+    method: "GET",
   });
 };
 
@@ -109,8 +109,8 @@ export const getSpaOwnerTherapists = async () => {
  * @returns {Promise<Object>} { success, message, data: Object }
  */
 export const onboardTherapist = async (therapistData) => {
-  return await apiClient('/spa-owner/therapists', {
-    method: 'POST',
+  return await apiClient("/spa-owner/therapists", {
+    method: "POST",
     body: JSON.stringify(therapistData),
   });
 };
@@ -124,11 +124,11 @@ export const onboardTherapist = async (therapistData) => {
  */
 export const getSpaOwnerTherapistById = async (id) => {
   if (!id) {
-    throw new Error('Therapist ID is required to fetch details.');
+    throw new Error("Therapist ID is required to fetch details.");
   }
   const cleanId = encodeURIComponent(String(id).trim());
   return await apiClient(`/spa-owner/therapists/${cleanId}`, {
-    method: 'GET',
+    method: "GET",
   });
 };
 
@@ -142,11 +142,11 @@ export const getSpaOwnerTherapistById = async (id) => {
  */
 export const updateSpaOwnerTherapist = async (id, updateData) => {
   if (!id) {
-    throw new Error('Therapist ID is required to update therapist details.');
+    throw new Error("Therapist ID is required to update therapist details.");
   }
   const cleanId = encodeURIComponent(String(id).trim());
   return await apiClient(`/spa-owner/therapists/${cleanId}`, {
-    method: 'PATCH',
+    method: "PATCH",
     body: JSON.stringify(updateData),
   });
 };
@@ -161,21 +161,21 @@ export const updateSpaOwnerTherapist = async (id, updateData) => {
  */
 export const updateSpaOwnerTherapistDutyStatus = async (id, dutyStatus) => {
   if (!id) {
-    throw new Error('Therapist ID is required to update duty status.');
+    throw new Error("Therapist ID is required to update duty status.");
   }
   const cleanId = encodeURIComponent(String(id).trim());
-  const normalizedDuty = dutyStatus === 'ON_DUTY' ? 'ON_DUTY' : 'OFF_DUTY';
+  const normalizedDuty = dutyStatus === "ON_DUTY" ? "ON_DUTY" : "OFF_DUTY";
 
   try {
     return await apiClient(`/spa-owner/therapists/${cleanId}/duty-status`, {
-      method: 'PATCH',
+      method: "PATCH",
       body: JSON.stringify({ dutyStatus: normalizedDuty }),
     });
   } catch (err) {
     // If the endpoint returns 404 or fails, fallback to general PATCH /spa-owner/therapists/{id}
-    if (err?.status === 404 || String(err?.message || '').includes('404')) {
+    if (err?.status === 404 || String(err?.message || "").includes("404")) {
       return await apiClient(`/spa-owner/therapists/${cleanId}`, {
-        method: 'PATCH',
+        method: "PATCH",
         body: JSON.stringify({ dutyStatus: normalizedDuty }),
       });
     }
@@ -190,27 +190,27 @@ export const updateSpaOwnerTherapistDutyStatus = async (id, dutyStatus) => {
  * @param {Object} params - { file: File, kind: string }
  * @returns {Promise<Object>} { success, message, data: { assetId, kind, url }, meta: { requestId } }
  */
-export const uploadAsset = async ({ file, kind = 'SERVICE_IMAGE' }) => {
+export const uploadAsset = async ({ file, kind = "SERVICE_IMAGE" }) => {
   if (!file) {
-    throw new Error('Please select a file to upload.');
+    throw new Error("Please select a file to upload.");
   }
 
   const allowedKinds = [
-    'SERVICE_IMAGE',
-    'DEMO_VIDEO',
-    'SUPPORT_ATTACHMENT',
-    'AVATAR',
-    'KYC_FRONT',
-    'KYC_BACK',
+    "SERVICE_IMAGE",
+    "DEMO_VIDEO",
+    "SUPPORT_ATTACHMENT",
+    "AVATAR",
+    "KYC_FRONT",
+    "KYC_BACK",
   ];
-  const safeKind = allowedKinds.includes(kind) ? kind : 'SERVICE_IMAGE';
+  const safeKind = allowedKinds.includes(kind) ? kind : "SERVICE_IMAGE";
 
   const formData = new FormData();
-  formData.append('kind', safeKind);
-  formData.append('file', file);
+  formData.append("kind", safeKind);
+  formData.append("file", file);
 
-  return await apiClient('/assets/uploads', {
-    method: 'POST',
+  return await apiClient("/assets/uploads", {
+    method: "POST",
     body: formData,
   });
 };
@@ -224,33 +224,33 @@ export const uploadAsset = async ({ file, kind = 'SERVICE_IMAGE' }) => {
  */
 export const getSpaOwnerBookings = async (params = {}) => {
   const query = new URLSearchParams();
-  
+
   const limit = params.limit ?? 20;
   const page = params.page ?? 1;
-  query.append('limit', String(limit));
-  query.append('page', String(page));
+  query.append("limit", String(limit));
+  query.append("page", String(page));
 
-  if (params.status && params.status !== 'ALL') {
-    query.append('status', String(params.status).trim());
+  if (params.status && params.status !== "ALL") {
+    query.append("status", String(params.status).trim());
   }
 
-  if (params.therapistId && params.therapistId !== 'ALL') {
-    query.append('therapistId', String(params.therapistId).trim());
+  if (params.therapistId && params.therapistId !== "ALL") {
+    query.append("therapistId", String(params.therapistId).trim());
   }
 
   if (params.startDate) {
-    query.append('startDate', String(params.startDate).trim());
+    query.append("startDate", String(params.startDate).trim());
   }
 
   if (params.endDate) {
-    query.append('endDate', String(params.endDate).trim());
+    query.append("endDate", String(params.endDate).trim());
   }
 
   const queryString = query.toString();
-  const endpoint = `/spa-owner/bookings${queryString ? `?${queryString}` : ''}`;
+  const endpoint = `/spa-owner/bookings${queryString ? `?${queryString}` : ""}`;
 
   return await apiClient(endpoint, {
-    method: 'GET',
+    method: "GET",
   });
 };
 
@@ -268,11 +268,11 @@ export const getOwnerBookings = getSpaOwnerBookings;
  */
 export const getSpaOwnerBookingDetails = async (id) => {
   if (!id) {
-    throw new Error('Booking ID is required to fetch details.');
+    throw new Error("Booking ID is required to fetch details.");
   }
   const cleanId = encodeURIComponent(String(id).trim());
   return await apiClient(`/spa-owner/bookings/${cleanId}`, {
-    method: 'GET',
+    method: "GET",
   });
 };
 
@@ -293,20 +293,25 @@ export const acceptSpaOwnerJobRequest = async ({
   scheduledVisitTime,
 }) => {
   if (!jobRequestId || !bookingId || !scheduledVisitTime) {
-    throw new Error('Job request, booking, and scheduled visit time are required.');
+    throw new Error(
+      "Job request, booking, and scheduled visit time are required.",
+    );
   }
   const scheduledDate = new Date(scheduledVisitTime);
-  if (Number.isNaN(scheduledDate.getTime()) || scheduledDate.getTime() <= Date.now()) {
-    throw new Error('Scheduled visit time must be in the future.');
+  if (
+    Number.isNaN(scheduledDate.getTime()) ||
+    scheduledDate.getTime() <= Date.now()
+  ) {
+    throw new Error("Scheduled visit time must be in the future.");
   }
 
   const cleanId = encodeURIComponent(String(jobRequestId).trim());
   return await apiClient(`/spa-owner/job-requests/${cleanId}/accept`, {
-    method: 'POST',
+    method: "POST",
     body: JSON.stringify({
       jobRequestId: String(jobRequestId).trim(),
       bookingId: String(bookingId).trim(),
-      status: 'ACCEPTED',
+      status: "ACCEPTED",
       scheduledVisitTime: scheduledDate.toISOString(),
     }),
   });
@@ -320,12 +325,12 @@ export const acceptSpaOwnerJobRequest = async ({
  */
 export const declineSpaOwnerJobRequest = async ({ jobRequestId, reason }) => {
   if (!jobRequestId || !reason?.trim()) {
-    throw new Error('Job request and decline reason are required.');
+    throw new Error("Job request and decline reason are required.");
   }
 
   const cleanId = encodeURIComponent(String(jobRequestId).trim());
   return await apiClient(`/spa-owner/job-requests/${cleanId}/decline`, {
-    method: 'POST',
+    method: "POST",
     body: JSON.stringify({ reason: reason.trim() }),
   });
 };
@@ -342,22 +347,22 @@ export const getSpaOwnerCommissions = async (params = {}) => {
 
   const limit = params.limit ?? 20;
   const page = params.page ?? 1;
-  query.append('limit', String(limit));
-  query.append('page', String(page));
+  query.append("limit", String(limit));
+  query.append("page", String(page));
 
-  if (params.therapistId && params.therapistId !== 'ALL') {
-    query.append('therapistId', String(params.therapistId).trim());
+  if (params.therapistId && params.therapistId !== "ALL") {
+    query.append("therapistId", String(params.therapistId).trim());
   }
 
-  if (params.commissionType && params.commissionType !== 'ALL') {
-    query.append('commissionType', String(params.commissionType).trim());
+  if (params.commissionType && params.commissionType !== "ALL") {
+    query.append("commissionType", String(params.commissionType).trim());
   }
 
   const queryString = query.toString();
-  const endpoint = `/spa-owner/commissions${queryString ? `?${queryString}` : ''}`;
+  const endpoint = `/spa-owner/commissions${queryString ? `?${queryString}` : ""}`;
 
   return await apiClient(endpoint, {
-    method: 'GET',
+    method: "GET",
   });
 };
 
@@ -371,8 +376,8 @@ export const getOwnerCommissions = getSpaOwnerCommissions;
  * Retrieve Spa Owner bank and UPI payout account configuration
  */
 export const getSpaOwnerPayoutAccount = async () => {
-  return await apiClient('/spa-owner/payout-account', {
-    method: 'GET',
+  return await apiClient("/spa-owner/payout-account", {
+    method: "GET",
   });
 };
 export const getOwnerPayoutAccount = getSpaOwnerPayoutAccount;
@@ -383,8 +388,8 @@ export const getOwnerPayoutAccount = getSpaOwnerPayoutAccount;
  * @param {Object} data - { accountHolderName, bankName, accountNumber, ifscCode, upiId, preferredMethod }
  */
 export const updateSpaOwnerPayoutAccount = async (data = {}) => {
-  return await apiClient('/spa-owner/payout-account', {
-    method: 'PATCH',
+  return await apiClient("/spa-owner/payout-account", {
+    method: "PATCH",
     body: JSON.stringify(data),
   });
 };
@@ -396,8 +401,8 @@ export const updateOwnerPayoutAccount = updateSpaOwnerPayoutAccount;
  * @param {Object} data - { amountRupees, payoutMethod, adminNotes }
  */
 export const createSpaOwnerPayoutRequest = async (data = {}) => {
-  return await apiClient('/spa-owner/payout-requests', {
-    method: 'POST',
+  return await apiClient("/spa-owner/payout-requests", {
+    method: "POST",
     body: JSON.stringify(data),
   });
 };
@@ -413,29 +418,31 @@ export const getSpaOwnerPayoutHistory = async (params = {}) => {
 
   const limit = params.limit ?? 20;
   const page = params.page ?? 1;
-  query.append('limit', String(limit));
-  query.append('page', String(page));
+  query.append("limit", String(limit));
+  query.append("page", String(page));
 
-  if (params.status && params.status !== 'ALL') {
-    query.append('status', String(params.status).trim());
+  if (params.status && params.status !== "ALL") {
+    query.append("status", String(params.status).trim());
   }
 
   const queryString = query.toString();
-  const endpoint = `/spa-owner/payouts${queryString ? `?${queryString}` : ''}`;
+  const endpoint = `/spa-owner/payouts${queryString ? `?${queryString}` : ""}`;
 
   return await apiClient(endpoint, {
-    method: 'GET',
+    method: "GET",
   });
 };
 export const getOwnerPayoutHistory = getSpaOwnerPayoutHistory;
 
 /**
  * 14. GET /admin/cancellation-policy
- * Retrieve the current cancellation policy and fee configurations
+ * Retrieve the current cancellation policy and fee configurations using the
+ * authenticated spa-owner token.
  */
-export const getSpaOwnerCancellationPolicy = async () => {
-  return await apiClient('/admin/cancellation-policy', {
-    method: 'GET',
+export const getSpaOwnerCancellationPolicy = async (ownerToken) => {
+  return await apiClient("/admin/cancellation-policy", {
+    method: "GET",
+    headers: ownerToken ? { Authorization: `Bearer ${ownerToken}` } : undefined,
   });
 };
 export const getCancellationPolicy = getSpaOwnerCancellationPolicy;
@@ -447,13 +454,17 @@ export const getCancellationPolicy = getSpaOwnerCancellationPolicy;
 export const getSpaOwnerCancellationPenaltiesReport = async (params = {}) => {
   const query = new URLSearchParams();
   const limit = params.limit ?? 100;
-  query.append('limit', String(limit));
+  query.append("limit", String(limit));
 
-  return await apiClient(`/spa-owner/cancellation-penalties/report?${query.toString()}`, {
-    method: 'GET',
-  });
+  return await apiClient(
+    `/spa-owner/cancellation-penalties/report?${query.toString()}`,
+    {
+      method: "GET",
+    },
+  );
 };
-export const getCancellationPenaltiesReport = getSpaOwnerCancellationPenaltiesReport;
+export const getCancellationPenaltiesReport =
+  getSpaOwnerCancellationPenaltiesReport;
 
 /**
  * GET /spa-owner/sub-owners/:codeOrId
@@ -464,12 +475,12 @@ export const getCancellationPenaltiesReport = getSpaOwnerCancellationPenaltiesRe
  */
 export const getSpaOwnerSubOwners = async (codeOrId) => {
   if (!codeOrId?.trim()) {
-    throw new Error('A spa code is required to retrieve sponsored sub-spas.');
+    throw new Error("A spa code is required to retrieve sponsored sub-spas.");
   }
 
   return await apiClient(
     `/spa-owner/sub-owners/${encodeURIComponent(codeOrId.trim())}`,
-    { method: 'GET', skipUnauthorizedEvent: true }
+    { method: "GET", skipUnauthorizedEvent: true },
   );
 };
 
@@ -483,15 +494,15 @@ export const getSubOwners = getSpaOwnerSubOwners;
  * Admin Referral Commission Configuration
  */
 export const getReferralCommission = async () => {
-  return await apiClient('/admin/spa-owner-referral-commission', {
-    method: 'GET',
+  return await apiClient("/admin/spa-owner-referral-commission", {
+    method: "GET",
     skipUnauthorizedEvent: true,
   });
 };
 
 export const updateReferralCommission = async (percentage) => {
-  return await apiClient('/admin/spa-owner-referral-commission', {
-    method: 'PUT',
+  return await apiClient("/admin/spa-owner-referral-commission", {
+    method: "PUT",
     body: JSON.stringify({ percentage: Number(percentage) }),
     skipUnauthorizedEvent: true,
   });
@@ -504,16 +515,19 @@ export const updateReferralCommission = async (percentage) => {
  * @param {Object} params - { limit: number, cursor: string }
  * @returns {Promise<Object>} { success, data: Array, meta: { unreadCount: number, nextCursor: string } }
  */
-export const getSpaOwnerNotifications = async ({ limit = 20, cursor = null } = {}) => {
+export const getSpaOwnerNotifications = async ({
+  limit = 20,
+  cursor = null,
+} = {}) => {
   const query = new URLSearchParams();
-  if (limit) query.append('limit', String(limit));
-  if (cursor) query.append('cursor', String(cursor).trim());
+  if (limit) query.append("limit", String(limit));
+  if (cursor) query.append("cursor", String(cursor).trim());
 
   const queryString = query.toString();
-  const endpoint = `/spa-owner/notifications${queryString ? `?${queryString}` : ''}`;
+  const endpoint = `/spa-owner/notifications${queryString ? `?${queryString}` : ""}`;
 
   return await apiClient(endpoint, {
-    method: 'GET',
+    method: "GET",
   });
 };
 
@@ -526,11 +540,11 @@ export const getSpaOwnerNotifications = async ({ limit = 20, cursor = null } = {
  */
 export const markSpaOwnerNotificationAsRead = async (notificationId) => {
   if (!notificationId) {
-    throw new Error('Notification ID is required.');
+    throw new Error("Notification ID is required.");
   }
   const cleanId = encodeURIComponent(String(notificationId).trim());
   return await apiClient(`/spa-owner/notifications/${cleanId}/read`, {
-    method: 'PATCH',
+    method: "PATCH",
   });
 };
 
@@ -541,8 +555,8 @@ export const markSpaOwnerNotificationAsRead = async (notificationId) => {
  * @returns {Promise<Object>} { success, message, data: Array<{ id, name, slug, iconUrl }> }
  */
 export const getCategories = async () => {
-  return await apiClient('/categories', {
-    method: 'GET',
+  return await apiClient("/categories", {
+    method: "GET",
   });
 };
 /**
@@ -552,8 +566,8 @@ export const getCategories = async () => {
  * @returns {Promise<Object>} { success, message, data }
  */
 export const getSpaOwnerSupportOverview = async () => {
-  return await apiClient('/spa-owner/support', {
-    method: 'GET',
+  return await apiClient("/spa-owner/support", {
+    method: "GET",
   });
 };
 
@@ -566,13 +580,14 @@ export const getSpaOwnerSupportOverview = async () => {
  */
 export const getSpaOwnerSupportTickets = async (params = {}) => {
   const query = new URLSearchParams();
-  if (params.page) query.append('page', params.page);
-  if (params.limit) query.append('limit', params.limit);
-  if (params.status && params.status !== 'ALL') query.append('status', params.status);
+  if (params.page) query.append("page", params.page);
+  if (params.limit) query.append("limit", params.limit);
+  if (params.status && params.status !== "ALL")
+    query.append("status", params.status);
   const qStr = query.toString();
-  const endpoint = `/spa-owner/support/tickets${qStr ? `?${qStr}` : ''}`;
+  const endpoint = `/spa-owner/support/tickets${qStr ? `?${qStr}` : ""}`;
   return await apiClient(endpoint, {
-    method: 'GET',
+    method: "GET",
   });
 };
 
@@ -584,23 +599,23 @@ export const getSpaOwnerSupportTickets = async (params = {}) => {
  * @returns {Promise<Object>} { success, message, data: Ticket }
  */
 export const createSpaOwnerSupportTicket = async ({
-  category = 'GENERAL',
-  priority = 'NORMAL',
+  category = "GENERAL",
+  priority = "NORMAL",
   relatedBookingId,
   subject,
   message,
 }) => {
   const body = {
-    category: category || 'GENERAL',
-    priority: priority || 'NORMAL',
+    category: category || "GENERAL",
+    priority: priority || "NORMAL",
     subject: subject?.trim(),
     message: message?.trim(),
   };
   if (relatedBookingId && String(relatedBookingId).trim()) {
     body.relatedBookingId = String(relatedBookingId).trim();
   }
-  return await apiClient('/spa-owner/support/tickets', {
-    method: 'POST',
+  return await apiClient("/spa-owner/support/tickets", {
+    method: "POST",
     body: JSON.stringify(body),
   });
 };
@@ -615,7 +630,7 @@ export const createSpaOwnerSupportTicket = async ({
 export const getSpaOwnerSupportTicketById = async (ticketId) => {
   const cleanId = encodeURIComponent(String(ticketId).trim());
   return await apiClient(`/spa-owner/support/tickets/${cleanId}`, {
-    method: 'GET',
+    method: "GET",
   });
 };
 
@@ -630,7 +645,7 @@ export const getSpaOwnerSupportTicketById = async (ticketId) => {
 export const replySpaOwnerSupportTicket = async (ticketId, { message }) => {
   const cleanId = encodeURIComponent(String(ticketId).trim());
   return await apiClient(`/spa-owner/support/tickets/${cleanId}/replies`, {
-    method: 'POST',
+    method: "POST",
     body: JSON.stringify({
       message: message?.trim(),
     }),
@@ -682,5 +697,3 @@ export default {
   getSpaOwnerSupportTicketById,
   replySpaOwnerSupportTicket,
 };
-
-

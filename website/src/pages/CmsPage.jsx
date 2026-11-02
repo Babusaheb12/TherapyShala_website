@@ -1,6 +1,10 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { useParams, Link } from 'react-router-dom';
-import { getPublicLegalDocument, getPublicLegalDocuments } from '../services/content.service';
+import { useParams, Link, useSearchParams } from 'react-router-dom';
+import {
+  getPublicLegalDocument,
+  getPublicLegalDocuments,
+  getTherapistTerms,
+} from '../services/content.service';
 import Navbar from '../components/Navbar';
 import Footer from '../components/Footer';
 import { Shield, ArrowLeft, RefreshCw, AlertCircle, FileText, Calendar, CheckCircle2 } from 'lucide-react';
@@ -106,6 +110,39 @@ We empower independent Spas, Salons, Ayurvedic Retreats, and Aesthetic Lounges a
 const formatLegalContent = (text) => {
   if (!text) return null;
 
+  if (typeof text === 'object') {
+    const sections = Array.isArray(text.sections) ? text.sections : null;
+    if (!sections) return null;
+
+    return sections.map((section, idx) => (
+      <section key={idx}>
+        {section?.heading && (
+          <h2 className="font-serif-luxury text-2xl md:text-3xl text-[#0D0D12] font-semibold mt-6 mb-3 border-b border-[#AFB0B7]/20 pb-2">
+            {section.heading}
+          </h2>
+        )}
+        {Array.isArray(section?.items) ? (
+          <ul className="space-y-2">
+            {section.items.map((item, itemIdx) => (
+              <li
+                key={itemIdx}
+                className="ml-6 list-disc text-base text-[#757880] leading-relaxed my-2 font-light"
+              >
+                {typeof item === 'string' ? item : item?.text || ''}
+              </li>
+            ))}
+          </ul>
+        ) : typeof section?.content === 'string' ? (
+          <p className="text-base text-[#757880] font-light leading-relaxed my-3">
+            {section.content}
+          </p>
+        ) : null}
+      </section>
+    ));
+  }
+
+  if (typeof text !== 'string') return null;
+
   const lines = text.split('\n');
   return lines.map((line, idx) => {
     const trimmed = line.trim();
@@ -150,6 +187,7 @@ const formatLegalContent = (text) => {
 
 export default function CmsPage({ docTypeOverride, docTitleOverride }) {
   const { slug } = useParams();
+  const [searchParams, setSearchParams] = useSearchParams();
 
   const slugKey = (slug || '').toLowerCase();
   const mapped = SLUG_TO_TYPE_MAP[slugKey] || {
@@ -159,61 +197,86 @@ export default function CmsPage({ docTypeOverride, docTitleOverride }) {
 
   const currentType = docTypeOverride || mapped.type;
   const currentTitle = docTitleOverride || mapped.title;
+  const locale = currentType === 'THERAPIST_TERMS'
+    ? (searchParams.get('locale') === 'hi' ? 'hi' : 'en')
+    : 'en';
+  const version = currentType === 'THERAPIST_TERMS'
+    ? (searchParams.get('version') || '1.0')
+    : '';
 
   const defaultFallback = DEFAULT_LEGAL_DOCS[currentType] || DEFAULT_LEGAL_DOCS.PRIVACY;
 
   const [documentData, setDocumentData] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [isLiveFromApi, setIsLiveFromApi] = useState(false);
+  const [loadError, setLoadError] = useState('');
 
   const fetchDoc = useCallback(async () => {
     setLoading(true);
+    setLoadError('');
     try {
       let docPayload = null;
 
-      // 1. Try GET /content/legal/{type}
-      try {
-        const res = await getPublicLegalDocument(currentType);
+      if (currentType === 'THERAPIST_TERMS') {
+        const res = await getTherapistTerms(version, locale);
         const payload = res?.data || res;
-        if (payload && payload.type === currentType && payload.content) {
+        if (payload?.content) {
           docPayload = payload;
+        } else {
+          throw new Error('Therapist terms were not returned by the server.');
         }
-      } catch {
-        // Silently catch and fallback to list endpoint
-      }
-
-      // 2. Search exact currentType in GET /content/legal list
-      if (!docPayload) {
+      } else {
+        // 1. Try GET /content/legal/{type}
         try {
-          const listRes = await getPublicLegalDocuments();
-          const list = Array.isArray(listRes?.data)
-            ? listRes.data
-            : Array.isArray(listRes)
-            ? listRes
-            : [];
-          docPayload = list.find((d) => d.type === currentType || d.id === currentType) || null;
+          const res = await getPublicLegalDocument(currentType);
+          const payload = res?.data || res;
+          if (payload && payload.type === currentType && payload.content) {
+            docPayload = payload;
+          }
         } catch {
-          // Silently catch list error
+          // Fall back to the legal-document list endpoint.
+        }
+
+        // 2. Search exact currentType in GET /content/legal list
+        if (!docPayload) {
+          try {
+            const listRes = await getPublicLegalDocuments();
+            const list = Array.isArray(listRes?.data)
+              ? listRes.data
+              : Array.isArray(listRes)
+              ? listRes
+              : [];
+            docPayload = list.find((d) => d.type === currentType || d.id === currentType) || null;
+          } catch {
+            // Use the local fallback document below.
+          }
         }
       }
 
       if (docPayload && docPayload.content) {
         setDocumentData(docPayload);
-        setIsLiveFromApi(true);
       } else {
         setDocumentData(defaultFallback);
       }
-    } catch {
-      setDocumentData(defaultFallback);
+    } catch (err) {
+      if (currentType === 'THERAPIST_TERMS') {
+        setDocumentData(null);
+        setLoadError(err?.message || 'Unable to load therapist terms. Please try again.');
+      } else {
+        setDocumentData(defaultFallback);
+      }
     } finally {
       setLoading(false);
     }
-  }, [currentType]);
+  }, [currentType, defaultFallback, locale, version]);
 
   useEffect(() => {
     window.scrollTo(0, 0);
     fetchDoc();
   }, [fetchDoc]);
+
+  const selectLocale = (nextLocale) => {
+    setSearchParams({ version: version || '1.0', locale: nextLocale });
+  };
 
   return (
     <div className="min-h-screen bg-[#FFFDFD] text-[#0D0D12] font-sans flex flex-col justify-between">
@@ -249,6 +312,35 @@ export default function CmsPage({ docTypeOverride, docTitleOverride }) {
             </div>
           </div>
 
+          {currentType === 'THERAPIST_TERMS' && (
+            <div className="flex items-center gap-2 mt-6" aria-label="Select terms language">
+              <button
+                type="button"
+                onClick={() => selectLocale('hi')}
+                aria-pressed={locale === 'hi'}
+                className={`px-4 py-2 rounded-full border text-xs font-bold transition-colors ${
+                  locale === 'hi'
+                    ? 'bg-[#F35271] border-[#F35271] text-white'
+                    : 'bg-white border-[#AFB0B7]/40 text-[#757880] hover:border-[#F35271] hover:text-[#F35271]'
+                }`}
+              >
+                हिंदी
+              </button>
+              <button
+                type="button"
+                onClick={() => selectLocale('en')}
+                aria-pressed={locale === 'en'}
+                className={`px-4 py-2 rounded-full border text-xs font-bold transition-colors ${
+                  locale === 'en'
+                    ? 'bg-[#F35271] border-[#F35271] text-white'
+                    : 'bg-white border-[#AFB0B7]/40 text-[#757880] hover:border-[#F35271] hover:text-[#F35271]'
+                }`}
+              >
+                English
+              </button>
+            </div>
+          )}
+
           {documentData && (documentData.version || documentData.effectiveAt) && (
             <div className="flex items-center gap-6 pt-4 border-t border-[#AFB0B7]/20 text-xs text-[#757880] font-light">
               {documentData.version && (
@@ -273,6 +365,19 @@ export default function CmsPage({ docTypeOverride, docTitleOverride }) {
             <div className="py-24 text-center space-y-4">
               <div className="w-10 h-10 border-4 border-[#F35271] border-t-transparent rounded-full animate-spin mx-auto" />
               <p className="text-sm font-medium text-[#757880]">Loading policy from live server...</p>
+            </div>
+          ) : loadError ? (
+            <div className="py-16 text-center space-y-4">
+              <AlertCircle className="w-10 h-10 text-[#F35271] mx-auto" />
+              <p className="text-sm font-medium text-[#757880]">{loadError}</p>
+              <button
+                type="button"
+                onClick={fetchDoc}
+                className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-[#F35271] text-white text-xs font-bold hover:bg-[#E04362]"
+              >
+                <RefreshCw className="w-4 h-4" />
+                Retry
+              </button>
             </div>
           ) : (
             <article className="prose prose-lg max-w-none">

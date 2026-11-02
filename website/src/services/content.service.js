@@ -20,6 +20,14 @@ export const getPublicLegalDocument = async (type, locale = 'en') => {
 };
 
 /**
+ * Fetch a versioned therapist terms document in the requested language.
+ */
+export const getTherapistTerms = async (version = '1.0', locale = 'hi') => {
+  const query = new URLSearchParams({ version, locale });
+  return await publicFetch(`/therapist-terms?${query.toString()}`);
+};
+
+/**
  * 3. GET /content/faqs
  * Fetch FAQs for website Help Center & FAQ sections
  * @param {Object} params - Query parameters e.g. { category, q, limit }

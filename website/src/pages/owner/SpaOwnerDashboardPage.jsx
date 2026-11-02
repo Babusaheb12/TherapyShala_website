@@ -1400,7 +1400,7 @@ export default function SpaOwnerDashboardPage() {
     setCancellationPolicyLoading(true);
     setCancellationPolicyError('');
     try {
-      const res = await getSpaOwnerCancellationPolicy();
+      const res = await getSpaOwnerCancellationPolicy(token);
       if (res?.success && res?.data) {
         setCancellationPolicy(res.data);
       } else {
@@ -1553,6 +1553,7 @@ export default function SpaOwnerDashboardPage() {
 
   // Therapist Onboarding Form State
   const initialFormState = {
+    acceptedTermsAndConditions: false,
     displayName: '',
     fullName: '',
     mobileNumber: '',
@@ -1702,6 +1703,11 @@ export default function SpaOwnerDashboardPage() {
 
     if (uploadingField) {
       setOnboardError('Please wait for the selected file upload to finish.');
+      return;
+    }
+
+    if (formData.acceptedTermsAndConditions !== true) {
+      setOnboardError('Please accept the Terms & Conditions before onboarding.');
       return;
     }
 
@@ -1867,6 +1873,7 @@ export default function SpaOwnerDashboardPage() {
       const payload = {
         displayName: formData.displayName.trim(),
         fullName: formData.fullName.trim(),
+        acceptedTermsAndConditions: formData.acceptedTermsAndConditions === true,
         mobileNumber: cleanMobile.slice(-10),
         email: formData.email?.trim() || undefined,
         gender: formData.gender || 'FEMALE',

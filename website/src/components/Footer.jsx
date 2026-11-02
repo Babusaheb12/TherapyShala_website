@@ -198,7 +198,7 @@ export default function Footer() {
             <Link to="/terms" className="hover:text-white transition-colors">
               Terms &amp; Conditions
             </Link>
-            <Link to="/therapist-terms" className="hover:text-white transition-colors">
+            <Link to="/therapist-terms?version=1.0&locale=en" className="hover:text-white transition-colors">
               Therapist Terms
             </Link>
             <Link to="/cancellation" className="hover:text-white transition-colors">

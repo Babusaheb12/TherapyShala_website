@@ -1043,6 +1043,35 @@ export default function TherapistOnboardingInPage({
           </div>
         </div>
 
+        <div className="p-5 rounded-2xl bg-rose-50/60 border border-rose-200">
+          <label className="flex items-start gap-3 text-xs leading-relaxed text-gray-700 cursor-pointer">
+            <input
+              type="checkbox"
+              required
+              checked={formData.acceptedTermsAndConditions === true}
+              onChange={(e) =>
+                setFormData({
+                  ...formData,
+                  acceptedTermsAndConditions: e.target.checked,
+                })
+              }
+              className="mt-0.5 h-4 w-4 shrink-0 accent-[#F35271] cursor-pointer"
+            />
+            <span>
+              I confirm that I am 18 years of age or older. I have read and understood all{' '}
+              <a
+                href="/therapist-terms?version=1.0&locale=en"
+                target="_blank"
+                rel="noreferrer"
+                className="font-bold text-[#D83F5E] underline underline-offset-2 hover:text-[#B92E4A]"
+              >
+                TherapyShaala Therapist Terms &amp; Conditions
+              </a>{' '}
+              and agree to comply with all applicable rules and provide only lawful and professional services.
+            </span>
+          </label>
+        </div>
+
         {/* Bottom Action Submit Bar */}
         <div className="p-6 rounded-3xl bg-white border border-gray-200 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <button
@@ -1055,8 +1084,8 @@ export default function TherapistOnboardingInPage({
 
           <button
             type="submit"
-            disabled={onboardLoading}
-            className="px-8 py-3 rounded-2xl bg-[#F35271] hover:bg-[#E04362] text-white text-xs font-extrabold transition-all shadow-md flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
+            disabled={onboardLoading || formData.acceptedTermsAndConditions !== true}
+            className="px-8 py-3 rounded-2xl bg-[#F35271] hover:bg-[#E04362] text-white text-xs font-extrabold transition-all shadow-md flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {onboardLoading ? (
               <>
@@ -1066,7 +1095,7 @@ export default function TherapistOnboardingInPage({
             ) : (
               <>
                 <UserPlus className="w-4 h-4" />
-                <span>Onboard Therapist</span>
+                <span>AGREE &amp; CONTINUE</span>
               </>
             )}
           </button>
