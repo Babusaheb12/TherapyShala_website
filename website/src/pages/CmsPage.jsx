@@ -71,6 +71,32 @@ TherapyShala operates as a multi-business marketplace connecting independent ver
 ## 4. Partner Business Obligations
 Partner businesses listed on TherapyShala warrant that all therapists and facilities comply with state licensing, sanitation audits, and pricing transparency.`
   },
+  THERAPIST_TERMS: {
+    title: 'Therapist Terms & Conditions',
+    version: '1.0',
+    effectiveAt: '2026-01-01',
+    content: `# TherapyShala Therapist Terms & Conditions
+## 1. Independent Contractor Relationship
+Therapists registered on TherapyShala operate as certified independent practitioners or partner center therapists. Nothing creates an employer-employee or agency relationship. Therapists retain full flexibility over their online/offline duty status.
+
+## 2. Mandatory Verification & KYC Compliance
+All therapists must submit authentic government ID proof (Aadhaar/PAN/Passport), recognized vocational therapy certifications, and bank/UPI payout details prior to account activation. Periodic background checks may be conducted.
+
+## 3. Professional Code of Conduct & Dignity
+Therapists must maintain impeccable personal hygiene, sanitized equipment, punctual arrival (at least 15 minutes prior to appointment start), and strictly adhere to the booked treatment duration and technique. Soliciting platform clients offline or accepting unrecorded cash payments is strictly prohibited.
+
+## 4. Zero-Tolerance Policy on Inappropriate Behavior
+TherapyShala services are strictly therapeutic and non-sexual. Any solicitation, request, or offering of inappropriate or unethical services results in immediate termination, forfeiture of pending payouts, blacklisting, and reporting to law enforcement authorities.
+
+## 5. Attendance & Reliability Standards
+Accepted bookings must be fulfilled. Unexcused cancellations or no-shows incur deductions and reliability impacts in accordance with the Therapist Cancellation Policy.
+
+## 6. Payouts & Commission Settlement
+Earnings are credited to the therapist wallet based on the agreed commission tier and disbursed on scheduled payout cycles directly to verified bank accounts after applicable statutory tax deductions.
+
+## 7. Client Privacy & Treatment Confidentiality
+Client medical history, personal discussions, and contact details are confidential. Photography or video recording in treatment rooms is strictly prohibited.`
+  },
   CANCELLATION: {
     title: 'Cancellation & Rescheduling Policy',
     version: '1.1',
