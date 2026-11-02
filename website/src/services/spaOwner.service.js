@@ -435,12 +435,12 @@ export const getSpaOwnerPayoutHistory = async (params = {}) => {
 export const getOwnerPayoutHistory = getSpaOwnerPayoutHistory;
 
 /**
- * 14. GET /admin/cancellation-policy
+ * 14. GET /spa-owner/cancellation-policy
  * Retrieve the current cancellation policy and fee configurations using the
  * authenticated spa-owner token.
  */
 export const getSpaOwnerCancellationPolicy = async (ownerToken) => {
-  return await apiClient("/admin/cancellation-policy", {
+  return await apiClient("/spa-owner/cancellation-policy", {
     method: "GET",
     headers: ownerToken ? { Authorization: `Bearer ${ownerToken}` } : undefined,
   });
@@ -505,6 +505,85 @@ export const updateReferralCommission = async (percentage) => {
     method: "PUT",
     body: JSON.stringify({ percentage: Number(percentage) }),
     skipUnauthorizedEvent: true,
+  });
+};
+
+/**
+ * GET /spa-owner/therapist-commission
+ * Retrieves the Spa Owner's current commission percentage from therapist bookings.
+ */
+export const getSpaOwnerTherapistCommission = async () => {
+  return await apiClient("/spa-owner/therapist-commission", {
+    method: "GET",
+  });
+};
+
+/**
+ * PATCH /spa-owner/therapist-commission
+ * Updates the Spa Owner's commission percentage from therapist bookings.
+ */
+export const updateSpaOwnerTherapistCommission = async (percentage) => {
+  const parsedPercentage = Number(percentage);
+  if (!Number.isFinite(parsedPercentage) || parsedPercentage < 0 || parsedPercentage > 100) {
+    throw new Error("Commission percentage must be a number between 0 and 100.");
+  }
+
+  return await apiClient("/spa-owner/therapist-commission", {
+    method: "PATCH",
+    body: JSON.stringify({ percentage: parsedPercentage }),
+  });
+};
+
+/**
+ * GET /spa-owner/therapist-earnings
+ * Retrieves linked therapist earnings, outstanding balances, and payment history.
+ * @param {Object} params - Optional { therapistId } filter
+ */
+export const getSpaOwnerTherapistEarnings = async ({ therapistId } = {}) => {
+  const query = new URLSearchParams();
+  if (therapistId) query.set("therapistId", String(therapistId).trim());
+  const queryString = query.toString();
+  return await apiClient(
+    `/spa-owner/therapist-earnings${queryString ? `?${queryString}` : ""}`,
+    { method: "GET" }
+  );
+};
+
+/**
+ * GET /spa-owner/therapist-withdrawals
+ * Retrieves therapist withdrawal requests available to the Spa Owner.
+ */
+export const getSpaOwnerTherapistWithdrawals = async () => {
+  return await apiClient("/spa-owner/therapist-withdrawals", {
+    method: "GET",
+  });
+};
+
+/**
+ * POST /spa-owner/therapist-payments
+ * Records a payment made to a linked therapist. amountMinor is INR paise.
+ * @param {Object} payment - { therapistId, amountMinor, paymentMethod, reference?, note? }
+ */
+export const createSpaOwnerTherapistPayment = async (payment) => {
+  if (!payment?.therapistId) {
+    throw new Error("Select a therapist before recording a payment.");
+  }
+  if (!Number.isSafeInteger(payment.amountMinor) || payment.amountMinor <= 0) {
+    throw new Error("Payment amount must be a positive whole number of paise.");
+  }
+  if (!["BANK_TRANSFER", "UPI", "CASH"].includes(payment.paymentMethod)) {
+    throw new Error("Select a valid payment method.");
+  }
+
+  return await apiClient("/spa-owner/therapist-payments", {
+    method: "POST",
+    body: JSON.stringify({
+      therapistId: String(payment.therapistId).trim(),
+      amountMinor: payment.amountMinor,
+      paymentMethod: payment.paymentMethod,
+      reference: payment.reference?.trim() || undefined,
+      note: payment.note?.trim() || undefined,
+    }),
   });
 };
 
@@ -676,6 +755,11 @@ export default {
   declineSpaOwnerJobRequest,
   getSpaOwnerCommissions,
   getOwnerCommissions,
+  getSpaOwnerTherapistCommission,
+  updateSpaOwnerTherapistCommission,
+  getSpaOwnerTherapistEarnings,
+  getSpaOwnerTherapistWithdrawals,
+  createSpaOwnerTherapistPayment,
   getSpaOwnerPayoutAccount,
   getOwnerPayoutAccount,
   updateSpaOwnerPayoutAccount,

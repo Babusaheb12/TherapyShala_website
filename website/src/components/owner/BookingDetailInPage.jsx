@@ -48,7 +48,22 @@ export default function BookingDetailInPage({
   const baseAmount = items.length && items.every((item) => Number.isFinite(item.unitPriceMinor))
     ? items.reduce((sum, item) => sum + item.unitPriceMinor * (item.quantity ?? 1), 0) / 100
     : bookingData?.payment?.amount ?? bookingData?.totalAmount;
-  const totalAmount = bookingData?.totalRupees ?? bookingData?.payment?.finalAmount ?? bookingData?.totalAmount;
+  const platformCommissionAmount =
+    bookingData?.platformCommissionRupees ??
+    (Number.isFinite(bookingData?.platformCommissionMinor)
+      ? bookingData.platformCommissionMinor / 100
+      : null);
+  const therapistPayableAmount =
+    bookingData?.therapistPayableRupees ??
+    (Number.isFinite(bookingData?.therapistPayableMinor)
+      ? bookingData.therapistPayableMinor / 100
+      : null) ??
+    bookingData?.totalRupees;
+  const spaOwnerCommissionAmount =
+    bookingData?.spaOwnerCommissionRupees ??
+    (Number.isFinite(bookingData?.spaOwnerCommissionMinor)
+      ? bookingData.spaOwnerCommissionMinor / 100
+      : null);
   const money = (value) => value == null ? '—' : new Intl.NumberFormat('en-IN', {
     style: 'currency', currency: bookingData?.currency || 'INR', maximumFractionDigits: 2,
   }).format(value);
@@ -325,6 +340,21 @@ export default function BookingDetailInPage({
                     </span>
                   </div>
 
+                  {platformCommissionAmount != null && (
+                    <div className="flex justify-between text-gray-600">
+                      <span>
+                        Platform Commission
+                        {bookingData.platformCommissionPercentage != null
+                          ? ` (${bookingData.platformCommissionPercentage}%)`
+                          : ''}
+                        :
+                      </span>
+                      <span className="font-semibold text-black">
+                        {money(platformCommissionAmount)}
+                      </span>
+                    </div>
+                  )}
+
                   {bookingData.payment?.discount && (
                     <div className="flex justify-between text-emerald-600">
                       <span>Discount Applied:</span>
@@ -332,17 +362,29 @@ export default function BookingDetailInPage({
                     </div>
                   )}
 
+                  {spaOwnerCommissionAmount != null && (
+                    <div className="flex justify-between text-gray-600">
+                      <span>
+                        Spa Owner Commission
+                        {bookingData.spaOwnerCommissionPercentage != null
+                          ? ` (${bookingData.spaOwnerCommissionPercentage}%)`
+                          : ''}
+                        :
+                      </span>
+                      <span className="font-semibold text-black">
+                        {money(spaOwnerCommissionAmount)}
+                      </span>
+                    </div>
+                  )}
+
                   <div className="flex justify-between text-gray-600">
                     <span>Payment Status:</span><span className="font-semibold">{bookingData.paymentStatus || '—'}</span>
                   </div>
-                  <div className="flex justify-between text-gray-600">
-                    <span>Payment Method:</span><span className="font-semibold">{bookingData.paymentMethodId || '—'}</span>
-                  </div>
 
                   <div className="flex justify-between text-base font-extrabold text-[#0D0D12] pt-2 border-t border-gray-100">
-                    <span>{bookingData.paymentStatus === 'CAPTURED' ? 'Total Paid by Customer:' : 'Booking Total:'}</span>
+                    <span>Payable to Therapist:</span>
                     <span className="text-[#F35271]">
-                      {money(totalAmount)}
+                      {money(therapistPayableAmount)}
                     </span>
                   </div>
                 </div>

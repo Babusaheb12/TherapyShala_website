@@ -76,6 +76,9 @@ import PayoutRequestInPage from '../../components/owner/PayoutRequestInPage';
 import SubOwnerDetailModal from '../../components/owner/SubOwnerDetailModal';
 import SpaOwnerChatInbox from '../../components/owner/SpaOwnerChatInbox';
 import SpaOwnerReferralCommissionCard from '../../components/owner/SpaOwnerReferralCommissionCard';
+import SpaOwnerTherapistCommissionCard from '../../components/owner/SpaOwnerTherapistCommissionCard';
+import SpaOwnerReferralCommissionPreview from '../../components/owner/SpaOwnerReferralCommissionPreview';
+import SpaOwnerTherapistEarnings from '../../components/owner/SpaOwnerTherapistEarnings';
 import SpaOwnerProfileEditor from '../../components/owner/SpaOwnerProfileEditor';
 import SpaOwnerSupportView from '../../components/owner/SpaOwnerSupportView';
 import { resolveMediaUrl } from '../../utils/mediaUtils';
@@ -480,7 +483,7 @@ export default function SpaOwnerDashboardPage() {
   const [payoutsPage, setPayoutsPage] = useState(1);
   const [payoutStatusFilter, setPayoutStatusFilter] = useState('ALL');
 
-  // Cancellation Policy State (GET /admin/cancellation-policy)
+  // Cancellation Policy State (GET /spa-owner/cancellation-policy)
   const [cancellationPolicy, setCancellationPolicy] = useState(null);
   const [cancellationPolicyLoading, setCancellationPolicyLoading] = useState(false);
   const [cancellationPolicyError, setCancellationPolicyError] = useState('');
@@ -1389,7 +1392,7 @@ export default function SpaOwnerDashboardPage() {
     }
   };
 
-  // 8. Fetch Cancellation Policy (API: GET /admin/cancellation-policy)
+  // 8. Fetch Cancellation Policy (API: GET /spa-owner/cancellation-policy)
   const fetchCancellationPolicy = useCallback(async () => {
     const token =
       ownerToken ||
@@ -2018,6 +2021,12 @@ export default function SpaOwnerDashboardPage() {
       badge: sidebarBadges.therapistsFleet ?? (dashboardData?.therapistsSummary?.total ?? therapistsCount),
     },
     {
+      id: 'therapist-earnings',
+      label: 'Therapist Earnings & Settlement',
+      icon: Wallet,
+      badge: null,
+    },
+    {
       id: 'bookings',
       label: 'Appointments & Booking',
       icon: CalendarCheck,
@@ -2028,12 +2037,6 @@ export default function SpaOwnerDashboardPage() {
       label: 'Client Messages & Chat',
       icon: MessageSquare,
       badge: chatUnreadCount || null,
-    },
-    {
-      id: 'therapist-commission',
-      label: 'Therapist Commission',
-      icon: Percent,
-      badge: null,
     },
     { id: 'commission', label: 'Commission Ledger', icon: Percent, badge: sidebarBadges.ownerCommission },
     { id: 'payout', label: 'Commission Payout', icon: Wallet, badge: sidebarBadges.commissionPayout },
@@ -4665,7 +4668,7 @@ export default function SpaOwnerDashboardPage() {
             );
           })()}
 
-          {/* 5. CANCELLATION POLICY & FEE MATRIX (API: GET /admin/cancellation-policy) */}
+          {/* 5. CANCELLATION POLICY & FEE MATRIX (API: GET /spa-owner/cancellation-policy) */}
           {activeSection === 'penalty' && (
             <div className="space-y-6">
               {/* Header Bar */}
@@ -4948,31 +4951,7 @@ export default function SpaOwnerDashboardPage() {
             </div>
           )}
 
-          {/* 4. THERAPIST COMMISSION */}
-          {activeSection === 'therapist-commission' && (
-            <div className="space-y-6">
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                <div>
-                  <h3 className="text-lg font-bold text-[#0D0D12]">Therapist Commission</h3>
-                  <p className="text-xs text-[#757880] mt-0.5">
-                    View commission rates, splits, and earnings for therapists registered under your spa sanctuary.
-                  </p>
-                </div>
-              </div>
-
-              <div className="bg-white rounded-3xl p-8 border border-gray-100 shadow-xs text-center space-y-4">
-                <div className="w-14 h-14 rounded-2xl bg-rose-50 text-[#F35271] flex items-center justify-center mx-auto">
-                  <Percent className="w-7 h-7" />
-                </div>
-                <div className="max-w-md mx-auto space-y-2">
-                  <h4 className="text-base font-bold text-[#0D0D12]">Therapist Commission Management</h4>
-                  <p className="text-xs text-[#757880]">
-                    Therapist commission rates and service splits are configured at the platform level. Detailed per-therapist breakdowns and custom split overrides will appear here once configured by the platform administrator.
-                  </p>
-                </div>
-              </div>
-            </div>
-          )}
+          {activeSection === 'therapist-earnings' && <SpaOwnerTherapistEarnings />}
 
           {/* 5. OWNER COMMISSION (API: GET /spa-owner/commissions) */}
           {activeSection === 'commission' && (
@@ -5458,7 +5437,7 @@ export default function SpaOwnerDashboardPage() {
 
                   <div className="flex items-center gap-2">
                     {/* Account Settings Button */}
-                    <button
+                    {/* <button
                       type="button"
                       onClick={() => {
                         setPayoutAccountError('');
@@ -5468,7 +5447,7 @@ export default function SpaOwnerDashboardPage() {
                     >
                       <Landmark className="w-4 h-4 text-[#F35271]" />
                       <span>Payout Account</span>
-                    </button>
+                    </button> */}
 
                     {/* Refresh Button */}
                     <button
@@ -5862,6 +5841,9 @@ export default function SpaOwnerDashboardPage() {
                 </div>
               </div>
 
+              <SpaOwnerTherapistCommissionCard />
+              <SpaOwnerReferralCommissionPreview />
+
               {/* General Spa Settings */}
               <div className="bg-white rounded-3xl p-6 sm:p-7 border border-gray-200 shadow-2xs space-y-6 text-xs">
                 <div>
@@ -5913,23 +5895,6 @@ export default function SpaOwnerDashboardPage() {
                         className="w-full px-3.5 py-2.5 rounded-xl border border-gray-200 bg-white"
                       />
                     </div>
-                  </div>
-                </div>
-
-                {/* Notifications */}
-                <div className="pt-4 border-t border-gray-100">
-                  <h4 className="font-bold text-[#0D0D12] uppercase tracking-wider text-[11px] mb-3 text-rose-600">
-                    Alerts & Notifications
-                  </h4>
-                  <div className="space-y-3">
-                    <label className="flex items-center gap-2.5 cursor-pointer">
-                      <input type="checkbox" defaultChecked className="rounded border-gray-300 text-[#F35271]" />
-                      <span>Instant SMS & WhatsApp notification on new appointment bookings</span>
-                    </label>
-                    <label className="flex items-center gap-2.5 cursor-pointer">
-                      <input type="checkbox" defaultChecked className="rounded border-gray-300 text-[#F35271]" />
-                      <span>Weekly settlement payout confirmation receipt via email</span>
-                    </label>
                   </div>
                 </div>
 
