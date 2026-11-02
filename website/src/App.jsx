@@ -1,5 +1,5 @@
 import React from 'react';
-import { BrowserRouter, Routes, Route } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import ScrollToTop from './components/common/ScrollToTop';
 import { AuthProvider } from './context/AuthContext';
 
@@ -94,10 +94,10 @@ function App() {
           <Route path="/account/packages" element={<CustomerAccountPage />} />
           <Route path="/account/reviews" element={<CustomerAccountPage />} />
 
-          {/* TherapyShala Concierge & Direct Chat */}
-          <Route path="/chat" element={<ChatPage />} />
-          <Route path="/messages" element={<ChatPage />} />
-          <Route path="/concierge" element={<ChatPage />} />
+          {/* TherapyShala Concierge & Direct Chat routes redirect */}
+          <Route path="/chat" element={<Navigate to="/" replace />} />
+          <Route path="/messages" element={<Navigate to="/" replace />} />
+          <Route path="/concierge" element={<Navigate to="/enquiry" replace />} />
 
           {/* Dedicated CMS Document Routes */}
           <Route path="/cms/:slug" element={<CmsPage />} />
