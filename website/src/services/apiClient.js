@@ -1,10 +1,8 @@
-// Vite embeds this value at build time. Keep the production URL as a fallback so
-// a deployment without an injected environment variable never points at ngrok.
-export const API_BASE_URL =
-  import.meta.env.VITE_API_BASE_URL ||
-  (import.meta.env.PROD
-    ? "https://api.therapyshala.com/api/v1"
-    : "https://yiddish-darkened-absolute.ngrok-free.dev/api/v1");
+// The workspace .env is used for local development; production always uses the
+// canonical API host so a local ngrok URL is never embedded in a production build.
+export const API_BASE_URL = import.meta.env.PROD
+  ? "https://api.therapyshala.com/api/v1"
+  : import.meta.env.VITE_API_BASE_URL || "https://api.therapyshala.com/api/v1";
 
 export const getApiBaseUrl = () => {
   // In browser on localhost / DEV, route via Vite proxy (/api/v1) to prevent backend CORS origin denials

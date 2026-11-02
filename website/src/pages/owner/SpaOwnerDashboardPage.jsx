@@ -74,11 +74,12 @@ import PenaltyAuditInPage from '../../components/owner/PenaltyAuditInPage';
 import PayoutAccountInPage from '../../components/owner/PayoutAccountInPage';
 import PayoutRequestInPage from '../../components/owner/PayoutRequestInPage';
 import SubOwnerDetailModal from '../../components/owner/SubOwnerDetailModal';
-import SpaOwnerChatView from '../../components/owner/SpaOwnerChatView';
+import SpaOwnerChatInbox from '../../components/owner/SpaOwnerChatInbox';
 import SpaOwnerReferralCommissionCard from '../../components/owner/SpaOwnerReferralCommissionCard';
 import SpaOwnerProfileEditor from '../../components/owner/SpaOwnerProfileEditor';
 import SpaOwnerSupportView from '../../components/owner/SpaOwnerSupportView';
 import { resolveMediaUrl } from '../../utils/mediaUtils';
+import BookingTherapistAvatar from '../../components/owner/BookingTherapistAvatar';
 import { useAuth } from '../../context/AuthContext';
 import {
   getSpaOwnerDashboard,
@@ -90,6 +91,8 @@ import {
   uploadAsset,
   getSpaOwnerBookings,
   getSpaOwnerBookingDetails,
+  acceptSpaOwnerJobRequest,
+  declineSpaOwnerJobRequest,
   getSpaOwnerCommissions,
   getSpaOwnerPayoutAccount,
   updateSpaOwnerPayoutAccount,
@@ -113,7 +116,8 @@ import {
 } from '../../services/spaOwnerSocket';
 
 const getOwnerNotificationCategory = (type) => {
-  type = String(type || '');
+  type = String(type || '').toUpperCase();
+  if (type === 'CHAT_MESSAGE') return 'chat';
   if (type === 'OWNER_ACCOUNT_APPROVED') return 'account';
   if (type === 'SPONSORED_SPA_APPROVED') return 'sponsored';
   if (type.startsWith('THERAPIST_')) return 'therapists';
@@ -133,8 +137,19 @@ const getOwnerNotificationCategory = (type) => {
   return 'updates';
 };
 
+const getNotificationConversationId = (notification) =>
+  notification?.conversationId ||
+  notification?.data?.conversationId ||
+  notification?.data?.conversation?.id ||
+  notification?.data?.conversation?.publicId ||
+  notification?.chat?.conversationId ||
+  notification?.conversation?.id ||
+  notification?.conversation?.publicId ||
+  '';
+
 const getOwnerNotificationSection = (notification) => {
   const category = notification?.category || getOwnerNotificationCategory(notification?.raw?.type);
+  if (category === 'chat') return 'messages';
   if (category === 'bookings') return 'bookings';
   if (category === 'therapists') return 'therapists';
   if (category === 'support') return 'support';
@@ -164,6 +179,60 @@ const EMPTY_CANCELLATION_PENALTIES_REPORT = {
   },
   records: [],
 };
+
+const toDateTimeLocalValue = (value) => {
+  if (!value) return '';
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return '';
+  return new Date(date.getTime() - date.getTimezoneOffset() * 60000)
+    .toISOString()
+    .slice(0, 16);
+};
+
+const getBookingJobRequestId = (booking) =>
+  booking?.jobRequestId ||
+  booking?.jobRequestPublicId ||
+  booking?.jobRequestRefId ||
+  booking?.jobRequestRequestId ||
+  booking?.jobRequest?.jobRequestId ||
+  booking?.jobRequest?.requestId ||
+  booking?.jobRequest?.publicId ||
+  booking?.jobRequest?.id ||
+  booking?.jobRequest?._id ||
+  booking?.jobRequestRef?.publicId ||
+  booking?.jobRequestRef?.id ||
+  booking?.jobRequestRef?._id ||
+  booking?.requestId ||
+  booking?.request?.jobRequestId ||
+  booking?.request?.requestId ||
+  booking?.request?.publicId ||
+  booking?.request?.id ||
+  booking?.request?._id ||
+  '';
+
+const unwrapBookingDetailsResponse = (response) =>
+  response?.data?.booking ||
+  response?.booking ||
+  response?.data?.data ||
+  response?.data ||
+  null;
+
+const isPendingJobRequest = (booking) => {
+  const requestStatus = String(
+    booking?.jobRequest?.status ||
+      booking?.jobRequestStatus ||
+      booking?.request?.status ||
+      booking?.jobRequestState ||
+      booking?.status ||
+      ''
+  ).toUpperCase();
+  return ['REQUESTED', 'PENDING', 'PENDING_ACCEPTANCE', 'OPEN', 'AWAITING_ACCEPTANCE'].includes(
+    requestStatus
+  );
+};
+
+const isActionableJobRequest = (booking) =>
+  Boolean(getBookingJobRequestId(booking) && isPendingJobRequest(booking));
 
 export default function SpaOwnerDashboardPage() {
   const navigate = useNavigate();
@@ -205,6 +274,20 @@ export default function SpaOwnerDashboardPage() {
   const [socketStatus, setSocketStatus] = useState('disconnected');
   const [activeAppointmentToast, setActiveAppointmentToast] = useState(null); // Realtime floating toast banner
   const toastTimeoutRef = useRef(null);
+  const [chatUnreadCount, setChatUnreadCount] = useState(0);
+  const [requestedChatConversationId, setRequestedChatConversationId] = useState('');
+  const [visibleChatConversationId, setVisibleChatConversationId] = useState('');
+  const activeChatConversationRef = useRef(null);
+  const handleChatUnreadCountChange = useCallback((count) => {
+    setChatUnreadCount(count);
+  }, []);
+  const handleActiveChatConversationChange = useCallback((conversationId) => {
+    activeChatConversationRef.current = conversationId;
+    setVisibleChatConversationId(conversationId || '');
+  }, []);
+  const handleChatRequestedConversationHandled = useCallback(() => {
+    setRequestedChatConversationId('');
+  }, []);
 
   useEffect(() => {
     const audio = new Audio(notificationSound);
@@ -314,6 +397,12 @@ export default function SpaOwnerDashboardPage() {
   const bookingsLimit = 20;
   const [bookingsLoading, setBookingsLoading] = useState(true);
   const [bookingsError, setBookingsError] = useState('');
+  const [bookingActionModal, setBookingActionModal] = useState(null);
+  const [bookingActionVisitTime, setBookingActionVisitTime] = useState('');
+  const [bookingActionReason, setBookingActionReason] = useState('Therapist is unavailable.');
+  const [bookingActionLoading, setBookingActionLoading] = useState(false);
+  const [bookingActionError, setBookingActionError] = useState('');
+  const [bookingActionNotice, setBookingActionNotice] = useState('');
 
   // Booking Filters
   const [bookingStatusFilter, setBookingStatusFilter] = useState('ALL');
@@ -601,6 +690,135 @@ export default function SpaOwnerDashboardPage() {
     ]
   );
 
+  const openBookingAction = (action, booking) => {
+    if (!isPendingJobRequest(booking)) return;
+    const suggestedVisitTime = booking.scheduledVisitTime || booking.slotStart;
+    const suggestedDate = suggestedVisitTime ? new Date(suggestedVisitTime) : null;
+    const defaultVisitTime =
+      suggestedDate && suggestedDate.getTime() > Date.now()
+        ? toDateTimeLocalValue(suggestedVisitTime)
+        : '';
+
+    setBookingActionModal({ action, booking });
+    setBookingActionVisitTime(defaultVisitTime);
+    setBookingActionReason('Therapist is unavailable.');
+    setBookingActionError('');
+    setBookingActionNotice('');
+  };
+
+  const handleSubmitBookingAction = async (e) => {
+    e?.preventDefault();
+    if (!bookingActionModal || bookingActionLoading) return;
+
+    const { action } = bookingActionModal;
+    let booking = bookingActionModal.booking;
+    if (!isPendingJobRequest(booking)) {
+      setBookingActionError('This job request is no longer available for your spa.');
+      return;
+    }
+
+    let jobRequestId = getBookingJobRequestId(booking);
+    if (!jobRequestId) {
+      const bookingId = booking.publicId || booking.bookingId || booking.id || booking._id;
+      if (bookingId) {
+        setBookingActionLoading(true);
+        try {
+          const response = await getSpaOwnerBookingDetails(bookingId);
+          const detailedBooking = unwrapBookingDetailsResponse(response);
+          if (detailedBooking) {
+            booking = { ...booking, ...detailedBooking };
+            jobRequestId = getBookingJobRequestId(booking);
+            setBookingActionModal((previous) =>
+              previous ? { ...previous, booking } : previous
+            );
+          }
+        } catch (err) {
+          setBookingActionError(
+            err?.data?.message || err?.message || 'Could not load the job request details.'
+          );
+          setBookingActionLoading(false);
+          return;
+        }
+        setBookingActionLoading(false);
+      }
+    }
+
+    if (!isPendingJobRequest(booking)) {
+      setBookingActionError('This booking is no longer a pending job request.');
+      return;
+    }
+
+    if (!jobRequestId) {
+      setBookingActionError(
+        'The booking API did not return a job request ID. Ask the API team to include jobRequestId in the booking list/details response.'
+      );
+      return;
+    }
+    const bookingId = booking.publicId || booking.bookingId || booking.id || booking._id;
+    if (!bookingId) {
+      setBookingActionError('The booking ID is missing. Refresh bookings and try again.');
+      return;
+    }
+    if (action === 'accept') {
+      const visitTime = new Date(bookingActionVisitTime);
+      if (
+        !bookingActionVisitTime ||
+        Number.isNaN(visitTime.getTime()) ||
+        visitTime.getTime() <= Date.now()
+      ) {
+        setBookingActionError('Choose an actual visit time in the future.');
+        return;
+      }
+    }
+
+    setBookingActionLoading(true);
+    setBookingActionError('');
+    try {
+      const response =
+        action === 'accept'
+          ? await acceptSpaOwnerJobRequest({
+              jobRequestId,
+              bookingId,
+              scheduledVisitTime: new Date(bookingActionVisitTime).toISOString(),
+            })
+          : await declineSpaOwnerJobRequest({
+              jobRequestId,
+              reason: bookingActionReason,
+            });
+
+      if (response?.success === false) {
+        throw new Error(response.message || `Failed to ${action} this job request.`);
+      }
+
+      setBookingActionNotice(
+        response?.message ||
+          (action === 'accept'
+            ? 'Job request accepted and visit scheduled.'
+            : 'Job request declined.')
+      );
+      if (bookingSubView === 'details') {
+        setBookingDetailData((previous) => ({
+          ...(previous || booking),
+          ...(response?.data || {}),
+          status:
+            response?.data?.status ||
+            (action === 'accept' ? 'ACCEPTED' : 'DECLINED'),
+          ...(action === 'accept'
+            ? { scheduledVisitTime: new Date(bookingActionVisitTime).toISOString() }
+            : {}),
+        }));
+      }
+      setBookingActionModal(null);
+      await fetchBookings();
+    } catch (err) {
+      setBookingActionError(
+        err?.data?.message || err?.message || `Failed to ${action} this job request.`
+      );
+    } finally {
+      setBookingActionLoading(false);
+    }
+  };
+
   // Filter change handler
   const handleFilterChange = (updates) => {
     const nextStatus = updates.status !== undefined ? updates.status : bookingStatusFilter;
@@ -715,6 +933,18 @@ export default function SpaOwnerDashboardPage() {
     }
   };
 
+  useEffect(() => {
+    if (!visibleChatConversationId) return;
+    const notificationsToRead = dashboardNotifications.filter(
+      (notification) =>
+        !notification.read &&
+        notification.category === 'chat' &&
+        String(getNotificationConversationId(notification.raw)) ===
+          String(visibleChatConversationId)
+    );
+    notificationsToRead.forEach((notification) => handleMarkAsRead(notification.id));
+  }, [visibleChatConversationId, dashboardNotifications]);
+
   // Mark all notifications as read
   const handleMarkAllAsRead = async () => {
     const unreadNotifications = dashboardNotifications.filter((n) => !n.read);
@@ -758,6 +988,17 @@ export default function SpaOwnerDashboardPage() {
 
     const unsubscribeNotification = onSpaOwnerNotification((notification, eventName) => {
       console.log(`[OwnerDashboard] ${eventName} received:`, notification);
+      const notificationType = String(
+        notification?.type || notification?.data?.type || ''
+      ).toUpperCase();
+      const notificationConversationId = getNotificationConversationId(notification);
+      if (
+        notificationType === 'CHAT_MESSAGE' &&
+        notificationConversationId &&
+        String(notificationConversationId) === String(activeChatConversationRef.current)
+      ) {
+        return;
+      }
       playNotificationSound();
 
       const bookingData =
@@ -766,28 +1007,40 @@ export default function SpaOwnerDashboardPage() {
         notification.booking ||
         notification;
       const toastId =
-        notification.id || notification._id || notification.appointmentId || `toast-${Date.now()}`;
+        notification.id ||
+        notification.notificationId ||
+        notification.data?.notificationId ||
+        notification._id ||
+        notification.appointmentId ||
+        `toast-${Date.now()}`;
       const isAppointment =
-        eventName === 'appointment:new' || notification.type === 'NEW_APPOINTMENT';
+        eventName === 'appointment:new' || notificationType === 'NEW_APPOINTMENT';
+      const isChatMessage = notificationType === 'CHAT_MESSAGE';
       const toastObj = {
         id: toastId,
         category:
           eventName === 'support:reply'
             ? 'support'
-            : getOwnerNotificationCategory(notification.type),
+            : getOwnerNotificationCategory(notificationType),
         raw: notification,
         title:
           notification.title ||
           (eventName === 'support:reply'
             ? 'New support reply'
-            : isAppointment
-              ? 'New appointment'
-              : 'New notification'),
+            : isChatMessage
+              ? 'New customer message'
+              : isAppointment
+                ? 'New appointment'
+                : 'New notification'),
         desc:
           notification.body ||
           notification.message ||
           notification.desc ||
-          (isAppointment ? 'A new appointment was received.' : 'You have a new update.'),
+          (isChatMessage
+            ? 'A customer sent a new message.'
+            : isAppointment
+              ? 'A new appointment was received.'
+              : 'You have a new update.'),
         data: bookingData,
       };
 
@@ -1764,6 +2017,12 @@ export default function SpaOwnerDashboardPage() {
       badge: sidebarBadges.appointmentsBooking ?? (dashboardData?.bookingsSummary?.total ?? bookingsTotal),
     },
     {
+      id: 'messages',
+      label: 'Client Messages & Chat',
+      icon: MessageSquare,
+      badge: chatUnreadCount || null,
+    },
+    {
       id: 'therapist-commission',
       label: 'Therapist Commission',
       icon: Percent,
@@ -1785,12 +2044,6 @@ export default function SpaOwnerDashboardPage() {
     },
     { id: 'penalty', label: 'Cancellation Policy Matrix', icon: AlertTriangle, badge: sidebarBadges.cancellationPolicyMatrix },
     { id: 'settings', label: 'Spa Settings', icon: Settings, badge: sidebarBadges.spaSettings },
-    {
-      id: 'messages',
-      label: 'Client Messages & Chat',
-      icon: MessageSquare,
-      badge: 2,
-    },
     {
       id: 'profile',
       label: 'Spa Profile & App Showcase',
@@ -2174,6 +2427,7 @@ export default function SpaOwnerDashboardPage() {
                           { id: 'all', label: 'All' },
                           { id: 'unread', label: 'Unread' },
                           { id: 'bookings', label: 'Bookings' },
+                          { id: 'chat', label: 'Chat' },
                           { id: 'therapists', label: 'Therapists' },
                           { id: 'payments', label: 'Payments' },
                           { id: 'support', label: 'Support' },
@@ -2230,7 +2484,13 @@ export default function SpaOwnerDashboardPage() {
                                   if (!n.read) {
                                     handleMarkAsRead(n.id);
                                   }
-                                  setActiveSection(getOwnerNotificationSection(n));
+                                  const targetSection = getOwnerNotificationSection(n);
+                                  if (targetSection === 'messages') {
+                                    setRequestedChatConversationId(
+                                      getNotificationConversationId(n.raw)
+                                    );
+                                  }
+                                  setActiveSection(targetSection);
                                   setNotificationDropdownOpen(false);
                                 }}
                                 className={`p-3 rounded-2xl cursor-pointer transition-all flex items-start gap-3 ${
@@ -2892,22 +3152,9 @@ export default function SpaOwnerDashboardPage() {
                               </td>
                               <td className="py-3 px-3">
                                 <div className="flex items-center gap-2">
-                                  {b.therapist?.avatarUrl ? (
-                                    <img
-                                      src={b.therapist.avatarUrl}
-                                      alt={b.therapist.name}
-                                      className="w-6 h-6 rounded-full object-cover border border-gray-200"
-                                      onError={(e) => {
-                                        e.target.style.display = 'none';
-                                      }}
-                                    />
-                                  ) : (
-                                    <div className="w-6 h-6 rounded-full bg-rose-50 text-[#F35271] text-[10px] font-bold flex items-center justify-center">
-                                      {b.therapist?.name?.[0] || 'T'}
-                                    </div>
-                                  )}
+                                  <BookingTherapistAvatar therapist={b.therapist} className="w-6 h-6" />
                                   <span className="font-semibold text-[#0D0D12]">
-                                    {b.therapist?.name || 'Assigned Therapist'}
+                                    {b.therapist?.fullName || b.therapist?.name || 'Assigned Therapist'}
                                   </span>
                                 </div>
                               </td>
@@ -3559,6 +3806,9 @@ export default function SpaOwnerDashboardPage() {
                 bookingData={bookingDetailData}
                 loading={bookingDetailLoading}
                 error={bookingDetailError}
+                canManageJobRequest={isActionableJobRequest(bookingDetailData)}
+                onAcceptJobRequest={() => openBookingAction('accept', bookingDetailData)}
+                onDeclineJobRequest={() => openBookingAction('decline', bookingDetailData)}
                 onBack={() => {
                   setBookingSubView('list');
                   setSelectedBookingPublicId(null);
@@ -3692,6 +3942,20 @@ export default function SpaOwnerDashboardPage() {
                 </div>
               </div>
 
+              {bookingActionNotice && (
+                <div className="p-3.5 rounded-2xl bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs flex items-center justify-between gap-3">
+                  <span>{bookingActionNotice}</span>
+                  <button
+                    type="button"
+                    onClick={() => setBookingActionNotice('')}
+                    className="font-bold text-emerald-700 hover:text-emerald-900"
+                    aria-label="Dismiss message"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                </div>
+              )}
+
               {/* Error Banner */}
               {bookingsError && (
                 <div className="p-4 rounded-2xl bg-rose-50 border border-rose-200 text-rose-800 text-xs flex items-center justify-between">
@@ -3780,6 +4044,10 @@ export default function SpaOwnerDashboardPage() {
                       <tbody className="divide-y divide-gray-100">
                         {bookings.map((b, i) => {
                           const targetId = b.publicId || b.id || b._id;
+                          const customerAvatarUrl = resolveMediaUrl(
+                            b.customer?.avatarUrl || b.customer?.imageUrl
+                          );
+                          const canManageJobRequest = isActionableJobRequest(b);
                           const primaryService = b.serviceItems?.[0];
                           const totalServicesCount = b.serviceItems?.length || 0;
                           const statusClass =
@@ -3814,28 +4082,54 @@ export default function SpaOwnerDashboardPage() {
                                     </span>
                                   )}
                                 </div>
+                                {canManageJobRequest && (
+                                  <div className="flex items-center gap-1.5 mt-2">
+                                    <button
+                                      type="button"
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        openBookingAction('accept', b);
+                                      }}
+                                      className="px-2.5 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-[11px] font-bold transition"
+                                    >
+                                      Accept
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        openBookingAction('decline', b);
+                                      }}
+                                      className="px-2.5 py-1.5 rounded-lg bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 text-[11px] font-bold transition"
+                                    >
+                                      Decline
+                                    </button>
+                                  </div>
+                                )}
                               </td>
 
                               {/* Customer */}
                               <td className="p-4">
                                 <div className="flex items-center gap-2.5">
-                                  {b.customer?.avatarUrl ? (
-                                    <img
-                                      src={b.customer.avatarUrl}
-                                      alt={b.customer.fullName || 'Customer'}
-                                      className="w-7 h-7 rounded-full object-cover border border-gray-200 shrink-0"
-                                    />
-                                  ) : (
-                                    <div className="w-7 h-7 rounded-full bg-rose-50 border border-rose-200 text-[#F35271] font-bold text-[11px] flex items-center justify-center shrink-0">
-                                      {(b.customer?.fullName || b.customerName || 'C')[0]?.toUpperCase()}
-                                    </div>
-                                  )}
+                                  <div className="relative w-7 h-7 rounded-full bg-rose-50 border border-rose-200 text-[#F35271] font-bold text-[11px] flex items-center justify-center shrink-0 overflow-hidden">
+                                    {(b.customer?.fullName || b.customerName || 'C')[0]?.toUpperCase()}
+                                    {customerAvatarUrl && (
+                                      <img
+                                        src={customerAvatarUrl}
+                                        alt={b.customer.fullName || 'Customer'}
+                                        className="absolute inset-0 w-7 h-7 rounded-full object-cover border border-gray-200"
+                                        onError={(e) => {
+                                          e.currentTarget.style.display = 'none';
+                                        }}
+                                      />
+                                    )}
+                                  </div>
                                   <div>
                                     <div className="font-semibold text-[#0D0D12]">
                                       {b.customer?.fullName || b.customerName || 'Guest User'}
                                     </div>
                                     <div className="text-[11px] text-[#757880]">
-                                      {b.customer?.phoneE164 || b.customer?.email || 'N/A'}
+                                      {b.customer?.phoneE164 || b.customer?.phone || b.customer?.email || 'N/A'}
                                     </div>
                                   </div>
                                 </div>
@@ -3843,6 +4137,9 @@ export default function SpaOwnerDashboardPage() {
 
                               {/* Therapist */}
                               <td className="p-4">
+                                <div className="flex items-center gap-2.5">
+                                  <BookingTherapistAvatar therapist={b.therapist} className="w-8 h-8" />
+                                  <div>
                                 <div className="font-semibold text-[#0D0D12]">
                                   {b.therapist?.fullName || b.therapistName || 'Assigned Therapist'}
                                 </div>
@@ -3853,6 +4150,8 @@ export default function SpaOwnerDashboardPage() {
                                       {b.therapist.spaCode}
                                     </span>
                                   )}
+                                </div>
+                                  </div>
                                 </div>
                               </td>
 
@@ -4019,8 +4318,8 @@ export default function SpaOwnerDashboardPage() {
           )}
 
           {/* CLIENT MESSAGES & GUEST INQUIRIES CHAT */}
-          {activeSection === 'messages' && (
-            <SpaOwnerChatView
+          <div className={activeSection === 'messages' ? 'block' : 'hidden'}>
+            <SpaOwnerChatInbox
               activeSpaName={activeBusinessName}
               spaLogo={
                 ownerProfile?.spaLogo ||
@@ -4029,8 +4328,15 @@ export default function SpaOwnerDashboardPage() {
                 dashboardData?.registeredSpa?.profilePhoto ||
                 '/logo.png'
               }
+              ownerToken={ownerToken}
+              enabled={!isProfileLocked}
+              isVisible={activeSection === 'messages'}
+              onUnreadCountChange={handleChatUnreadCountChange}
+              onActiveConversationChange={handleActiveChatConversationChange}
+              requestedConversationId={requestedChatConversationId}
+              onRequestedConversationHandled={handleChatRequestedConversationHandled}
             />
-          )}
+          </div>
 
           {/* 4. CANCELLATION PENALTIES REPORT & AUDIT LEDGER (API: GET /spa-owner/cancellation-penalties/report) */}
           {activeSection === 'penalty-report' && (() => {
@@ -6230,13 +6536,19 @@ export default function SpaOwnerDashboardPage() {
                 className="fixed top-6 right-6 z-50 max-w-sm sm:max-w-md w-full bg-white rounded-3xl shadow-2xl border-2 border-[#F35271] p-4 flex items-start gap-3.5 backdrop-blur-md bg-white/95"
               >
                 <div className="w-10 h-10 rounded-2xl bg-rose-50 text-[#F35271] flex items-center justify-center shrink-0 shadow-inner">
-                  <CalendarCheck className="w-5 h-5 animate-pulse" />
+                  {activeAppointmentToast.category === 'chat' ? (
+                    <MessageSquare className="w-5 h-5 animate-pulse" />
+                  ) : (
+                    <CalendarCheck className="w-5 h-5 animate-pulse" />
+                  )}
                 </div>
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center justify-between gap-2">
                     <span className="inline-flex items-center gap-1 text-[10px] font-extrabold uppercase tracking-wider px-2 py-0.5 rounded-full bg-rose-100 text-[#F35271]">
                       <span className="w-1.5 h-1.5 rounded-full bg-[#F35271] animate-ping" />
-                      New Booking Received
+                      {activeAppointmentToast.category === 'chat'
+                        ? 'New Customer Message'
+                        : 'New Booking Received'}
                     </span>
                     <button
                       onClick={() => setActiveAppointmentToast(null)}
@@ -6263,9 +6575,13 @@ export default function SpaOwnerDashboardPage() {
                   <div className="mt-3 flex items-center gap-2">
                     <button
                       onClick={() => {
-                        setActiveSection(
-                          getOwnerNotificationSection(activeAppointmentToast)
-                        );
+                        const targetSection = getOwnerNotificationSection(activeAppointmentToast);
+                        if (targetSection === 'messages') {
+                          setRequestedChatConversationId(
+                            getNotificationConversationId(activeAppointmentToast.raw)
+                          );
+                        }
+                        setActiveSection(targetSection);
                         setActiveAppointmentToast(null);
                       }}
                       className="px-3.5 py-1.5 rounded-xl bg-[#F35271] hover:bg-[#E04362] text-white text-xs font-bold transition shadow-xs cursor-pointer flex items-center gap-1"
@@ -6277,6 +6593,7 @@ export default function SpaOwnerDashboardPage() {
                             therapists: 'Therapists',
                             payments: 'Payments',
                             support: 'Support',
+                            chat: 'Messages & Chat',
                             sponsored: 'Sponsored Spas',
                             account: 'Account',
                             updates: 'Dashboard',
@@ -6298,6 +6615,103 @@ export default function SpaOwnerDashboardPage() {
           </AnimatePresence>
 
         </main>
+
+        {bookingActionModal && (
+          <div className="fixed inset-0 z-[100] bg-black/50 flex items-center justify-center p-4">
+            <form
+              onSubmit={handleSubmitBookingAction}
+              className="w-full max-w-md rounded-3xl bg-white p-6 shadow-2xl space-y-5"
+            >
+              <div className="flex items-start justify-between gap-4">
+                <div>
+                  <h4 className="text-lg font-extrabold text-[#0D0D12]">
+                    {bookingActionModal.action === 'accept' ? 'Accept Job Request' : 'Decline Job Request'}
+                  </h4>
+                  <p className="mt-1 text-xs text-gray-500">
+                    {bookingActionModal.booking.bookingNumber || 'Booking'} ·{' '}
+                    {bookingActionModal.booking.therapist?.fullName || 'Your therapist'}
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  disabled={bookingActionLoading}
+                  onClick={() => setBookingActionModal(null)}
+                  className="p-1.5 rounded-lg text-gray-500 hover:bg-gray-100 disabled:opacity-50"
+                  aria-label="Close"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              {bookingActionModal.action === 'accept' ? (
+                <div>
+                  <label className="block text-xs font-bold text-gray-700 mb-1.5">
+                    Scheduled visit time
+                  </label>
+                  <input
+                    type="datetime-local"
+                    required
+                    min={toDateTimeLocalValue(new Date())}
+                    value={bookingActionVisitTime}
+                    onChange={(e) => setBookingActionVisitTime(e.target.value)}
+                    className="w-full rounded-xl border border-gray-200 px-3 py-2.5 text-sm focus:border-[#F35271] focus:outline-none focus:ring-2 focus:ring-rose-100"
+                  />
+                  <p className="mt-1.5 text-[11px] text-gray-500">
+                    Choose the actual future visit time. The existing booking slot is preselected when it is still upcoming.
+                  </p>
+                </div>
+              ) : (
+                <div>
+                  <label className="block text-xs font-bold text-gray-700 mb-1.5">
+                    Reason for declining
+                  </label>
+                  <textarea
+                    required
+                    rows={3}
+                    value={bookingActionReason}
+                    onChange={(e) => setBookingActionReason(e.target.value)}
+                    className="w-full rounded-xl border border-gray-200 px-3 py-2.5 text-sm focus:border-[#F35271] focus:outline-none focus:ring-2 focus:ring-rose-100"
+                    placeholder="Tell us why the therapist is unavailable."
+                  />
+                </div>
+              )}
+
+              {bookingActionError && (
+                <div className="p-3 rounded-xl bg-rose-50 border border-rose-200 text-rose-700 text-xs">
+                  {bookingActionError}
+                </div>
+              )}
+
+              <div className="flex justify-end gap-2">
+                <button
+                  type="button"
+                  disabled={bookingActionLoading}
+                  onClick={() => setBookingActionModal(null)}
+                  className="px-4 py-2.5 rounded-xl border border-gray-200 text-xs font-bold text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={bookingActionLoading}
+                  className={`px-4 py-2.5 rounded-xl text-xs font-bold text-white disabled:opacity-60 flex items-center gap-2 ${
+                    bookingActionModal.action === 'accept'
+                      ? 'bg-emerald-600 hover:bg-emerald-700'
+                      : 'bg-rose-600 hover:bg-rose-700'
+                  }`}
+                >
+                  {bookingActionLoading && <Loader2 className="w-4 h-4 animate-spin" />}
+                  {bookingActionLoading
+                    ? 'Submitting...'
+                    : bookingActionModal.action === 'accept'
+                      ? 'Accept & Schedule'
+                      : 'Decline Request'}
+                </button>
+              </div>
+            </form>
+          </div>
+        )}
+
       </div>
 
     </div>

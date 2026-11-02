@@ -4,17 +4,18 @@ const PROD_SOCKET_URL = 'https://api.therapyshala.com/spa-owner';
 const DEV_SOCKET_URL = 'https://yiddish-darkened-absolute.ngrok-free.dev/spa-owner';
 
 const DEFAULT_SOCKET_URL =
-  import.meta.env.VITE_SOCKET_URL ||
-  (import.meta.env.PROD ? PROD_SOCKET_URL : DEV_SOCKET_URL);
+  import.meta.env.PROD
+    ? PROD_SOCKET_URL
+    : import.meta.env.VITE_SOCKET_URL || DEV_SOCKET_URL;
 
 // Derive the socket URL matching the current API host or environment variable
 export const getSpaOwnerSocketUrl = () => {
-  if (import.meta.env.VITE_SOCKET_URL) {
+  if (import.meta.env.DEV && import.meta.env.VITE_SOCKET_URL) {
     return import.meta.env.VITE_SOCKET_URL.trim();
   }
 
   const rawBase =
-    import.meta.env.VITE_API_BASE_URL ||
+    (import.meta.env.DEV && import.meta.env.VITE_API_BASE_URL) ||
     (import.meta.env.PROD
       ? 'https://api.therapyshala.com/api/v1/'
       : 'https://yiddish-darkened-absolute.ngrok-free.dev/api/v1/');
@@ -44,6 +45,8 @@ const eventListeners = {
 const dispatchNotification = (notification, eventName) => {
   const notifId =
     notification?.id ||
+    notification?.notificationId ||
+    notification?.data?.notificationId ||
     notification?._id ||
     notification?.appointmentId ||
     notification?.bookingId;

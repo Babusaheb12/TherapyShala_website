@@ -369,7 +369,7 @@ export default function ChatPage() {
       id: `msg-${Date.now()}`,
       sender: 'user',
       text: messageContent,
-      timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+      timestamp: new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true }),
       status: 'sent'
     };
 
@@ -428,7 +428,7 @@ export default function ChatPage() {
         id: `bot-${Date.now()}`,
         sender: 'partner',
         text: replyText,
-        timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        timestamp: new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true }),
         status: 'read'
       };
 
@@ -459,7 +459,7 @@ export default function ChatPage() {
       type: 'image',
       imageUrl: fakeImageURL,
       caption: file.name,
-      timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+      timestamp: new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true }),
       status: 'read'
     };
 

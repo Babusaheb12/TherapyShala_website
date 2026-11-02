@@ -282,6 +282,55 @@ export const getSpaOwnerBookingDetails = async (id) => {
 export const getOwnerBookingById = getSpaOwnerBookingDetails;
 
 /**
+ * Accepts a therapist job request belonging to the authenticated spa owner.
+ *
+ * @param {Object} params - { jobRequestId, bookingId, scheduledVisitTime }
+ * @returns {Promise<Object>}
+ */
+export const acceptSpaOwnerJobRequest = async ({
+  jobRequestId,
+  bookingId,
+  scheduledVisitTime,
+}) => {
+  if (!jobRequestId || !bookingId || !scheduledVisitTime) {
+    throw new Error('Job request, booking, and scheduled visit time are required.');
+  }
+  const scheduledDate = new Date(scheduledVisitTime);
+  if (Number.isNaN(scheduledDate.getTime()) || scheduledDate.getTime() <= Date.now()) {
+    throw new Error('Scheduled visit time must be in the future.');
+  }
+
+  const cleanId = encodeURIComponent(String(jobRequestId).trim());
+  return await apiClient(`/spa-owner/job-requests/${cleanId}/accept`, {
+    method: 'POST',
+    body: JSON.stringify({
+      jobRequestId: String(jobRequestId).trim(),
+      bookingId: String(bookingId).trim(),
+      status: 'ACCEPTED',
+      scheduledVisitTime: scheduledDate.toISOString(),
+    }),
+  });
+};
+
+/**
+ * Declines a therapist job request belonging to the authenticated spa owner.
+ *
+ * @param {Object} params - { jobRequestId, reason }
+ * @returns {Promise<Object>}
+ */
+export const declineSpaOwnerJobRequest = async ({ jobRequestId, reason }) => {
+  if (!jobRequestId || !reason?.trim()) {
+    throw new Error('Job request and decline reason are required.');
+  }
+
+  const cleanId = encodeURIComponent(String(jobRequestId).trim());
+  return await apiClient(`/spa-owner/job-requests/${cleanId}/decline`, {
+    method: 'POST',
+    body: JSON.stringify({ reason: reason.trim() }),
+  });
+};
+
+/**
  * 9. GET /spa-owner/commissions
  * Retrieve commission earnings history and summary for the Spa Owner
  *
@@ -608,6 +657,8 @@ export default {
   getOwnerBookings,
   getSpaOwnerBookingDetails,
   getOwnerBookingById,
+  acceptSpaOwnerJobRequest,
+  declineSpaOwnerJobRequest,
   getSpaOwnerCommissions,
   getOwnerCommissions,
   getSpaOwnerPayoutAccount,
@@ -631,6 +682,5 @@ export default {
   getSpaOwnerSupportTicketById,
   replySpaOwnerSupportTicket,
 };
-
 
 
