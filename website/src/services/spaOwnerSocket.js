@@ -1,30 +1,18 @@
 import { io } from 'socket.io-client';
 
 const PROD_SOCKET_URL = 'https://api.therapyshala.com/spa-owner';
-const DEV_SOCKET_URL = 'https://yiddish-darkened-absolute.ngrok-free.dev/spa-owner';
 
-const DEFAULT_SOCKET_URL =
-  import.meta.env.PROD
-    ? PROD_SOCKET_URL
-    : import.meta.env.VITE_SOCKET_URL || DEV_SOCKET_URL;
-
-// Derive the socket URL matching the current API host or environment variable
+// REST API prefixes are not part of the owner socket namespace.
 export const getSpaOwnerSocketUrl = () => {
-  if (import.meta.env.DEV && import.meta.env.VITE_SOCKET_URL) {
-    return import.meta.env.VITE_SOCKET_URL.trim();
-  }
-
-  const rawBase =
-    (import.meta.env.DEV && import.meta.env.VITE_API_BASE_URL) ||
-    (import.meta.env.PROD
-      ? 'https://api.therapyshala.com/api/v1/'
-      : 'https://yiddish-darkened-absolute.ngrok-free.dev/api/v1/');
-
+  const configuredUrl = import.meta.env.DEV && import.meta.env.VITE_SOCKET_URL?.trim();
+  const apiBase = import.meta.env.DEV && import.meta.env.VITE_API_BASE_URL?.trim();
   try {
-    const origin = rawBase.replace(/\/api\/v1\/?$/, '').replace(/\/+$/, '');
-    return `${origin}/spa-owner`;
+    const url = new URL(configuredUrl || apiBase || PROD_SOCKET_URL);
+    url.pathname = url.pathname.replace(/^\/api\/v1(?=\/|$)/, '').replace(/\/+$/, '');
+    if (!configuredUrl || !url.pathname) url.pathname = '/spa-owner';
+    return url.toString().replace(/\/+$/, '');
   } catch {
-    return DEFAULT_SOCKET_URL;
+    return PROD_SOCKET_URL;
   }
 };
 
